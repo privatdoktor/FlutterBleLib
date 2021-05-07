@@ -23,6 +23,7 @@ extension FlutterError {
         message: "could not parse the jsonString see details for the original jsonString to parse",
         details: jsonString
       )
+      return
     }
     self.init(
       code: code,
@@ -55,9 +56,43 @@ protocol CallHandler {
 enum Descriptors {
   static private let base = "flutter_ble_lib"
   struct Method {
-    struct Call<SignatureEnumT> where SignatureEnumT : SignatureEnum {
+    class Call<SignatureEnumT> where SignatureEnumT : SignatureEnum {
       let signature: SignatureEnumT
-      let onResult: FlutterResult
+      private var isResulted = false
+      private let onResult: FlutterResult
+      
+      init?(
+        _ id: String,
+        args: Dictionary<String, AnyObject>?,
+        onResult result: @escaping FlutterResult
+      ) {
+        do {
+          guard
+            let sig = try SignatureEnumT(id, args: args)
+          else {
+            result(FlutterMethodNotImplemented)
+            return nil
+          }
+          signature = sig
+          onResult = result
+        } catch PluginError.missingArgsKey(let key, let inDict) {
+          result(FlutterError(code: "666", message: key, details: inDict))
+          return nil
+        } catch {
+          result(error)
+          return nil
+        }
+      }
+      
+      func result(_ object: Any?)  {
+        guard
+          isResulted == false
+        else {
+          return
+        }
+        onResult(object)
+        isResulted = true
+      }
     }
     
     struct DefaultChannel : Channel {
@@ -88,7 +123,6 @@ enum Descriptors {
                 restoreStateKey,
                 inDict: args
               )
-              return
             }
             self = .createClient(restoreId)
           default:
@@ -188,93 +222,93 @@ class Client : NSObject, CBCentralManagerDelegate, CallHandler {
   func handle(call: Descriptors.Method.Call<SignatureEnumT>) {
     switch call.signature {
     case .isClientCreated:
-      call.onResult(isCreated)
+      call.result(isCreated)
     case .createClient:
       create()
-      call.onResult(nil)
+      call.result(nil)
     case .destroyClient:
-      call.onResult(FlutterMethodNotImplemented)
+      call.result(FlutterMethodNotImplemented)
     case .cancelTransaction:
-      call.onResult(FlutterMethodNotImplemented)
+      call.result(FlutterMethodNotImplemented)
     case .getState:
       
-      call.onResult(FlutterMethodNotImplemented)
+      call.result(FlutterMethodNotImplemented)
     case .enableRadio:
-      call.onResult(FlutterMethodNotImplemented)
+      call.result(FlutterMethodNotImplemented)
     case .disableRadio:
-      call.onResult(FlutterMethodNotImplemented)
+      call.result(FlutterMethodNotImplemented)
     case .startDeviceScan:
-      call.onResult(FlutterMethodNotImplemented)
+      call.result(FlutterMethodNotImplemented)
     case .stopDeviceScan:
-      call.onResult(FlutterMethodNotImplemented)
+      call.result(FlutterMethodNotImplemented)
     case .connectToDevice:
-      call.onResult(FlutterMethodNotImplemented)
+      call.result(FlutterMethodNotImplemented)
     case .isDeviceConnected:
-      call.onResult(FlutterMethodNotImplemented)
+      call.result(FlutterMethodNotImplemented)
     case .observeConnectionState:
-      call.onResult(FlutterMethodNotImplemented)
+      call.result(FlutterMethodNotImplemented)
     case .cancelConnection:
-      call.onResult(FlutterMethodNotImplemented)
+      call.result(FlutterMethodNotImplemented)
     case .discoverAllServicesAndCharacteristics:
-      call.onResult(FlutterMethodNotImplemented)
+      call.result(FlutterMethodNotImplemented)
     case .services:
-      call.onResult(FlutterMethodNotImplemented)
+      call.result(FlutterMethodNotImplemented)
     case .characteristics:
-      call.onResult(FlutterMethodNotImplemented)
+      call.result(FlutterMethodNotImplemented)
     case .characteristicsForService:
-      call.onResult(FlutterMethodNotImplemented)
+      call.result(FlutterMethodNotImplemented)
     case .descriptorsForDevice:
-      call.onResult(FlutterMethodNotImplemented)
+      call.result(FlutterMethodNotImplemented)
     case .descriptorsForService:
-      call.onResult(FlutterMethodNotImplemented)
+      call.result(FlutterMethodNotImplemented)
     case .descriptorsForCharacteristic:
-      call.onResult(FlutterMethodNotImplemented)
+      call.result(FlutterMethodNotImplemented)
     case .logLevel:
-      call.onResult(FlutterMethodNotImplemented)
+      call.result(FlutterMethodNotImplemented)
     case .setLogLevel:
-      call.onResult(FlutterMethodNotImplemented)
+      call.result(FlutterMethodNotImplemented)
     case .rssi:
-      call.onResult(FlutterMethodNotImplemented)
+      call.result(FlutterMethodNotImplemented)
     case .requestMtu:
-      call.onResult(FlutterMethodNotImplemented)
+      call.result(FlutterMethodNotImplemented)
     case .getConnectedDevices:
-      call.onResult(FlutterMethodNotImplemented)
+      call.result(FlutterMethodNotImplemented)
     case .getKnownDevices:
-      call.onResult(FlutterMethodNotImplemented)
+      call.result(FlutterMethodNotImplemented)
     case .readCharacteristicForIdentifier:
-      call.onResult(FlutterMethodNotImplemented)
+      call.result(FlutterMethodNotImplemented)
     case .readCharacteristicForDevice:
-      call.onResult(FlutterMethodNotImplemented)
+      call.result(FlutterMethodNotImplemented)
     case .readCharacteristicForService:
-      call.onResult(FlutterMethodNotImplemented)
+      call.result(FlutterMethodNotImplemented)
     case .writeCharacteristicForIdentifier:
-      call.onResult(FlutterMethodNotImplemented)
+      call.result(FlutterMethodNotImplemented)
     case .writeCharacteristicForDevice:
-      call.onResult(FlutterMethodNotImplemented)
+      call.result(FlutterMethodNotImplemented)
     case .writeCharacteristicForService:
-      call.onResult(FlutterMethodNotImplemented)
+      call.result(FlutterMethodNotImplemented)
     case .monitorCharacteristicForIdentifier:
-      call.onResult(FlutterMethodNotImplemented)
+      call.result(FlutterMethodNotImplemented)
     case .monitorCharacteristicForDevice:
-      call.onResult(FlutterMethodNotImplemented)
+      call.result(FlutterMethodNotImplemented)
     case .monitorCharacteristicForService:
-      call.onResult(FlutterMethodNotImplemented)
+      call.result(FlutterMethodNotImplemented)
     case .readDescriptorForIdentifier:
-      call.onResult(FlutterMethodNotImplemented)
+      call.result(FlutterMethodNotImplemented)
     case .readDescriptorForCharacteristic:
-      call.onResult(FlutterMethodNotImplemented)
+      call.result(FlutterMethodNotImplemented)
     case .readDescriptorForService:
-      call.onResult(FlutterMethodNotImplemented)
+      call.result(FlutterMethodNotImplemented)
     case .readDescriptorForDevice:
-      call.onResult(FlutterMethodNotImplemented)
+      call.result(FlutterMethodNotImplemented)
     case .writeDescriptorForIdentifier:
-      call.onResult(FlutterMethodNotImplemented)
+      call.result(FlutterMethodNotImplemented)
     case .writeDescriptorForCharacteristic:
-      call.onResult(FlutterMethodNotImplemented)
+      call.result(FlutterMethodNotImplemented)
     case .writeDescriptorForService:
-      call.onResult(FlutterMethodNotImplemented)
+      call.result(FlutterMethodNotImplemented)
     case .writeDescriptorForDevice:
-      call.onResult(FlutterMethodNotImplemented)
+      call.result(FlutterMethodNotImplemented)
     }
 
   }
@@ -321,14 +355,11 @@ public class SwiftFlutterBleLibPlugin: NSObject, FlutterPlugin {
     typealias Method = Descriptors.Method
     typealias DefaultChannel = Method.DefaultChannel
     guard
-      let args = call.arguments as? Dictionary<String, Any>?,
-      let signature = DefaultChannel.Signature(call.method, args: args)
+      let args = call.arguments as? Dictionary<String, AnyObject>?,
+      let call = Method.Call<DefaultChannel.Signature>(call.method, args: args, onResult: result)
     else {
-      result(FlutterMethodNotImplemented)
       return
     }
-    
-    let call = Method.Call(signature: signature, onResult: result)
     client.handle(call: call)
   }
   
