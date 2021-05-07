@@ -1,32 +1,13 @@
 #import "FlutterBleLibPlugin.h"
-#import "ArgumentKey.h"
-#import "ChannelName.h"
-#import "MethodName.h"
-#import "AdapterStateStreamHandler.h"
-#import "RestoreStateStreamHandler.h"
-#import "ScanningStreamHandler.h"
-#import "ConnectionStateStreamHandler.h"
-#import "MonitorCharacteristicStreamHandler.h"
-#import "ArgumentHandler.h"
-#import "FlutterErrorFactory.h"
-#import "CommonTypes.h"
-#import "CharacteristicResponseConverter.h"
-#import "PeripheralResponseConverter.h"
-#import "DescriptorResponseConverter.h"
-#import "ServiceResponseConverter.h"
 
-@import MultiplatformBleAdapter;
-
-@interface FlutterBleLibPlugin () <BleClientManagerDelegate>
-
-@property (nonatomic) id <BleAdapter> adapter;
-@property (nonatomic) AdapterStateStreamHandler *adapterStateStreamHandler;
-@property (nonatomic) RestoreStateStreamHandler *restoreStateStreamHandler;
-@property (nonatomic) ScanningStreamHandler *scanningStreamHandler;
-@property (nonatomic) ConnectionStateStreamHandler *connectionStateStreamHandler;
-@property (nonatomic) MonitorCharacteristicStreamHandler *monitorCharacteristicStreamHandler;
-
-@end
+#if __has_include(<flutter_ble_lib/flutter_ble_lib-Swift.h>)
+#import <flutter_ble_lib/flutter_ble_lib-Swift.h>
+#else
+// Support project import fallback if the generated compatibility header
+// is not copied when this plugin is created as a library.
+// https://forums.swift.org/t/swift-static-libraries-dont-copy-generated-objective-c-header/19816
+#import "flutter_ble_lib-Swift.h"
+#endif
 
 @implementation FlutterBleLibPlugin
 
@@ -35,11 +16,6 @@
 - (instancetype)init {
     self = [super init];
     if (self) {
-        self.adapterStateStreamHandler = [AdapterStateStreamHandler new];
-        self.restoreStateStreamHandler = [RestoreStateStreamHandler new];
-        self.scanningStreamHandler = [ScanningStreamHandler new];
-        self.connectionStateStreamHandler = [ConnectionStateStreamHandler new];
-        self.monitorCharacteristicStreamHandler = [MonitorCharacteristicStreamHandler new];
     }
     return self;
 }
@@ -47,25 +23,9 @@
 // MARK: - FlutterPlugin implementation
 
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar> *)registrar {
-    FlutterMethodChannel *channel = [FlutterMethodChannel methodChannelWithName:CHANNEL_NAME_FLUTTER_BLE_LIB binaryMessenger:[registrar messenger]];
-
-    FlutterEventChannel *adapterStateChannel = [FlutterEventChannel eventChannelWithName:CHANNEL_NAME_ADAPTER_STATE_CHANGES binaryMessenger:[registrar messenger]];
-    FlutterEventChannel *restoreStateChannel = [FlutterEventChannel eventChannelWithName:CHANNEL_NAME_STATE_RESTORE_EVENTS binaryMessenger:[registrar messenger]];
-    FlutterEventChannel *scanningChannel = [FlutterEventChannel eventChannelWithName:CHANNEL_NAME_SCANNING_EVENTS binaryMessenger:[registrar messenger]];
-    FlutterEventChannel *connectionStateChannel = [FlutterEventChannel eventChannelWithName:CHANNEL_NAME_CONNECTION_STATE_CHANGE_EVENTS binaryMessenger:[registrar messenger]];
-    FlutterEventChannel *monitorCharacteristicChannel = [FlutterEventChannel eventChannelWithName:CHANNEL_NAME_MONITOR_CHARACTERISTIC binaryMessenger:[registrar messenger]];
-
-    FlutterBleLibPlugin *instance = [[FlutterBleLibPlugin alloc] init];
-    
-    [registrar addMethodCallDelegate:instance channel:channel];
-
-    [adapterStateChannel setStreamHandler:instance.adapterStateStreamHandler];
-    [restoreStateChannel setStreamHandler:instance.restoreStateStreamHandler];
-    [scanningChannel setStreamHandler:instance.scanningStreamHandler];
-    [connectionStateChannel setStreamHandler:instance.connectionStateStreamHandler];
-    [monitorCharacteristicChannel setStreamHandler:instance.monitorCharacteristicStreamHandler];
+    [SwiftFlutterBleLibPlugin registerWithRegistrar:registrar];
 }
-
+  
 - (void)handleMethodCall:(FlutterMethodCall *)call result:(FlutterResult)result {
     if ([METHOD_NAME_CREATE_CLIENT isEqualToString:call.method]) {
         [self createClient:call result:result];

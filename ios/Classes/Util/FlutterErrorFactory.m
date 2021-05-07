@@ -18,7 +18,7 @@
                                                                       options:NSJSONReadingMutableContainers
                                                                         error:nil];
     [dictionary setObject:transactionId forKey:@"transactionId"];
-    return [FlutterError errorWithCode:[[dictionary objectForKey:@"errorCode"] stringValue]
+    return [FlutterError errorWithCode:[[dictionary objelctForKey:@"errorCode"] stringValue]
                                message:[dictionary objectForKey:@"reason"]
                                details:[JSONStringifier jsonStringFromJSONObject:dictionary]];
 }
