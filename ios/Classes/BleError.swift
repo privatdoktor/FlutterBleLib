@@ -5,7 +5,6 @@
 //
 
 import Foundation
-import CoreBluetooth
 
 enum BleErrorCode : Int {
     case unknownError = 0
@@ -55,7 +54,7 @@ enum BleErrorCode : Int {
     case locationServicesDisabled = 601
 }
 
-struct BleError: Error {
+struct BleError: Error, Encodable {
     let errorCode: BleErrorCode
     let reason: String?
     let attErrorCode: Int?
@@ -67,7 +66,100 @@ struct BleError: Error {
     let characteristicUUID: String?
     let descriptorUUID: String?
     let internalMessage: String?
+  
+  func encode(to encoder: Encoder) throws {
+    var encCont = encoder.container(keyedBy: CodingKeys.self)
+    try encCont.encode(errorCode.rawValue, forKey: .errorCode)
+    try encCont.encode(reason, forKey: .reason)
+    try encCont.encode(attErrorCode, forKey: .attErrorCode)
+    try encCont.encode(iosErrorCode, forKey: .iosErrorCode)
+    
+    let androidErrorCode: Int? = nil
+    try encCont.encode(androidErrorCode, forKey: .androidErrorCode)
+    
+    try encCont.encode(deviceID, forKey: .deviceID)
+    try encCont.encode(serviceUUID, forKey: .serviceUUID)
+    try encCont.encode(characteristicUUID, forKey: .characteristicUUID)
+    try encCont.encode(descriptorUUID, forKey: .descriptorUUID)
+    try encCont.encode(internalMessage, forKey: .internalMessage)
+  }
+  
+  enum CodingKeys: String, CodingKey {
+    case errorCode
+    case reason
+    case attErrorCode
+    case iosErrorCode
+    
+    case androidErrorCode
+    
+    case deviceID
+    case serviceUUID
+    case characteristicUUID
+    case descriptorUUID
+    case internalMessage
+  }
 }
+
+extension BleErrorCode {
+  init(pluginErr: PluginError) {
+    switch pluginErr {
+    case .signature(.invalidValue),
+         .signature(.missingArgsKey):
+      self = .invalidIdentifiers
+    case .coreBluetooth:
+      self = .unknownError
+    }
+
+  }
+}
+
+extension BleError {
+  init(withError error: Error) {
+    switch error {
+    case let error as PluginError:
+      self.init(pluginErr: error)
+    default:
+      self.init(
+        errorCode: .unknownError,
+        reason: error.localizedDescription,
+        attErrorCode: nil,
+        iosErrorCode: nil,
+        deviceID: nil,
+        serviceUUID: nil,
+        characteristicUUID: nil,
+        descriptorUUID: nil,
+        internalMessage: nil
+      )
+    }
+  }
+  
+  init(pluginErr: PluginError) {
+    let code = BleErrorCode(pluginErr: pluginErr)
+    self.init(
+      errorCode: code,
+      reason: pluginErr.failureReason,
+      attErrorCode: nil,
+      iosErrorCode: nil,
+      deviceID: nil,
+      serviceUUID: nil,
+      characteristicUUID: nil,
+      descriptorUUID: nil,
+      internalMessage: nil
+    )
+  }
+}
+
+extension FlutterError {
+  convenience init(bleError: BleError) {
+    let jsonString = try? JSONEncoder().encode(bleError)
+    self.init(
+      code: "\(bleError.errorCode.rawValue)",
+      message: bleError.reason,
+      details: jsonString ?? ""
+    )
+  }
+}
+
 
 //extension BleError {
 //    var toJSResult: Any {
