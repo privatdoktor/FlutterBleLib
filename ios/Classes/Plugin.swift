@@ -107,6 +107,40 @@ enum Descriptors {
       
       enum Signature : SignatureEnum {
         
+        static func requiredArgumentWithExactType<ArgT>(
+          _ type: ArgT.Type,
+          key: String,
+          argsDict args: Dictionary<String, Any>?,
+          callId id: String
+        ) throws -> ArgT {
+          guard
+            let value = args?[key],
+            let args = args
+          else {
+            throw PluginError.signature(
+              .missingArgsKey(
+                key,
+                inDict: args,
+                id: id
+              )
+            )
+          }
+          guard
+            let argument = value as? ArgT
+          else {
+            throw PluginError.signature(
+              .invalidValue(
+                forKey: key,
+                value: value,
+                inDict: args,
+                id: id,
+                expected: type
+              )
+            )
+          }
+          return argument
+        }
+        
         init?(_ id: String, args: Dictionary<String, Any>?) throws {
           switch id {
           case "isClientCreated":
@@ -141,36 +175,53 @@ enum Descriptors {
           case "stopDeviceScan":
             self = .stopDeviceScan
           case "connectToDevice":
-            let deviceIdentifierKey = "deviceIdentifier"
-            guard
-              let value = args?[deviceIdentifierKey],
-              let args = args
-            else {
-              throw PluginError.signature(
-                .missingArgsKey(
-                  deviceIdentifierKey,
-                  inDict: args,
-                  id: id
-                )
+            let deviceId =
+              try Signature.requiredArgumentWithExactType(
+                String.self,
+                key: "deviceIdentifier",
+                argsDict: args,
+                callId: id
               )
-            }
-            guard
-              let deviceId = value as? String
-            else {
-              throw PluginError.signature(
-                .invalidValue(
-                  forKey: deviceIdentifierKey,
-                  value: value,
-                  inDict: args,
-                  id: id,
-                  expected: String.self
-                )
-              )
-            }
-            let timoutMillis = args["timeout"] as? Int
+
+            let timoutMillis = args?["timeout"] as? Int
             self = .connectToDevice(
               deviceIdentifier: deviceId,
               timoutMillis: timoutMillis
+            )
+          case "observeConnectionState":
+            let deviceId =
+              try Signature.requiredArgumentWithExactType(
+                String.self,
+                key: "deviceIdentifier",
+                argsDict: args,
+                callId: id
+              )
+            let emitCurrentValue = args?["emitCurrentValue"] as? Bool ?? false
+            self = .observeConnectionState(
+              deviceIdentifier: deviceId,
+              emitCurrentValue: emitCurrentValue
+            )
+          case "cancelConnection":
+            let deviceId =
+              try Signature.requiredArgumentWithExactType(
+                String.self,
+                key: "deviceIdentifier",
+                argsDict: args,
+                callId: id
+              )
+            self = .cancelConnection(deviceIdentifier: deviceId)
+          case "discoverAllServicesAndCharacteristics":
+            let deviceId =
+              try Signature.requiredArgumentWithExactType(
+                String.self,
+                key: "deviceIdentifier",
+                argsDict: args,
+                callId: id
+              )
+            let transactionId = args?["transactionId"] as? String
+            self = .discoverAllServicesAndCharacteristics(
+              deviceIdentifier: deviceId,
+              transactionId: transactionId
             )
           default:
             return nil
@@ -193,10 +244,12 @@ enum Descriptors {
         
         case connectToDevice(deviceIdentifier: String, timoutMillis: Int?)
         case isDeviceConnected(deviceIdentifier: String)
-        case observeConnectionState
-        case cancelConnection
+        case observeConnectionState(deviceIdentifier: String,
+                                    emitCurrentValue: Bool)
+        case cancelConnection(deviceIdentifier: String)
         
-        case discoverAllServicesAndCharacteristics
+        case discoverAllServicesAndCharacteristics(deviceIdentifier: String,
+                                                   transactionId: String?)
         case services
         case characteristics
         case characteristicsForService
