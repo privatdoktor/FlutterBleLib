@@ -8,6 +8,92 @@
 import Foundation
 import CoreBluetooth
 
+class PeripheralConnection : NSObject {
+  let peripheral: CBPeripheral
+  
+  private var connectCompleted: ((_ res: Result<(), Client.Error>) -> ())?
+  private var disconnectCompleted: ((_ res: Result<(), Client.Error>) -> ())?
+  private var serviceDiscoveryCompleted: ((_ res: Result<(), Client.Error>) -> ())?
+  
+  init(_ peripheral: CBPeripheral) {
+    self.peripheral = peripheral
+    super.init()
+    peripheral.delegate = self
+  }
+  
+  func onConnected(_ completion: @escaping (_ res: Result<(), Client.Error>) -> ()) {
+    connectCompleted = completion
+  }
+  func connected(_ res: Result<(), Client.Error>) {
+    connectCompleted?(res)
+    connectCompleted = nil
+  }
+  func onDisconnected(_ completion: @escaping (_ res: Result<(), Client.Error>) -> ()) {
+    disconnectCompleted = completion
+  }
+  func disconnected(_ res: Result<(), Client.Error>) {
+    disconnectCompleted?(res)
+    disconnectCompleted = nil
+  }
+}
+
+extension PeripheralConnection : CBPeripheralDelegate {
+  func peripheralDidUpdateName(_ peripheral: CBPeripheral) {
+    
+  }
+
+  func peripheral(
+    _ peripheral: CBPeripheral,
+    didModifyServices invalidatedServices: [CBService]
+  ) {
+    
+  }
+
+  func peripheral(
+    _ peripheral: CBPeripheral,
+    didReadRSSI RSSI: NSNumber,
+    error: Error?
+  ) {
+    
+  }
+
+  func peripheral(
+    _ peripheral: CBPeripheral,
+    didDiscoverServices error: Error?
+  ) {
+    
+  }
+
+
+  func peripheral(
+    _ peripheral: CBPeripheral,
+    didDiscoverIncludedServicesFor service: CBService,
+    error: Error?
+  ) {
+    
+  }
+
+  func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {}
+
+  func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {}
+
+  func peripheral(_ peripheral: CBPeripheral, didWriteValueFor characteristic: CBCharacteristic, error: Error?) {}
+
+  func peripheral(_ peripheral: CBPeripheral, didUpdateNotificationStateFor characteristic: CBCharacteristic, error: Error?) {}
+
+  func peripheral(_ peripheral: CBPeripheral, didDiscoverDescriptorsFor characteristic: CBCharacteristic, error: Error?) {}
+
+  func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor descriptor: CBDescriptor, error: Error?) {}
+
+  func peripheral(_ peripheral: CBPeripheral, didWriteValueFor descriptor: CBDescriptor, error: Error?) {}
+
+
+  func peripheralIsReady(toSendWriteWithoutResponse peripheral: CBPeripheral) {}
+
+  @available(iOS 11.0, *)
+  func peripheral(_ peripheral: CBPeripheral, didOpen channel: CBL2CAPChannel?, error: Error?) {}
+}
+
 class Client : NSObject {
   
   enum Error : LocalizedError {
@@ -18,34 +104,7 @@ class Client : NSObject {
     case peripheralDisconnection(internal: Swift.Error)
 
   }
-  
-  private class PeripheralConnection {
-    let peripheral: CBPeripheral
     
-    private var connectCompleted: ((_ res: Result<(), Error>) -> ())?
-    private var disconnectCompleted: ((_ res: Result<(), Error>) -> ())?
-    
-    init(_ peripheral: CBPeripheral) {
-      self.peripheral = peripheral
-    }
-    
-    func onConnected(_ completion: @escaping (_ res: Result<(), Error>) -> ()) {
-      connectCompleted = completion
-    }
-    func connected(_ res: Result<(), Error>) {
-      connectCompleted?(res)
-      connectCompleted = nil
-    }
-    func onDisconnected(_ completion: @escaping (_ res: Result<(), Error>) -> ()) {
-      disconnectCompleted = completion
-    }
-    func disconnected(_ res: Result<(), Error>) {
-      disconnectCompleted?(res)
-      disconnectCompleted = nil
-    }
-    
-  }
-  
   private class PeerConnectionEventHandler {
     let peerUUID: UUID
     
@@ -72,7 +131,7 @@ class Client : NSObject {
   private let eventSink: EventSink
   private var centralManager: CBCentralManager?
   
-  private var deviceConnections = [UUID : PeripheralConnection]()
+  private var peripheralConnections = [UUID : PeripheralConnection]()
   private var peerConnectionEventHandlers = [UUID : PeerConnectionEventHandler]()
   
   init(eventSink: EventSink) {
@@ -145,6 +204,26 @@ class Client : NSObject {
     centralManager?.stopScan()
   }
   
+  private func retrievePeripheralFor(uuid: UUID) -> CBPeripheral? {
+    return centralManager?.retrievePeripherals(withIdentifiers: [uuid]).last
+  }
+  
+  private func peripheralConnectionFor(uuid: UUID) -> PeripheralConnection? {
+    if let periConn = peripheralConnections[uuid] {
+      return periConn
+    }
+    guard let peri = retrievePeripheralFor(uuid:uuid) else {
+      return nil
+    }
+    let periConn = PeripheralConnection(peri)
+    peripheralConnections[uuid] = periConn
+    return periConn
+  }
+  
+  private func peripheralFor(uuid: UUID) -> CBPeripheral? {
+    return peripheralConnectionFor(uuid: uuid)?.peripheral
+  }
+  
   func connectToDevice(
     id: String,
     timoutMillis: Int?,
@@ -157,47 +236,25 @@ class Client : NSObject {
       return
     }
     guard
-      let peripheralId = UUID(uuidString: id)
+      let uuid = UUID(uuidString: id)
     else {
       completion(.failure(Error.invalidUUIDString(id)))
       return
     }
-    let peripherals =
-      centralManager.retrievePeripherals(withIdentifiers: [peripheralId])
-    
     guard
-      let peripheral = peripherals.last
+      let conn = peripheralConnectionFor(uuid: uuid)
     else {
-      completion(.failure(.noPeripheralFoundFor(peripheralId)))
+      completion(.failure(.noPeripheralFoundFor(uuid)))
       return
     }
-    
-    var conn: PeripheralConnection
-    if let c = deviceConnections[peripheralId] {
-      conn = c
-    } else {
-      conn = PeripheralConnection(peripheral)
-      deviceConnections[peripheralId] = conn
-    }
+
     conn.onConnected { res in
       completion(res)
     }
     // FIXME: support connection option flags
-    centralManager.connect(peripheral)
+    centralManager.connect(conn.peripheral)
   }
-  
-  private func retrievePeripheralFor(uuid: UUID) -> CBPeripheral? {
-    return centralManager?.retrievePeripherals(withIdentifiers: [uuid]).last
-  }
-  
 
-  
-  private func peripheralFor(uuid: UUID) -> CBPeripheral? {
-    return deviceConnections[uuid]?.peripheral
-      ?? retrievePeripheralFor(uuid:uuid)
-  }
-  
-  
   func isDeviceConnected(id: String) -> Result<Bool, Error> {
     guard
       let uuid = UUID(uuidString: id)
@@ -252,6 +309,32 @@ class Client : NSObject {
     
     return .success(())
   }
+  
+  func cancelConnection(deviceIdentifier: String) -> Result<(), Error> {
+    guard
+      let uuid = UUID(uuidString: deviceIdentifier)
+    else {
+      return .failure(Error.invalidUUIDString(deviceIdentifier))
+    }
+    if let peri = peripheralFor(uuid: uuid) {
+      centralManager?.cancelPeripheralConnection(peri)
+    }
+    return .success(())
+  }
+  
+  func discoverAllServicesAndCharacteristics(deviceIdentifier: String,
+                                             transactionId: String?) -> Result<(), Error> {
+    guard
+      let uuid = UUID(uuidString: deviceIdentifier)
+    else {
+      return .failure(Error.invalidUUIDString(deviceIdentifier))
+    }
+    guard let peri = peripheralFor(uuid: uuid) else {
+      return .failure(Error.noPeripheralFoundFor(uuid))
+    }
+    peri.discoverServices(nil)
+    return .success(())
+  }
 }
 
 extension Client : CallHandler {
@@ -261,58 +344,47 @@ extension Client : CallHandler {
       call.result(isCreated)
     case .createClient(let restoreId, let showPowerAlert):
       create(restoreId: restoreId, showPowerAlert: showPowerAlert)
-      call.result(nil)
+      call.result()
     case .destroyClient:
       destroy()
-      call.result(nil)
+      call.result()
     case .cancelTransaction(let transactionId):
       cancelTransaction(transactionId: transactionId)
-      call.result(nil)
+      call.result()
     case .getState:
       call.result(state)
     case .enableRadio:
       noop()
-      call.result(nil)
+      call.result()
     case .disableRadio:
       noop()
-      call.result(nil)
+      call.result()
     case .startDeviceScan(let uuids, let allowDuplicates):
       startDeviceScan(withServices: uuids, allowDuplicates: allowDuplicates)
-      call.result(nil)
+      call.result()
     case .stopDeviceScan:
       stopDeviceScan()
-      call.result(nil)
+      call.result()
     case .connectToDevice(let id, let timoutMillis):
       connectToDevice(id: id, timoutMillis: timoutMillis) { res in
-        switch res {
-        case .success:
-          call.result(nil)
-        case .failure(let error):
-          call.result(FlutterError(bleError: BleError(withError: error)))
-        }
+        call.result(res)
       }
     case .isDeviceConnected(let id):
-      let res = isDeviceConnected(id: id)
-      switch res {
-      case .success(let connected):
-        call.result(connected)
-      case .failure(let error):
-        call.result(FlutterError(bleError: BleError(withError: error)))
-      }
+      call.result(isDeviceConnected(id: id))
     case .observeConnectionState(let deviceIdentifier, let emitCurrentValue):
       let res = observeConnectionState(
         deviceIdentifier: deviceIdentifier,
         emitCurrentValue: emitCurrentValue
       )
-      switch res {
-      case .success(()):
-        call.result(nil)
-      case .failure(let error):
-        call.result(error)
-      }
-    case .cancelConnection:
-      call.result(FlutterMethodNotImplemented)
-    case .discoverAllServicesAndCharacteristics:
+      call.result(res)
+    case .cancelConnection(let deviceIdentifier):
+      call.result(cancelConnection(deviceIdentifier: deviceIdentifier))
+    case .discoverAllServicesAndCharacteristics(let deviceIdentifier,
+                                                let transactionId):
+      discoverAllServicesAndCharacteristics(
+        deviceIdentifier: deviceIdentifier,
+        transactionId: transactionId
+      )
       call.result(FlutterMethodNotImplemented)
     case .services:
       call.result(FlutterMethodNotImplemented)
@@ -402,14 +474,14 @@ extension Client : CBCentralManagerDelegate {
     _ central: CBCentralManager,
     didConnect peripheral: CBPeripheral
   ) {
-    deviceConnections[peripheral.identifier]?.connected(.success(()))
+    peripheralConnections[peripheral.identifier]?.connected(.success(()))
   }
   func centralManager(
     _ central: CBCentralManager,
     didFailToConnect peripheral: CBPeripheral,
     error: Swift.Error?
   ) {
-    let conn = deviceConnections[peripheral.identifier]
+    let conn = peripheralConnections[peripheral.identifier]
     conn?.connected(.success(()))
   }
   
@@ -418,7 +490,7 @@ extension Client : CBCentralManagerDelegate {
     didDisconnectPeripheral peripheral: CBPeripheral,
     error: Swift.Error?
   ) {
-    let conn = deviceConnections[peripheral.identifier]
+    let conn = peripheralConnections[peripheral.identifier]
     if let error = error {
       conn?.connected(
         .failure(Error.peripheralDisconnection(internal: error))

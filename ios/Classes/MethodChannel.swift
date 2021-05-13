@@ -101,14 +101,27 @@ struct Method {
       }
     }
     
-    func result(_ object: Any?)  {
+    func result<AnyT : Any, ErrorT: Error>(_ objectOrError: Result<AnyT, ErrorT>)  {
       guard
         isResulted == false
       else {
         return
       }
-      onResult(object)
+      switch objectOrError {
+      case .success(let obj):
+        onResult(obj)
+      case .failure(let error as BleError):
+        onResult(FlutterError(bleError: error))
+      case .failure(let error as Error):
+        onResult(FlutterError(bleError: BleError(withError: error)))
+      }
       isResulted = true
+    }
+    func result<AnyT : Any>(_ object: AnyT) {
+      result(Result<AnyT,Error>.success(object))
+    }
+    func result() {
+      result(Result<(),Error>.success(()))
     }
   }
   
