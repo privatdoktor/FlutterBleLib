@@ -19,7 +19,7 @@ class Client : NSObject {
 
   }
   
-  fileprivate class DeviceConnection {
+  private class PeripheralConnection {
     let peripheral: CBPeripheral
     
     private var connectCompleted: ((_ res: Result<(), Error>) -> ())?
@@ -34,20 +34,53 @@ class Client : NSObject {
     }
     func connected(_ res: Result<(), Error>) {
       connectCompleted?(res)
+      connectCompleted = nil
     }
     func onDisconnected(_ completion: @escaping (_ res: Result<(), Error>) -> ()) {
       disconnectCompleted = completion
     }
     func disconnected(_ res: Result<(), Error>) {
       disconnectCompleted?(res)
+      disconnectCompleted = nil
+    }
+    
+  }
+  
+  private class PeerConnectionEventHandler {
+    let peerUUID: UUID
+    
+    private var connectionEventOccured: ((_ event: CBConnectionEvent) -> ())?
+    
+    init(_ uuid: UUID) {
+      peerUUID = uuid
+    }
+
+    @available(iOS 13.0, *)
+    func onConnectionEvent(
+      _ handler: @escaping (_ event: CBConnectionEvent) -> ()
+    ) {
+      connectionEventOccured = handler
+    }
+    @available(iOS 13.0, *)
+    func connectionEvent(_ event: CBConnectionEvent) {
+      connectionEventOccured?(event)
     }
   }
   
-  typealias SignatureEnumT = Descriptors.Method.DefaultChannel.Signature
+  typealias SignatureEnumT = Method.DefaultChannel.Signature
   
+  private let eventSink: EventSink
   private var centralManager: CBCentralManager?
   
-  private var deviceConnections = [UUID : DeviceConnection]()
+  private var deviceConnections = [UUID : PeripheralConnection]()
+  private var peerConnectionEventHandlers = [UUID : PeerConnectionEventHandler]()
+  
+  init(eventSink: EventSink) {
+    self.eventSink = eventSink
+    super.init()
+  }
+  
+  func noop() {}
   
   var isCreated: Bool {
     return centralManager != nil
@@ -139,11 +172,11 @@ class Client : NSObject {
       return
     }
     
-    var conn: DeviceConnection
+    var conn: PeripheralConnection
     if let c = deviceConnections[peripheralId] {
       conn = c
     } else {
-      conn = DeviceConnection(peripheral)
+      conn = PeripheralConnection(peripheral)
       deviceConnections[peripheralId] = conn
     }
     conn.onConnected { res in
@@ -153,31 +186,76 @@ class Client : NSObject {
     centralManager.connect(peripheral)
   }
   
+  private func retrievePeripheralFor(uuid: UUID) -> CBPeripheral? {
+    return centralManager?.retrievePeripherals(withIdentifiers: [uuid]).last
+  }
+  
+
+  
+  private func peripheralFor(uuid: UUID) -> CBPeripheral? {
+    return deviceConnections[uuid]?.peripheral
+      ?? retrievePeripheralFor(uuid:uuid)
+  }
+  
+  
   func isDeviceConnected(id: String) -> Result<Bool, Error> {
     guard
-      let peripheralId = UUID(uuidString: id)
+      let uuid = UUID(uuidString: id)
     else {
       return .failure(Error.invalidUUIDString(id))
     }
+    return .success(peripheralFor(uuid: uuid)?.state == .connected)
+  }
+  
+  func observeConnectionState(
+    deviceIdentifier: String,
+    emitCurrentValue: Bool?
+  ) -> Result<(), Error> {
     
-    if
-      let conn = deviceConnections[peripheralId],
-      conn.peripheral.state == .connected {
-      return .success(true)
+    guard
+      let uuid = UUID(uuidString: deviceIdentifier)
+    else {
+      return .failure(Error.invalidUUIDString(deviceIdentifier))
+    }
+    let connStateEvents = eventSink.connectionStateChangeEvents
+    
+    if emitCurrentValue == true {
+      connStateEvents.sink(
+        peripheralFor(uuid: uuid)?.state ?? .disconnected
+      )
+    }
+    if #available(iOS 13.0, *), let centralManager = centralManager {
+      let handler = PeerConnectionEventHandler(uuid)
+      peerConnectionEventHandlers[uuid] = handler
+      
+      connStateEvents.afterCancelDo { [weak self] in
+        self?.peerConnectionEventHandlers[uuid] = nil
+      }
+      
+      handler.onConnectionEvent { event in
+        let state: CBPeripheralState
+        switch event {
+        case .peerConnected:
+          state = .connected
+        case .peerDisconnected:
+          state = .disconnected
+        @unknown default:
+          state = .disconnected
+        }
+        connStateEvents.sink(state)
+      }
+      
+      centralManager.registerForConnectionEvents(
+        options: [.peripheralUUIDs : [uuid]]
+      )
     }
     
-    if
-      let peri =
-        centralManager?.retrievePeripherals(withIdentifiers: [peripheralId]).last,
-      peri.state == .connected {
-      return .success(true)
-    }
-    return .success(true)
+    return .success(())
   }
 }
 
 extension Client : CallHandler {
-  func handle(call: Descriptors.Method.Call<SignatureEnumT>) {
+  func handle(call: Method.Call<SignatureEnumT>) {
     switch call.signature {
     case .isClientCreated:
       call.result(isCreated)
@@ -193,8 +271,10 @@ extension Client : CallHandler {
     case .getState:
       call.result(state)
     case .enableRadio:
+      noop()
       call.result(nil)
     case .disableRadio:
+      noop()
       call.result(nil)
     case .startDeviceScan(let uuids, let allowDuplicates):
       startDeviceScan(withServices: uuids, allowDuplicates: allowDuplicates)
@@ -219,8 +299,17 @@ extension Client : CallHandler {
       case .failure(let error):
         call.result(FlutterError(bleError: BleError(withError: error)))
       }
-    case .observeConnectionState:
-      call.result(FlutterMethodNotImplemented)
+    case .observeConnectionState(let deviceIdentifier, let emitCurrentValue):
+      let res = observeConnectionState(
+        deviceIdentifier: deviceIdentifier,
+        emitCurrentValue: emitCurrentValue
+      )
+      switch res {
+      case .success(()):
+        call.result(nil)
+      case .failure(let error):
+        call.result(error)
+      }
     case .cancelConnection:
       call.result(FlutterMethodNotImplemented)
     case .discoverAllServicesAndCharacteristics:
@@ -287,6 +376,7 @@ extension Client : CallHandler {
   }
 }
 
+
 extension Client : CBCentralManagerDelegate {
   func centralManagerDidUpdateState(_ central: CBCentralManager) {
     
@@ -338,11 +428,13 @@ extension Client : CBCentralManagerDelegate {
     conn?.disconnected(.success(()))
   }
   
+  @available(iOS 13.0, *)
   func centralManager(
     _ central: CBCentralManager,
     connectionEventDidOccur event: CBConnectionEvent,
     for peripheral: CBPeripheral
   ) {
+    peerConnectionEventHandlers[peripheral.identifier]?.connectionEvent(event)
     
   }
 

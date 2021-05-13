@@ -11,21 +11,58 @@
 
 @implementation FlutterBleLibPlugin
 
-// MARK: - Initializers
-
-- (instancetype)init {
-    self = [super init];
-    if (self) {
-    }
-    return self;
-}
-
 // MARK: - FlutterPlugin implementation
 
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar> *)registrar {
-    [SwiftFlutterBleLibPlugin registerWithRegistrar:registrar];
+    [Plugin registerWithRegistrar:registrar];
 }
   
+//@interface FlutterBleLibPlugin () <BleClientManagerDelegate>
+//
+//@property (nonatomic) id <BleAdapter> adapter;
+//@property (nonatomic) AdapterStateStreamHandler *adapterStateStreamHandler;
+//@property (nonatomic) RestoreStateStreamHandler *restoreStateStreamHandler;
+//@property (nonatomic) ScanningStreamHandler *scanningStreamHandler;
+//@property (nonatomic) ConnectionStateStreamHandler *connectionStateStreamHandler;
+//@property (nonatomic) MonitorCharacteristicStreamHandler *monitorCharacteristicStreamHandler;
+//
+//@end
+//// MARK: - Initializers
+//
+//- (instancetype)init {
+//    self = [super init];
+//    if (self) {
+//        self.adapterStateStreamHandler = [AdapterStateStreamHandler new];
+//        self.restoreStateStreamHandler = [RestoreStateStreamHandler new];
+//        self.scanningStreamHandler = [ScanningStreamHandler new];
+//        self.connectionStateStreamHandler = [ConnectionStateStreamHandler new];
+//        self.monitorCharacteristicStreamHandler = [MonitorCharacteristicStreamHandler new];
+//    }
+//    return self;
+//}
+//
+//
+//(void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar> *)registrar {
+//   FlutterMethodChannel *channel = [FlutterMethodChannel methodChannelWithName:CHANNEL_NAME_FLUTTER_BLE_LIB binaryMessenger:[registrar messenger]];
+//
+//   FlutterEventChannel *adapterStateChannel = [FlutterEventChannel eventChannelWithName:CHANNEL_NAME_ADAPTER_STATE_CHANGES binaryMessenger:[registrar messenger]];
+//   FlutterEventChannel *restoreStateChannel = [FlutterEventChannel eventChannelWithName:CHANNEL_NAME_STATE_RESTORE_EVENTS binaryMessenger:[registrar messenger]];
+//   FlutterEventChannel *scanningChannel = [FlutterEventChannel eventChannelWithName:CHANNEL_NAME_SCANNING_EVENTS binaryMessenger:[registrar messenger]];
+//   FlutterEventChannel *connectionStateChannel = [FlutterEventChannel eventChannelWithName:CHANNEL_NAME_CONNECTION_STATE_CHANGE_EVENTS binaryMessenger:[registrar messenger]];
+//   FlutterEventChannel *monitorCharacteristicChannel = [FlutterEventChannel eventChannelWithName:CHANNEL_NAME_MONITOR_CHARACTERISTIC binaryMessenger:[registrar messenger]];
+//
+//   FlutterBleLibPlugin *instance = [[FlutterBleLibPlugin alloc] init];
+//
+//   [registrar addMethodCallDelegate:instance channel:channel];
+//
+//   [adapterStateChannel setStreamHandler:instance.adapterStateStreamHandler];
+//   [restoreStateChannel setStreamHandler:instance.restoreStateStreamHandler];
+//   [scanningChannel setStreamHandler:instance.scanningStreamHandler];
+//   [connectionStateChannel setStreamHandler:instance.connectionStateStreamHandler];
+//   [monitorCharacteristicChannel setStreamHandler:instance.monitorCharacteristicStreamHandler];
+//}
+//
+//
 //- (void)handleMethodCall:(FlutterMethodCall *)call result:(FlutterResult)result {
 //    if ([METHOD_NAME_CREATE_CLIENT isEqualToString:call.method]) {
 //        [self createClient:call result:result];
