@@ -8,101 +8,15 @@
 import Foundation
 import CoreBluetooth
 
-class PeripheralConnection : NSObject {
-  let peripheral: CBPeripheral
-  
-  private var connectCompleted: ((_ res: Result<(), Client.Error>) -> ())?
-  private var disconnectCompleted: ((_ res: Result<(), Client.Error>) -> ())?
-  private var serviceDiscoveryCompleted: ((_ res: Result<(), Client.Error>) -> ())?
-  
-  init(_ peripheral: CBPeripheral) {
-    self.peripheral = peripheral
-    super.init()
-    peripheral.delegate = self
-  }
-  
-  func onConnected(_ completion: @escaping (_ res: Result<(), Client.Error>) -> ()) {
-    connectCompleted = completion
-  }
-  func connected(_ res: Result<(), Client.Error>) {
-    connectCompleted?(res)
-    connectCompleted = nil
-  }
-  func onDisconnected(_ completion: @escaping (_ res: Result<(), Client.Error>) -> ()) {
-    disconnectCompleted = completion
-  }
-  func disconnected(_ res: Result<(), Client.Error>) {
-    disconnectCompleted?(res)
-    disconnectCompleted = nil
-  }
-}
-
-extension PeripheralConnection : CBPeripheralDelegate {
-  func peripheralDidUpdateName(_ peripheral: CBPeripheral) {
-    
-  }
-
-  func peripheral(
-    _ peripheral: CBPeripheral,
-    didModifyServices invalidatedServices: [CBService]
-  ) {
-    
-  }
-
-  func peripheral(
-    _ peripheral: CBPeripheral,
-    didReadRSSI RSSI: NSNumber,
-    error: Error?
-  ) {
-    
-  }
-
-  func peripheral(
-    _ peripheral: CBPeripheral,
-    didDiscoverServices error: Error?
-  ) {
-    
-  }
-
-
-  func peripheral(
-    _ peripheral: CBPeripheral,
-    didDiscoverIncludedServicesFor service: CBService,
-    error: Error?
-  ) {
-    
-  }
-
-  func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {}
-
-  func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {}
-
-  func peripheral(_ peripheral: CBPeripheral, didWriteValueFor characteristic: CBCharacteristic, error: Error?) {}
-
-  func peripheral(_ peripheral: CBPeripheral, didUpdateNotificationStateFor characteristic: CBCharacteristic, error: Error?) {}
-
-  func peripheral(_ peripheral: CBPeripheral, didDiscoverDescriptorsFor characteristic: CBCharacteristic, error: Error?) {}
-
-  func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor descriptor: CBDescriptor, error: Error?) {}
-
-  func peripheral(_ peripheral: CBPeripheral, didWriteValueFor descriptor: CBDescriptor, error: Error?) {}
-
-
-  func peripheralIsReady(toSendWriteWithoutResponse peripheral: CBPeripheral) {}
-
-  @available(iOS 11.0, *)
-  func peripheral(_ peripheral: CBPeripheral, didOpen channel: CBL2CAPChannel?, error: Error?) {}
-}
-
 class Client : NSObject {
   
   enum Error : LocalizedError {
     case notCreated
     case invalidUUIDString(String)
-    case noPeripheralFoundFor(UUID)
+    case noPeripheralFoundFor(UUID, expectedState: CBPeripheralState? = nil)
     case peripheralConnection(internal: Swift.Error?)
     case peripheralDisconnection(internal: Swift.Error)
-
+    case peripheralDelegate(DelegateError)
   }
     
   private class PeerConnectionEventHandler {
@@ -322,18 +236,62 @@ class Client : NSObject {
     return .success(())
   }
   
-  func discoverAllServicesAndCharacteristics(deviceIdentifier: String,
-                                             transactionId: String?) -> Result<(), Error> {
+  func discoverAllServicesAndCharacteristics(
+    deviceIdentifier: String,
+    transactionId: String?,
+    completion: @escaping (Result<(), Error>) -> ()
+  ) {
     guard
       let uuid = UUID(uuidString: deviceIdentifier)
     else {
-      return .failure(Error.invalidUUIDString(deviceIdentifier))
+      completion(.failure(Error.invalidUUIDString(deviceIdentifier)))
+      return
     }
-    guard let peri = peripheralFor(uuid: uuid) else {
-      return .failure(Error.noPeripheralFoundFor(uuid))
+    guard
+      let periConn = peripheralConnectionFor(uuid: uuid),
+      periConn.peripheral.state == .connected
+    else {
+      completion(.failure(Error.noPeripheralFoundFor(uuid, expectedState: .connected)))
+      return
+    }    
+    periConn.onServicesDiscovery { res in
+      switch res {
+      case .failure(let delegateError):
+        completion(.failure(Error.peripheralDelegate(delegateError)))
+      case .success(let discoveredServices):
+        let serviceCount = discoveredServices.values.count
+        var counter = 0
+        var dcPool = [DiscoveredCharacteristic]()
+        for ds in discoveredServices.values {
+          ds.onCharacteristicsDiscovery { charDiscRes in
+            counter += 1
+            switch charDiscRes {
+            case .failure:
+              break
+            case .success(let discoveredChars):
+              dcPool.append(contentsOf: discoveredChars.values)
+            }
+            if counter == serviceCount {
+              characteristicsReady(dcPool)
+            }
+          }
+          periConn.peripheral.discoverCharacteristics(
+            nil,
+            for: ds.service
+          )
+        }
+      }
     }
-    peri.discoverServices(nil)
-    return .success(())
+    periConn.peripheral.discoverServices(nil)
+    
+    func characteristicsReady(_ dcPool: [DiscoveredCharacteristic]) {
+      for dc in dcPool {
+        dc.onDescriptorsDiscovery { descDiscRes in
+          
+        }
+        periConn.peripheral.discoverDescriptors(for: dc.characteristic)
+      }
+    }
   }
 }
 
@@ -384,8 +342,9 @@ extension Client : CallHandler {
       discoverAllServicesAndCharacteristics(
         deviceIdentifier: deviceIdentifier,
         transactionId: transactionId
-      )
-      call.result(FlutterMethodNotImplemented)
+      ) { res in
+        call.result(res)
+      }
     case .services:
       call.result(FlutterMethodNotImplemented)
     case .characteristics:
@@ -481,8 +440,9 @@ extension Client : CBCentralManagerDelegate {
     didFailToConnect peripheral: CBPeripheral,
     error: Swift.Error?
   ) {
-    let conn = peripheralConnections[peripheral.identifier]
-    conn?.connected(.success(()))
+    peripheralConnections[peripheral.identifier]?.connected(
+      .failure(Error.peripheralConnection(internal: error))
+    )
   }
   
   func centralManager(
@@ -492,7 +452,7 @@ extension Client : CBCentralManagerDelegate {
   ) {
     let conn = peripheralConnections[peripheral.identifier]
     if let error = error {
-      conn?.connected(
+      conn?.disconnected(
         .failure(Error.peripheralDisconnection(internal: error))
       )
       return
