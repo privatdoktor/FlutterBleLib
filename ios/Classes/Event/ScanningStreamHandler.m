@@ -34,8 +34,13 @@
 //- (void)onScanResult:(NSArray *)scanResult {
 //    @synchronized (self) {
 //        if (scanResultsSink != nil && !ended) {
-//            if (!(scanResult.count == 2 &&
-//                (scanResult[0] == [NSNull null] || (scanResult[1] == [NSNull null] && [scanResult[0] isKindOfClass:NSString.class])))) {
+//            if (!(
+//                  scanResult.count == 2 &&
+//                  (scanResult[0] == [NSNull null] ||
+//                   (scanResult[1] == [NSNull null] && [scanResult[0] isKindOfClass:NSString.class])
+//                   )
+//                  )
+//                ) {
 //                scanResultsSink([FlutterError errorWithCode:@"-1" message:@"Invalid scanResult format." details:nil]);
 //                [self onComplete];
 //            } else {

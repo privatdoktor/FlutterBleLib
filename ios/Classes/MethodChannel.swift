@@ -101,30 +101,91 @@ struct Method {
       }
     }
     
-    func result<AnyT : Any, ErrorT: Error>(_ objectOrError: Result<AnyT, ErrorT>)  {
+    private func _result(
+      _ objectOrError: Result<Any?, Error>
+    ) {
       guard
         isResulted == false
       else {
         return
       }
       switch objectOrError {
-      case .success(let obj):
-        onResult(obj)
+      case .success(let objectOrError):
+        onResult(objectOrError)
       case .failure(let error as BleError):
         onResult(FlutterError(bleError: error))
-      case .failure(let error as Error):
+      case .failure(let error):
         onResult(FlutterError(bleError: BleError(withError: error)))
       }
       isResulted = true
     }
-    func result<AnyT : Any>(_ object: AnyT) {
-      result(Result<AnyT,Error>.success(object))
+    func result<AnyT: Any, ErrorT: Error>(
+      any anyOrError: Result<AnyT, ErrorT>
+    ) {
+      switch anyOrError {
+      case .success(let any):
+        _result(.success(any))
+      case .failure(let error):
+        _result(.failure(error))
+      }
+    }
+    func result<ResponseT : Any>(any: ResponseT) {
+      result(any: Result<ResponseT,Error>.success(any))
+    }
+    func result<ErrorT: Error>(
+      _ unitOrError: Result<(), ErrorT>
+    ) {
+      switch unitOrError {
+      case .success:
+        _result(.success(nil))
+      case .failure(let error):
+        _result(.failure(error))
+      }
     }
     func result() {
-      result(Result<(),Error>.success(()))
+      _result(.success(nil))
     }
+    
+    func result<ResponseT: Encodable, ErrorT: Error>(
+      encodable encodableOrError: Result<ResponseT, ErrorT>
+    ) {
+      switch encodableOrError {
+      case .success(let encodable):
+        do {
+          let data = try JSONEncoder().encode(encodable)
+          let jsonStr = String(data: data, encoding: .utf8)
+          _result(.success(jsonStr))
+        } catch {
+          _result(.failure(error))
+        }
+      case .failure(let error):
+        _result(.failure(error))
+      }
+    }
+    func result<ResponseT : Encodable>(encodable: ResponseT) {
+      result(encodable: Result<ResponseT,Error>.success(encodable))
+    }
+    
+    func result<ErrorT: Error>(_ value: Result<Bool,ErrorT>)  {
+      result(any: value)
+    }
+    func result(_ value: Bool)  {
+      result(Result<Bool,Error>.success(value))
+    }
+    func result<ErrorT: Error>(_ value: Result<Int,ErrorT>)  {
+      result(any: value)
+    }
+    func result(_ value: Int)  {
+      result(Result<Int,Error>.success(value))
+    }
+    func result<ErrorT: Error>(_ value: Result<String, ErrorT>)  {
+      result(any: value)
+    }
+    func result(_ value: String)  {
+      result(Result<String,Error>.success(value))
+    }
+    
   }
-  
   struct DefaultChannel : MethodChannel {
     static let name = "flutter_ble_lib"
     typealias SignatureEnumT = Signature
@@ -323,7 +384,14 @@ struct Method {
                                             type: String.self)
           self = .setLogLevel(logLevel)
         case "rssi":
-          self = .rssi
+          let deviceId =
+            try argsHelper.requiredValueFor(.deviceUuid,
+                                            type: String.self)
+          let transactionId = args?[.transactionId] as? String
+          self = .rssi(
+            deviceIdentifier: deviceId,
+            transactionId: transactionId
+          )
         case "requestMtu":
           let deviceId =
             try argsHelper.requiredValueFor(.deviceUuid,
@@ -654,7 +722,8 @@ struct Method {
       case logLevel
       case setLogLevel(String)
       
-      case rssi
+      case rssi(deviceIdentifier: String,
+                transactionId: String?)
       
       case requestMtu(deviceIdentifier: String,
                       mtu: Int,

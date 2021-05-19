@@ -25,7 +25,10 @@ class EventChannel : NSObject {
   }
 }
 extension EventChannel : FlutterStreamHandler {
-  func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
+  func onListen(
+    withArguments arguments: Any?,
+    eventSink events: @escaping FlutterEventSink
+  ) -> FlutterError? {
     flutterEventSink = events
     return nil
   }
@@ -54,8 +57,8 @@ class EventSink {
   }
   
   class ScanningEvents : EventChannel, EventSinker {
-    typealias SinkableT = String
-    func sink(_ obj: SinkableT) {
+    typealias SinkableT = ScanResultEvent
+    func sink(_ obj: ScanResultEvent) {
       flutterEventSink?(obj)
     }
   }
