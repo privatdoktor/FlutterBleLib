@@ -276,7 +276,7 @@ extension Client {
     if restoreId != nil || showPowerAlert != nil {
       var opts = [String : Any]()
       if let restoreId = restoreId {
-        opts[CBCentralManagerOptionShowPowerAlertKey] = restoreId
+        opts[CBCentralManagerOptionRestoreIdentifierKey] = restoreId
       }
       if let showPowerAlert = showPowerAlert {
         opts[CBCentralManagerOptionShowPowerAlertKey] = showPowerAlert
