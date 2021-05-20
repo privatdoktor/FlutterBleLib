@@ -296,6 +296,11 @@ struct Method {
             deviceIdentifier: deviceId,
             timoutMillis: timoutMillis
           )
+        case "isDeviceConnected":
+          let deviceId =
+            try argsHelper.requiredValueFor(.deviceUuid,
+                                            type: String.self)
+          self = .isDeviceConnected(deviceIdentifier: deviceId)
         case "observeConnectionState":
           let deviceId =
             try argsHelper.requiredValueFor(.deviceUuid,
@@ -406,12 +411,12 @@ struct Method {
           )
         case "getConnectedDevices":
           let serviceUUIDs =
-            try argsHelper.requiredValueFor(.deviceUuids,
+            try argsHelper.requiredValueFor(.uuids,
                                             type: [String].self)
           self = .getConnectedDevices(serviceUUIDs: serviceUUIDs)
         case "getKnownDevices":
           let deviceIdentifiers =
-            try argsHelper.requiredValueFor(.uuids,
+            try argsHelper.requiredValueFor(.deviceUuids,
                                             type: [String].self)
           self = .getKnownDevices(deviceIdentifiers: deviceIdentifiers)
         case "readCharacteristicForIdentifier":

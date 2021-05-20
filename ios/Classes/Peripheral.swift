@@ -41,15 +41,17 @@ struct ScanResultEvent : Encodable {
   let rssi: Int
   let mtu: Int
   
-  let manufacturerData: String? // base64EncodedString
-  let serviceUUIDs: [String]?
-  let overflowServiceUUIDs: [String]?
-  let solicitedServiceUUIDs: [String]?
-  let serviceData: [String : String]? // base64EncodedString value
-  
   let localName: String?
   let txPowerLevel: Int?
   let isConnectable: Bool?
+  
+  let manufacturerData: String? // base64EncodedString
+  
+  let serviceUUIDs: [String]?
+  let overflowServiceUUIDs: [String]?
+  let solicitedServiceUUIDs: [String]?
+  
+  let serviceData: [String : String]? // base64EncodedString value
   
   init(
     peripheral: CBPeripheral,
@@ -100,14 +102,22 @@ struct ScanResultEvent : Encodable {
   private enum CodingKeys: String, CodingKey {
     case id = "id"
     case name = "name"
-    case manufacturerData = "manufacturerData"
-    case serviceData = "serviceData"
-    case serviceUUIDs = "serviceUUIDs"
+    case rssi = "rssi"
+    case mtu = "mtu"
+    
+    case isConnectable = "isConnectable"
     case localName = "localName"
     case txPowerLevel = "txPowerLevel"
-    case solicitedServiceUUIDs = "solicitedServiceUUIDs"
-    case isConnectable = "isConnectable"
+    
+    case manufacturerData = "manufacturerData"
+    
+    case serviceUUIDs = "serviceUUIDs"
     case overflowServiceUUIDs = "overflowServiceUUIDs"
+    case solicitedServiceUUIDs = "solicitedServiceUUIDs"
+    
+    case serviceData = "serviceData"
+
+
   }
 }
 
