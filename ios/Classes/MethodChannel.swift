@@ -165,7 +165,6 @@ struct Method {
     func result<ResponseT : Encodable>(encodable: ResponseT) {
       result(encodable: Result<ResponseT,Error>.success(encodable))
     }
-    
     func result<ErrorT: Error>(_ value: Result<Bool,ErrorT>)  {
       result(any: value)
     }
@@ -340,7 +339,7 @@ struct Method {
         case "characteristicsForService":
           let serviceNumericId =
             try argsHelper.requiredValueFor(.serviceNumericId,
-                                            type: Double.self)
+                                            type: Int.self)
           self = .characteristicsForService(serviceNumericId: serviceNumericId)
         case "descriptorsForDevice":
           let deviceId =
@@ -360,7 +359,7 @@ struct Method {
         case "descriptorsForService":
           let serviceNumericId =
             try argsHelper.requiredValueFor(.serviceNumericId,
-                                            type: Double.self)
+                                            type: Int.self)
           let characteristicUUID =
             try argsHelper.requiredValueFor(.characteristicUuid,
                                             type: String.self)
@@ -372,7 +371,7 @@ struct Method {
         case "descriptorsForCharacteristic":
           let characteristicNumericId =
             try argsHelper.requiredValueFor(.characteristicNumericId,
-                                            type: Double.self)
+                                            type: Int.self)
           self = .descriptorsForCharacteristic(
             characteristicNumericId: characteristicNumericId
           )
@@ -418,7 +417,7 @@ struct Method {
         case "readCharacteristicForIdentifier":
           let characteristicNumericId =
             try argsHelper.requiredValueFor(.characteristicNumericId,
-                                            type: Double.self)
+                                            type: Int.self)
             
           let transactionId = args?[.transactionId] as? String
           self = .readCharacteristicForIdentifier(
@@ -445,7 +444,7 @@ struct Method {
         case "readCharacteristicForService":
           let serviceNumericId =
             try argsHelper.requiredValueFor(.serviceNumericId,
-                                            type: Double.self)
+                                            type: Int.self)
           let characteristicUUID =
             try argsHelper.requiredValueFor(.characteristicUuid,
                                             type: String.self)
@@ -458,14 +457,18 @@ struct Method {
         case "writeCharacteristicForIdentifier":
           let characteristicNumericId =
             try argsHelper.requiredValueFor(.characteristicNumericId,
-                                            type: Double.self)
+                                            type: Int.self)
           let value =
             try argsHelper.requiredValueFor(.value,
                                             type: FlutterStandardTypedData.self)
+          let withResponse =
+            try argsHelper.requiredValueFor(.withResponse,
+                                            type: Bool.self)
           let transactionId = args?[.transactionId] as? String
           self = .writeCharacteristicForIdentifier(
             characteristicNumericId: characteristicNumericId,
             value: value,
+            withResponse: withResponse,
             transactionId: transactionId
           )
         case "writeCharacteristicForDevice":
@@ -481,35 +484,43 @@ struct Method {
           let value =
             try argsHelper.requiredValueFor(.value,
                                             type: FlutterStandardTypedData.self)
+          let withResponse =
+            try argsHelper.requiredValueFor(.withResponse,
+                                            type: Bool.self)
           let transactionId = args?[.transactionId] as? String
           self = .writeCharacteristicForDevice(
             deviceIdentifier: deviceId,
             serviceUUID: serviceUUID,
             characteristicUUID: characteristicUUID,
             value: value,
+            withResponse: withResponse,
             transactionId: transactionId
           )
         case "writeCharacteristicForService":
           let serviceNumericId =
             try argsHelper.requiredValueFor(.serviceNumericId,
-                                            type: Double.self)
+                                            type: Int.self)
           let characteristicUUID =
             try argsHelper.requiredValueFor(.characteristicUuid,
                                             type: String.self)
           let value =
             try argsHelper.requiredValueFor(.value,
                                             type: FlutterStandardTypedData.self)
+          let withResponse =
+            try argsHelper.requiredValueFor(.withResponse,
+                                            type: Bool.self)
           let transactionId = args?[.transactionId] as? String
           self = .writeCharacteristicForService(
             serviceNumericId: serviceNumericId,
             characteristicUUID: characteristicUUID,
             value: value,
+            withResponse: withResponse,
             transactionId: transactionId
           )
         case "monitorCharacteristicForIdentifier":
           let characteristicNumericId =
             try argsHelper.requiredValueFor(.characteristicNumericId,
-                                            type: Double.self)
+                                            type: Int.self)
             
           let transactionId = args?[.transactionId] as? String
           self = .monitorCharacteristicForIdentifier(
@@ -536,7 +547,7 @@ struct Method {
         case "monitorCharacteristicForService":
           let serviceNumericId =
             try argsHelper.requiredValueFor(.serviceNumericId,
-                                            type: Double.self)
+                                            type: Int.self)
           let characteristicUUID =
             try argsHelper.requiredValueFor(.characteristicUuid,
                                             type: String.self)
@@ -549,7 +560,7 @@ struct Method {
         case "readDescriptorForIdentifier":
           let descriptorNumericId =
             try argsHelper.requiredValueFor(.descriptorNumericId,
-                                            type: Double.self)
+                                            type: Int.self)
           let transactionId = args?[.transactionId] as? String
           self = .readDescriptorForIdentifier(
             descriptorNumericId: descriptorNumericId,
@@ -558,7 +569,7 @@ struct Method {
         case "readDescriptorForCharacteristic":
           let characteristicNumericId =
             try argsHelper.requiredValueFor(.characteristicNumericId,
-                                            type: Double.self)
+                                            type: Int.self)
           let descriptorUUID =
             try argsHelper.requiredValueFor(.descriptorUuid,
                                             type: String.self)
@@ -571,7 +582,7 @@ struct Method {
         case "readDescriptorForService":
           let serviceNumericId =
             try argsHelper.requiredValueFor(.serviceNumericId,
-                                        type: Double.self)
+                                        type: Int.self)
           let characteristicUUID =
             try argsHelper.requiredValueFor(.characteristicUuid,
                                             type: String.self)
@@ -609,7 +620,7 @@ struct Method {
         case "writeDescriptorForIdentifier":
           let descriptorNumericId =
             try argsHelper.requiredValueFor(.descriptorNumericId,
-                                            type: Double.self)
+                                            type: Int.self)
           let value =
             try argsHelper.requiredValueFor(.value,
                                             type: FlutterStandardTypedData.self)
@@ -622,7 +633,7 @@ struct Method {
         case "writeDescriptorForCharacteristic":
           let characteristicNumericId =
             try argsHelper.requiredValueFor(.characteristicNumericId,
-                                            type: Double.self)
+                                            type: Int.self)
           let descriptorUUID =
             try argsHelper.requiredValueFor(.descriptorUuid,
                                             type: String.self)
@@ -639,7 +650,7 @@ struct Method {
         case "writeDescriptorForService":
           let serviceNumericId =
             try argsHelper.requiredValueFor(.serviceNumericId,
-                                        type: Double.self)
+                                        type: Int.self)
           let characteristicUUID =
             try argsHelper.requiredValueFor(.characteristicUuid,
                                             type: String.self)
@@ -711,13 +722,13 @@ struct Method {
                                                  transactionId: String?)
       case services(deviceIdentifier: String)
       case characteristics(deviceIdentifier: String, serviceUUID: String)
-      case characteristicsForService(serviceNumericId: Double)
+      case characteristicsForService(serviceNumericId: Int)
       case descriptorsForDevice(deviceIdentifier: String,
                                 serviceUUID: String,
                                 characteristicUUID: String)
-      case descriptorsForService(serviceNumericId: Double,
+      case descriptorsForService(serviceNumericId: Int,
                                  characteristicUUID: String)
-      case descriptorsForCharacteristic(characteristicNumericId: Double)
+      case descriptorsForCharacteristic(characteristicNumericId: Int)
       
       case logLevel
       case setLogLevel(String)
@@ -732,45 +743,48 @@ struct Method {
       case getConnectedDevices(serviceUUIDs: [String])
       case getKnownDevices(deviceIdentifiers: [String])
       
-      case readCharacteristicForIdentifier(characteristicNumericId: Double,
+      case readCharacteristicForIdentifier(characteristicNumericId: Int,
                                            transactionId: String?)
       case readCharacteristicForDevice(deviceIdentifier: String,
                                        serviceUUID: String,
                                        characteristicUUID: String,
                                        transactionId: String?)
-      case readCharacteristicForService(serviceNumericId: Double,
+      case readCharacteristicForService(serviceNumericId: Int,
                                         characteristicUUID: String,
                                         transactionId: String?)
       
-      case writeCharacteristicForIdentifier(characteristicNumericId: Double,
+      case writeCharacteristicForIdentifier(characteristicNumericId: Int,
                                             value: FlutterStandardTypedData,
+                                            withResponse: Bool,
                                             transactionId: String?)
       case writeCharacteristicForDevice(deviceIdentifier: String,
                                         serviceUUID: String,
                                         characteristicUUID: String,
                                         value: FlutterStandardTypedData,
+                                        withResponse: Bool,
                                         transactionId: String?)
-      case writeCharacteristicForService(serviceNumericId: Double,
+      case writeCharacteristicForService(serviceNumericId: Int,
                                          characteristicUUID: String,
                                          value: FlutterStandardTypedData,
+                                         withResponse: Bool,
                                          transactionId: String?)
       
-      case monitorCharacteristicForIdentifier(characteristicNumericId: Double,
+      case monitorCharacteristicForIdentifier(characteristicNumericId: Int,
                                               transactionId: String?)
       case monitorCharacteristicForDevice(deviceIdentifier: String,
                                           serviceUUID: String,
                                           characteristicUUID: String,
                                           transactionId: String?)
-      case monitorCharacteristicForService(serviceNumericId: Double,
+      case monitorCharacteristicForService(serviceNumericId: Int,
                                            characteristicUUID: String,
                                            transactionId: String?)
       
-      case readDescriptorForIdentifier(descriptorNumericId: Double,
+      case readDescriptorForIdentifier(descriptorNumericId: Int,
                                        transactionId: String?)
-      case readDescriptorForCharacteristic(characteristicNumericId: Double,
+      case readDescriptorForCharacteristic(characteristicNumericId: Int,
                                            descriptorUUID: String,
                                            transactionId: String?)
-      case readDescriptorForService(serviceNumericId: Double,
+      case readDescriptorForService(serviceNumericId: Int,
                                     characteristicUUID: String,
                                     descriptorUUID: String,
                                     transactionId: String?)
@@ -780,14 +794,14 @@ struct Method {
                                    descriptorUUID: String,
                                    transactionId: String?)
       
-      case writeDescriptorForIdentifier(descriptorNumericId: Double,
+      case writeDescriptorForIdentifier(descriptorNumericId: Int,
                                         value: FlutterStandardTypedData,
                                         transactionId: String?)
-      case writeDescriptorForCharacteristic(characteristicNumericId: Double,
+      case writeDescriptorForCharacteristic(characteristicNumericId: Int,
                                             descriptorUUID: String,
                                             value: FlutterStandardTypedData,
                                             transactionId: String?)
-      case writeDescriptorForService(serviceNumericId: Double,
+      case writeDescriptorForService(serviceNumericId: Int,
                                      characteristicUUID: String,
                                      descriptorUUID: String,
                                      value: FlutterStandardTypedData,

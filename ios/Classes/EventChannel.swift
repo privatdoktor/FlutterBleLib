@@ -17,8 +17,8 @@ protocol EventSinker : NSObject {
 }
 
 class EventChannel : NSObject {
-  fileprivate var flutterEventSink: FlutterEventSink?
-  fileprivate var cleanUpClosure: (() -> ())?
+  private var flutterEventSink: FlutterEventSink?
+  private var cleanUpClosure: (() -> ())?
   
   func afterCancelDo(_ cleanUpClosure: @escaping () -> ()) {
     self.cleanUpClosure = cleanUpClosure
@@ -39,27 +39,90 @@ extension EventChannel : FlutterStreamHandler {
     cleanUpClosure = nil
     return nil
   }
+  
+  func _sink(error: FlutterError) {
+    flutterEventSink?(error)
+  }
+  func _sink(string: String) {
+    flutterEventSink?(string)
+  }
+  
+  func _sink<EncodableT: Encodable>(encodable: EncodableT) {
+    do {
+      let data = try JSONEncoder().encode(encodable)
+      guard let jsonStr = String(data: data, encoding: .utf8) else {
+        _sink(error:
+          FlutterError(
+            code: "666",
+            message: "String(data:encoding:) failed",
+            details: data
+          )
+        )
+        return
+      }
+      _sink(string: jsonStr)
+    } catch {
+      _sink(error: FlutterError(bleError: BleError(withError: error)))
+    }
+  }
 }
 
 class EventSink {
+  
   class StateChanges : EventChannel, EventSinker {
-    typealias SinkableT = String
-    func sink(_ obj: SinkableT) {
-      flutterEventSink?(obj)
+    typealias SinkableT = Int
+    func sink(_ rawState: Int) {
+      let stateStr: String
+      if #available(iOS 10, *) {
+        switch CBManagerState(rawValue: rawState) {
+        case .resetting?:
+          stateStr = "Resetting"
+        case .unsupported:
+          stateStr = "Unsupported"
+        case .unauthorized:
+          stateStr = "Unauthorized"
+        case .poweredOff:
+          stateStr = "PoweredOff"
+        case .poweredOn:
+          stateStr = "PoweredOn"
+        case .unknown, .none:
+          fallthrough
+        @unknown default:
+          stateStr = "Unknown"
+        }
+      } else {
+        switch CBCentralManagerState(rawValue: rawState) {
+        case .resetting:
+          stateStr = "Resetting"
+        case .unsupported:
+          stateStr = "Unsupported"
+        case .unauthorized:
+          stateStr = "Unauthorized"
+        case .poweredOff:
+          stateStr = "PoweredOff"
+        case .poweredOn:
+          stateStr = "PoweredOn"
+        case .unknown, .none:
+          fallthrough
+        @unknown default:
+          stateStr = "Unknown"
+        }
+      }
+      _sink(string: stateStr)
     }
   }
   
   class StateRestoreEvents : EventChannel, EventSinker {
-    typealias SinkableT = String
-    func sink(_ obj: SinkableT) {
-      flutterEventSink?(obj)
+    typealias SinkableT = [PeripheralResponse]
+    func sink(_ obj: [PeripheralResponse]) {
+      _sink(encodable: obj)
     }
   }
   
   class ScanningEvents : EventChannel, EventSinker {
     typealias SinkableT = ScanResultEvent
     func sink(_ obj: ScanResultEvent) {
-      flutterEventSink?(obj)
+      _sink(encodable: obj)
     }
   }
   
@@ -79,14 +142,14 @@ class EventSink {
       @unknown default:
         stateStr = "disconnected"
       }
-      flutterEventSink?(stateStr)
+      _sink(string: stateStr)
     }
   }
   
   class MonitorCharacteristic : EventChannel, EventSinker {
-    typealias SinkableT = String
-    func sink(_ obj: SinkableT) {
-      flutterEventSink?(obj)
+    typealias SinkableT = CharacteristicResponse
+    func sink(_ obj: CharacteristicResponse) {
+      _sink(encodable: obj)
     }
   }
   

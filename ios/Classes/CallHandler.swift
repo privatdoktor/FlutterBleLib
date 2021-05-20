@@ -70,7 +70,7 @@ extension Client : CallHandler {
       )
       call.result(encodable: res)
     case .characteristicsForService(let serviceNumericId):
-      let res = characteristics(for: Int(serviceNumericId))
+      let res = characteristics(for: serviceNumericId)
       call.result(encodable: res)
     case .descriptorsForDevice(let deviceIdentifier,
                                let serviceUUID,
@@ -86,14 +86,14 @@ extension Client : CallHandler {
                                 let characteristicUUID):
       let res =
         descriptorsForService(
-          serviceNumericId: Int(serviceNumericId),
+          serviceNumericId: serviceNumericId,
           characteristicUUID: characteristicUUID
         )
       call.result(encodable: res)
     case .descriptorsForCharacteristic(let characteristicNumericId):
       let res =
         descriptorsForCharacteristic(
-          characteristicNumericId: Int(characteristicNumericId)
+          characteristicNumericId: characteristicNumericId
         )
       call.result(encodable: res)
     case .logLevel:
@@ -117,83 +117,201 @@ extension Client : CallHandler {
       call.result(encodable: res)
     case .readCharacteristicForIdentifier(let characteristicNumericId,
                                           let transactionId):
-      call.result(any: FlutterMethodNotImplemented)
+      readCharacteristicForIdentifier(
+        characteristicNumericId: characteristicNumericId,
+        transactionId: transactionId
+      ) { res in
+        call.result(encodable: res)
+      }
     case .readCharacteristicForDevice(let deviceIdentifier,
                                       let serviceUUID,
                                       let characteristicUUID,
                                       let transactionId):
-      call.result(any: FlutterMethodNotImplemented)
+      readCharacteristicForDevice(
+        deviceIdentifier: deviceIdentifier,
+        serviceUUID: serviceUUID,
+        characteristicUUID: characteristicUUID,
+        transactionId: transactionId
+      ) { res in
+        call.result(encodable: res)
+      }
     case .readCharacteristicForService(let serviceNumericId,
                                        let characteristicUUID,
                                        let transactionId):
-      call.result(any: FlutterMethodNotImplemented)
+      readCharacteristicForService(
+        serviceNumericId: serviceNumericId,
+        characteristicUUID: characteristicUUID,
+        transactionId: transactionId
+      ) { res in
+        call.result(encodable: res)
+      }
     case .writeCharacteristicForIdentifier(let characteristicNumericId,
                                            let value,
+                                           let withResponse,
                                            let transactionId):
-      call.result(any: FlutterMethodNotImplemented)
+      writeCharacteristicForIdentifier(
+        characteristicNumericId: characteristicNumericId,
+        value: value,
+        withResponse: withResponse,
+        transactionId: transactionId
+      ) { res in
+        call.result(encodable: res)
+      }
     case .writeCharacteristicForDevice(let deviceIdentifier,
                                        let serviceUUID,
                                        let characteristicUUID,
                                        let value,
+                                       let withResponse,
                                        let transactionId):
-      call.result(any: FlutterMethodNotImplemented)
+      writeCharacteristicForDevice(
+        deviceIdentifier: deviceIdentifier,
+        serviceUUID: serviceUUID,
+        characteristicUUID: characteristicUUID,
+        value: value, withResponse: withResponse,
+        transactionId: transactionId
+      ) { res in
+        call.result(encodable: res)
+      }
     case .writeCharacteristicForService(let serviceNumericId,
                                         let characteristicUUID,
                                         let value,
+                                        let withResponse,
                                         let transactionId):
-      call.result(any: FlutterMethodNotImplemented)
+      writeCharacteristicForService(
+        serviceNumericId: serviceNumericId,
+        characteristicUUID: characteristicUUID,
+        value: value,
+        withResponse: withResponse,
+        transactionId: transactionId
+      ) { res in
+        call.result(encodable: res)
+      }
     case .monitorCharacteristicForIdentifier(let characteristicNumericId,
                                              let transactionId):
-      call.result(any: FlutterMethodNotImplemented)
+      monitorCharacteristicForIdentifier(
+        characteristicNumericId: characteristicNumericId,
+        transactionId: transactionId
+      ) { res in
+        call.result(res)
+      }
     case .monitorCharacteristicForDevice(let deviceIdentifier,
                                          let serviceUUID,
                                          let characteristicUUID,
                                          let transactionId):
-      call.result(any: FlutterMethodNotImplemented)
+      monitorCharacteristicForDevice(
+        deviceIdentifier: deviceIdentifier,
+        serviceUUID: serviceUUID,
+        characteristicUUID: characteristicUUID,
+        transactionId: transactionId
+      ) { res in
+        call.result(res)
+      }
     case .monitorCharacteristicForService(let serviceNumericId,
                                           let characteristicUUID,
                                           let transactionId):
-      call.result(any: FlutterMethodNotImplemented)
+      monitorCharacteristicForService(
+        serviceNumericId: serviceNumericId,
+        characteristicUUID: characteristicUUID,
+        transactionId: transactionId
+      ) { res in
+        call.result(res)
+      }
     case .readDescriptorForIdentifier(let descriptorNumericId,
                                       let transactionId):
-      call.result(any: FlutterMethodNotImplemented)
+      readDescriptorForIdentifier(
+        descriptorNumericId: descriptorNumericId,
+        transactionId: transactionId
+      ) { res in
+        call.result(encodable: res)
+      }
     case .readDescriptorForCharacteristic(let characteristicNumericId,
                                           let descriptorUUID,
                                           let transactionId):
-      call.result(any: FlutterMethodNotImplemented)
+      readDescriptorForCharacteristic(
+        characteristicNumericId: characteristicNumericId,
+        descriptorUUID: descriptorUUID,
+        transactionId: transactionId
+      ) { res in
+        call.result(encodable: res)
+      }
     case .readDescriptorForService(let serviceNumericId,
                                    let characteristicUUID,
                                    let descriptorUUID,
                                    let transactionId):
-      call.result(any: FlutterMethodNotImplemented)
+      readDescriptorForService(
+        serviceNumericId: serviceNumericId,
+        characteristicUUID: characteristicUUID,
+        descriptorUUID: descriptorUUID,
+        transactionId: transactionId
+      ) { res in
+        call.result(encodable: res)
+      }
     case .readDescriptorForDevice(let deviceIdentifier,
                                   let serviceUUID,
                                   let characteristicUUID,
                                   let descriptorUUID,
                                   let transactionId):
-      call.result(any: FlutterMethodNotImplemented)
+      readDescriptorForDevice(
+        deviceIdentifier: deviceIdentifier,
+        serviceUUID: serviceUUID,
+        characteristicUUID: characteristicUUID,
+        descriptorUUID: descriptorUUID,
+        transactionId: transactionId
+      ) { res in
+        call.result(encodable: res)
+      }
     case .writeDescriptorForIdentifier(let descriptorNumericId,
                                        let value,
                                        let transactionId):
-      call.result(any: FlutterMethodNotImplemented)
+      writeDescriptorForIdentifier(
+        descriptorNumericId: descriptorNumericId,
+        value: value,
+        transactionId: transactionId
+      ) { res in
+        call.result(encodable: res)
+      }
     case .writeDescriptorForCharacteristic(let characteristicNumericId,
                                            let descriptorUUID,
                                            let value,
                                            let transactionId):
-      call.result(any: FlutterMethodNotImplemented)
+      writeDescriptorForCharacteristic(
+        characteristicNumericId: characteristicNumericId,
+        descriptorUUID: descriptorUUID,
+        value: value,
+        transactionId: transactionId
+      ) { res in
+        call.result(encodable: res)
+      }
     case .writeDescriptorForService(let serviceNumericId,
                                     let characteristicUUID,
                                     let descriptorUUID,
                                     let value,
                                     let transactionId):
-      call.result(any: FlutterMethodNotImplemented)
+      writeDescriptorForService(
+        serviceNumericId: serviceNumericId,
+        characteristicUUID: characteristicUUID,
+        descriptorUUID: descriptorUUID,
+        value: value,
+        transactionId: transactionId
+      ) { res in
+        call.result(encodable: res)
+      }
     case .writeDescriptorForDevice(let deviceIdentifier,
                                    let serviceUUID,
                                    let characteristicUUID,
                                    let descriptorUUID,
                                    let value,
                                    let transactionId):
-      call.result(any: FlutterMethodNotImplemented)
+      writeDescriptorForDevice(
+        deviceIdentifier: deviceIdentifier,
+        serviceUUID: serviceUUID,
+        characteristicUUID: characteristicUUID,
+        descriptorUUID: descriptorUUID,
+        value: value,
+        transactionId: transactionId
+      ) { res in
+        call.result(encodable: res)
+      }
     }
   }
 }

@@ -84,12 +84,186 @@ class Client : NSObject {
   private var serviceUuidCache = HashableIdCache<CBUUID>()
   private var characteristicUuidCache = HashableIdCache<CBUUID>()
   private var descriptorUuidCache =  HashableIdCache<CBUUID>()
+  
   private var peerConnectionEventHandlers = [UUID : PeerConnectionEventHandler]()
   
   init(eventSink: EventSink) {
     self.eventSink = eventSink
     super.init()
   }
+}
+// MARK: -- Helpers
+extension Client {
+  private func discoveredPeripheral(
+    for uuid: UUID,
+    centralManager: CBCentralManager
+  ) -> DiscoveredPeripheral? {
+    if let dp = discoveredPeripherals[uuid] {
+      return dp
+    }
+    guard
+      let peri = centralManager.retrievePeripherals(
+        withIdentifiers: [uuid]
+      ).last
+    else {
+      return nil
+    }
+    let dp = DiscoveredPeripheral(
+      peri,
+      centralManager: centralManager
+    )
+    discoveredPeripherals[uuid] = dp
+    return dp
+  }
+  
+  private func discoveredPeripheral(
+    for deviceIdentifier: String,
+    expectedState: CBPeripheralState? = nil
+  ) -> Result<DiscoveredPeripheral, ClientError> {
+    guard
+      let centralManager = centralManager
+    else {
+      return .failure(.notCreated)
+    }
+    guard
+      let uuid = UUID(uuidString: deviceIdentifier)
+    else {
+      return .failure(ClientError.invalidUUIDString(deviceIdentifier))
+    }
+    guard
+      let dp = discoveredPeripheral(
+        for: uuid,
+        centralManager: centralManager
+      )
+    else {
+      return .failure(
+        ClientError.noPeripheralFoundFor(uuid, expectedState: expectedState)
+      )
+    }
+    if let state = expectedState,
+       dp.peripheral.state != state {
+      return .failure(
+        ClientError.noPeripheralFoundFor(uuid, expectedState: state)
+      )
+    }
+    
+    return .success(dp)
+  }
+  
+  private func peripheralFor(
+    uuid: UUID,
+    centralManager: CBCentralManager
+  ) -> CBPeripheral? {
+    return discoveredPeripheral(
+      for: uuid,
+      centralManager: centralManager
+    )?.peripheral
+  }
+  
+  private func discoveredCharacteristic(
+    for characteristicNumericId: Int
+  ) -> Result<DiscoveredCharacteristic, ClientError> {
+    guard
+      let characteristicCbuuid =
+        characteristicUuidCache.hashable(from: characteristicNumericId)
+    else {
+      return .failure(
+        .peripheral(
+          .noCharacteristicFound(nil, id: "\(characteristicNumericId)")
+        )
+      )
+    }
+    var foundDiscoChar: DiscoveredCharacteristic?
+    outer: for (_, dp) in discoveredPeripherals {
+      for (_, ds) in dp.discoveredServices {
+        if let dc = ds.discoveredCharacteristics[characteristicCbuuid] {
+          foundDiscoChar = dc
+          break outer
+        }
+      }
+    }
+    guard
+      let dc = foundDiscoChar
+    else {
+      return .failure(
+        .peripheral(
+          .noCharacteristicFound(nil, id: characteristicCbuuid.fullUUIDString)
+        )
+      )
+    }
+    return .success(dc)
+  }
+  
+  private func discoveredService(
+    for serviceNumericId: Int
+  ) -> Result<DiscoveredService, ClientError> {
+    guard
+      let serviceCbuuid =
+        serviceUuidCache.hashable(from: serviceNumericId)
+    else {
+      return .failure(
+        .peripheral(
+          .noServiceFound(nil, id: "\(serviceNumericId)")
+        )
+      )
+    }
+    var foundDiscoSer: DiscoveredService?
+    for (_, dp) in discoveredPeripherals {
+      if let ds = dp.discoveredServices[serviceCbuuid] {
+        foundDiscoSer = ds
+        break
+      }
+    }
+    guard
+      let ds = foundDiscoSer
+    else {
+      return .failure(
+        .peripheral(
+          .noServiceFound(nil, id: serviceCbuuid.fullUUIDString)
+        )
+      )
+    }
+    return .success(ds)
+  }
+  private func discoveredDescriptor(
+    for descriptorNumericId: Int
+  ) -> Result<DiscoveredDescriptor, ClientError> {
+    guard
+      let descriptorCbuuid =
+        descriptorUuidCache.hashable(from: descriptorNumericId)
+    else {
+      return .failure(
+        .peripheral(
+          .noDescriptorFound(nil, id: "\(descriptorNumericId)")
+        )
+      )
+    }
+    var foundDiscoDesc: DiscoveredDescriptor?
+    outer: for (_, dp) in discoveredPeripherals {
+      for (_, ds) in dp.discoveredServices {
+        for (_, dc) in ds.discoveredCharacteristics {
+          if let dc = dc.discoveredDescriptors[descriptorCbuuid] {
+            foundDiscoDesc = dc
+            break outer
+          }
+        }
+      }
+    }
+    guard
+      let dd = foundDiscoDesc
+    else {
+      return .failure(
+        .peripheral(
+          .noDescriptorFound(nil, id: descriptorCbuuid.fullUUIDString)
+        )
+      )
+    }
+    return .success(dd)
+  }
+}
+
+// MARK: -- CallHandler API
+extension Client {
   
   func noop() {}
   
@@ -159,78 +333,12 @@ class Client : NSObject {
     centralManager?.stopScan()
   }
   
-  private func peripheralConnectionFor(
-    uuid: UUID,
-    centralManager: CBCentralManager
-  ) -> DiscoveredPeripheral? {
-    if let dp = discoveredPeripherals[uuid] {
-      return dp
-    }
-    guard
-      let peri = centralManager.retrievePeripherals(
-        withIdentifiers: [uuid]
-      ).last
-    else {
-      return nil
-    }
-    let dp = DiscoveredPeripheral(
-      peri,
-      centralManager: centralManager
-    )
-    discoveredPeripherals[uuid] = dp
-    return dp
-  }
-  
-  private func peripheralConnectionFor(
-    deviceIdentifier: String,
-    expectedState: CBPeripheralState? = nil
-  ) -> Result<DiscoveredPeripheral, ClientError> {
-    guard
-      let centralManager = centralManager
-    else {
-      return .failure(.notCreated)
-    }
-    guard
-      let uuid = UUID(uuidString: deviceIdentifier)
-    else {
-      return .failure(ClientError.invalidUUIDString(deviceIdentifier))
-    }
-    guard
-      let dp = peripheralConnectionFor(
-        uuid: uuid,
-        centralManager: centralManager
-      )
-    else {
-      return .failure(
-        ClientError.noPeripheralFoundFor(uuid, expectedState: expectedState)
-      )
-    }
-    if let state = expectedState,
-       dp.peripheral.state != state {
-      return .failure(
-        ClientError.noPeripheralFoundFor(uuid, expectedState: state)
-      )
-    }
-    
-    return .success(dp)
-  }
-  
-  private func peripheralFor(
-    uuid: UUID,
-    centralManager: CBCentralManager
-  ) -> CBPeripheral? {
-    return peripheralConnectionFor(
-      uuid: uuid,
-      centralManager: centralManager
-    )?.peripheral
-  }
-  
   func connectToDevice(
     id: String,
     timoutMillis: Int?,
     completion: @escaping (_ completion: Result<(), ClientError>) -> ()
   ) {
-    switch peripheralConnectionFor(deviceIdentifier: id) {
+    switch discoveredPeripheral(for: id) {
     case .failure(let error):
       completion(.failure(error))
     case .success(let dp):
@@ -240,7 +348,7 @@ class Client : NSObject {
   }
 
   func isDeviceConnected(id: String) -> Result<Bool, ClientError> {
-    switch peripheralConnectionFor(deviceIdentifier: id) {
+    switch discoveredPeripheral(for: id) {
     case .failure(let error):
       return .failure(error)
     case .success(let dp):
@@ -327,7 +435,7 @@ class Client : NSObject {
     deviceIdentifier: String,
     completion: @escaping (Result<(), ClientError>) -> ()
   ) {
-    switch peripheralConnectionFor(deviceIdentifier: deviceIdentifier) {
+    switch discoveredPeripheral(for: deviceIdentifier) {
     case .failure(let error):
       completion(.failure(error))
     case .success(let dp):
@@ -341,7 +449,7 @@ class Client : NSObject {
     completion: @escaping (Result<(), ClientError>) -> ()
   ) {
     let discoPeri: DiscoveredPeripheral
-    switch peripheralConnectionFor(deviceIdentifier: deviceIdentifier) {
+    switch discoveredPeripheral(for: deviceIdentifier) {
     case .failure(let error):
       completion(.failure(error))
       return
@@ -416,7 +524,7 @@ class Client : NSObject {
     for deviceIdentifier: String
   ) -> Result<[ServiceResponse], ClientError> {
     let discoPeri: DiscoveredPeripheral
-    switch peripheralConnectionFor(deviceIdentifier: deviceIdentifier) {
+    switch discoveredPeripheral(for: deviceIdentifier) {
     case .failure(let error):
       return .failure(error)
     case .success(let dp):
@@ -444,9 +552,9 @@ class Client : NSObject {
     return .success(
       CharacteristicsResponse(
         with: ds.service.characteristics ?? [],
-        using: characteristicUuidCache,
-        with: ds.service,
-        using: serviceUuidCache
+        service: ds.service,
+        charUuidCache: characteristicUuidCache,
+        serviceUuidCache: serviceUuidCache
       )
     )
   }
@@ -456,7 +564,7 @@ class Client : NSObject {
     serviceUUID: String
   ) -> Result<CharacteristicsResponse, ClientError> {
     let discoPeri: DiscoveredPeripheral
-    switch peripheralConnectionFor(deviceIdentifier: deviceIdentifier) {
+    switch discoveredPeripheral(for: deviceIdentifier) {
     case .failure(let error):
       return .failure(error)
     case .success(let dp):
@@ -498,7 +606,7 @@ class Client : NSObject {
     characteristicUUID: String
   ) -> Result<DescriptorsForPeripheralResponse, ClientError> {
     let discoPeri: DiscoveredPeripheral
-    switch peripheralConnectionFor(deviceIdentifier: deviceIdentifier) {
+    switch discoveredPeripheral(for: deviceIdentifier) {
     case .failure(let error):
       return .failure(error)
     case .success(let dp):
@@ -522,14 +630,15 @@ class Client : NSObject {
         )
       )
     }
+    let char = dc.characteristic
     return .success(
       DescriptorsForPeripheralResponse(
-        with: dc.characteristic.descriptors ?? [],
-        using: descriptorUuidCache,
-        with: dc.characteristic,
-        using: characteristicUuidCache,
-        with: ds.service,
-        using: serviceUuidCache
+        with: char.descriptors ?? [],
+        char: char,
+        service: char.service,
+        descUuidCache: descriptorUuidCache,
+        charUuidChache: characteristicUuidCache,
+        serviceUuidCache: serviceUuidCache
       )
     )
   }
@@ -564,49 +673,16 @@ class Client : NSObject {
         )
       )
     }
-    
+    let char = dc.characteristic
     return .success(
       DescriptorsForServiceResponse(
         with: dc.characteristic.descriptors ?? [],
-        using: descriptorUuidCache,
-        with: dc.characteristic,
-        using: characteristicUuidCache
+        char: char,
+        descUuidCache: characteristicUuidCache,
+        charUuidChache: characteristicUuidCache,
+        serviceUuidCache: serviceUuidCache
       )
     )
-  }
-  
-  private func discoveredCharacteristic(
-    for characteristicNumericId: Int
-  ) -> Result<DiscoveredCharacteristic, ClientError> {
-    guard
-      let characteristicCbuuid =
-        characteristicUuidCache.hashable(from: characteristicNumericId)
-    else {
-      return .failure(
-        .peripheral(
-          .noCharacteristicFound(nil, id: "\(characteristicNumericId)")
-        )
-      )
-    }
-    var foundDiscoChar: DiscoveredCharacteristic?
-    outer: for (_, dp) in discoveredPeripherals {
-      for (_, ds) in dp.discoveredServices {
-        if let dc = ds.discoveredCharacteristics[characteristicCbuuid] {
-          foundDiscoChar = dc
-          break outer
-        }
-      }
-    }
-    guard
-      let dc = foundDiscoChar
-    else {
-      return .failure(
-        .peripheral(
-          .noCharacteristicFound(nil, id: characteristicCbuuid.fullUUIDString)
-        )
-      )
-    }
-    return .success(dc)
   }
   
   func descriptorsForCharacteristic(
@@ -622,7 +698,9 @@ class Client : NSObject {
     return .success(
       DescriptorsForCharacteristicResponse(
         with: dc.characteristic.descriptors ?? [],
-        using: characteristicUuidCache
+        descUuidCache: characteristicUuidCache,
+        charUuidChache: characteristicUuidCache,
+        serviceUuidCache: serviceUuidCache
       )
     )
   }
@@ -642,7 +720,7 @@ class Client : NSObject {
     completion: @escaping (Result<Int, ClientError>) -> ()
   ) {
     let discoPeri: DiscoveredPeripheral
-    switch peripheralConnectionFor(deviceIdentifier: deviceIdentifier) {
+    switch discoveredPeripheral(for: deviceIdentifier) {
     case .failure(let error):
       completion(.failure(error))
       return
@@ -654,7 +732,7 @@ class Client : NSObject {
   
   func requestMtu(for deviceIdentifier: String) -> Int {
     let discoPeri: DiscoveredPeripheral
-    switch peripheralConnectionFor(deviceIdentifier: deviceIdentifier) {
+    switch discoveredPeripheral(for: deviceIdentifier) {
     case .failure:
       return CBPeripheral.defaultMtu
     case .success(let dp):
@@ -693,6 +771,26 @@ class Client : NSObject {
     )
   }
   
+  private func readCharacteristic(
+    for dc: DiscoveredCharacteristic,
+    transactionId: String?,
+    completion: @escaping (Result<CharacteristicResponse, ClientError>) -> ()
+  ) {
+    dc.read { res in
+      switch res {
+      case .failure(let error):
+        completion(.failure(.peripheral(error)))
+      case .success(let char):
+        let resp = CharacteristicResponse(
+          char: char,
+          charUuidCache: self.characteristicUuidCache,
+          serviceUuidCache: self.serviceUuidCache
+        )
+        completion(.success(resp))
+      }
+    }
+  }
+  
   func readCharacteristicForIdentifier(
     characteristicNumericId: Int,
     transactionId: String?,
@@ -706,45 +804,129 @@ class Client : NSObject {
     case .success(let value):
       dc = value
     }
-    
-    dc.read { res in
-      switch res {
-      case .failure(let error):
-        completion(.failure(.peripheral(error)))
-      case .success(let char):
-        let resp = CharacteristicResponse(
-          char: char,
-          using: self.characteristicUuidCache,
-          usingSevice: self.serviceUuidCache
-        )
-        completion(.success(resp))
-      }
-    }
-    
+    readCharacteristic(
+      for: dc,
+      transactionId: transactionId,
+      completion: completion
+    )
   }
   
   func readCharacteristicForDevice(
     deviceIdentifier: String,
     serviceUUID: String,
     characteristicUUID: String,
-    transactionId: String?
+    transactionId: String?,
+    completion: @escaping (Result<CharacteristicResponse, ClientError>) -> ()
   ) {
-    
+    let dp: DiscoveredPeripheral
+    switch discoveredPeripheral(for: deviceIdentifier) {
+    case .failure(let error):
+      completion(.failure(error))
+      return
+    case .success(let value):
+      dp = value
+    }
+    guard
+      let ds = dp.discoveredServices[CBUUID(string: serviceUUID)]
+    else {
+      completion(
+        .failure(
+          .peripheral(.noServiceFound(dp.peripheral, id: serviceUUID))
+        )
+      )
+      return
+    }
+    guard
+      let dc = ds.discoveredCharacteristics[CBUUID(string: characteristicUUID)]
+    else {
+      completion(
+        .failure(
+          .peripheral(.noCharacteristicFound(ds.service, id: characteristicUUID))
+        )
+      )
+      return
+    }
+    readCharacteristic(
+      for: dc,
+      transactionId: transactionId,
+      completion: completion
+    )
+  }
+  func readCharacteristicForService(
+    serviceNumericId: Int,
+    characteristicUUID: String,
+    transactionId: String?,
+    completion: @escaping (Result<CharacteristicResponse, ClientError>) -> ()
+  ) {
+    let ds: DiscoveredService
+    switch discoveredService(for: serviceNumericId) {
+    case .failure(let error):
+      completion(.failure(error))
+      return
+    case .success(let value):
+      ds = value
+    }
+    guard
+      let dc = ds.discoveredCharacteristics[CBUUID(string: characteristicUUID)]
+    else {
+      completion(
+        .failure(
+          .peripheral(.noCharacteristicFound(ds.service, id: characteristicUUID))
+        )
+      )
+      return
+    }
+    readCharacteristic(
+      for: dc,
+      transactionId: transactionId,
+      completion: completion
+    )
+  }
+  private func writeCharacteristic(
+    for dc: DiscoveredCharacteristic,
+    value: FlutterStandardTypedData,
+    withResponse: Bool,
+    transactionId: String?,
+    completion: @escaping (Result<CharacteristicResponse, ClientError>) -> ()
+  ) {
+    dc.write(
+      value.data,
+      type: withResponse ? .withResponse : .withoutResponse
+    ) { res in
+      completion(
+        res.map({ char in
+          return CharacteristicResponse(
+            char: char,
+            charUuidCache: self.characteristicUuidCache,
+            serviceUuidCache: self.serviceUuidCache
+          )
+        }).mapError(ClientError.peripheral)
+      )
+    }
   }
   
-  func readCharacteristicForService(
-    serviceNumericId: Double,
-    characteristicUUID: String,
-    transactionId: String?
-  ) {
-    
-  }
   func writeCharacteristicForIdentifier(
-    characteristicNumericId: Double,
+    characteristicNumericId: Int,
     value: FlutterStandardTypedData,
-    transactionId: String?
+    withResponse: Bool,
+    transactionId: String?,
+    completion: @escaping (Result<CharacteristicResponse, ClientError>) -> ()
   ) {
-    
+    let dc: DiscoveredCharacteristic
+    switch discoveredCharacteristic(for: characteristicNumericId) {
+    case .failure(let error):
+      completion(.failure(error))
+      return
+    case .success(let value):
+      dc = value
+    }
+    writeCharacteristic(
+      for: dc,
+      value: value,
+      withResponse: withResponse,
+      transactionId: transactionId,
+      completion: completion
+    )
   }
   
   func writeCharacteristicForDevice(
@@ -752,66 +934,332 @@ class Client : NSObject {
     serviceUUID: String,
     characteristicUUID: String,
     value: FlutterStandardTypedData,
-    transactionId: String?
+    withResponse: Bool,
+    transactionId: String?,
+    completion: @escaping (Result<CharacteristicResponse, ClientError>) -> ()
   ) {
+    let dp: DiscoveredPeripheral
+    switch discoveredPeripheral(for: deviceIdentifier) {
+    case .failure(let error):
+      completion(.failure(error))
+      return
+    case .success(let value):
+      dp = value
+    }
+    guard
+      let ds = dp.discoveredServices[CBUUID(string: serviceUUID)]
+    else {
+      completion(
+        .failure(
+          .peripheral(.noServiceFound(dp.peripheral, id: serviceUUID))
+        )
+      )
+      return
+    }
+    guard
+      let dc = ds.discoveredCharacteristics[CBUUID(string: characteristicUUID)]
+    else {
+      completion(
+        .failure(
+          .peripheral(.noCharacteristicFound(ds.service, id: characteristicUUID))
+        )
+      )
+      return
+    }
+    writeCharacteristic(
+      for: dc,
+      value: value,
+      withResponse: withResponse,
+      transactionId: transactionId,
+      completion: completion
+    )
     
   }
   
   func writeCharacteristicForService(
-    serviceNumericId: Double,
+    serviceNumericId: Int,
     characteristicUUID: String,
     value: FlutterStandardTypedData,
-    transactionId: String?
+    withResponse: Bool,
+    transactionId: String?,
+    completion: @escaping (Result<CharacteristicResponse, ClientError>) -> ()
   ) {
+    let ds: DiscoveredService
+    switch discoveredService(for: serviceNumericId) {
+    case .failure(let error):
+      completion(.failure(error))
+      return
+    case .success(let value):
+      ds = value
+    }
+    guard
+      let dc = ds.discoveredCharacteristics[CBUUID(string: characteristicUUID)]
+    else {
+      completion(
+        .failure(
+          .peripheral(.noCharacteristicFound(ds.service, id: characteristicUUID))
+        )
+      )
+      return
+    }
+    writeCharacteristic(
+      for: dc,
+      value: value,
+      withResponse: withResponse,
+      transactionId: transactionId,
+      completion: completion
+    )
+  }
+  
+  private func monitorCharacteristic(
+    for dc: DiscoveredCharacteristic,
+    transactionId: String?,
+    completion: @escaping (Result<(), ClientError>) -> ()
+  ) {
+    let charEvents = eventSink.monitorCharacteristic
+    charEvents.afterCancelDo {
+      let char = dc.characteristic
+      if char.isNotifying {
+        char.service.peripheral.setNotifyValue(false, for: char)
+      }
+      dc.onValueUpdate(handler: nil)
+    }
+    dc.onValueUpdate { char in
+      charEvents.sink(
+        CharacteristicResponse(
+          char: char,
+          charUuidCache: self.characteristicUuidCache,
+          serviceUuidCache: self.serviceUuidCache,
+          transactionId: transactionId
+        )
+      )
+    }
+    guard
+      dc.characteristic.isNotifying == false
+    else {
+      completion(.success(()))
+      return
+    }
     
+    dc.setNotify(true) { res in
+      switch res {
+      case .failure(let error):
+        completion(.failure(.peripheral(error)))
+        return
+      case .success(let char):
+        if char.isNotifying {
+          completion(.success(()))
+        } else {
+          completion(
+            .failure(
+              .peripheral(.characteristicSetNotify(char, internal: nil))
+            )
+          )
+        }
+        
+      }
+    }
   }
   
   func monitorCharacteristicForIdentifier(
-    characteristicNumericId: Double,
-    transactionId: String?
+    characteristicNumericId: Int,
+    transactionId: String?,
+    completion: @escaping (Result<(), ClientError>) -> ()
   ) {
-    
+    let dc: DiscoveredCharacteristic
+    switch discoveredCharacteristic(for: characteristicNumericId) {
+    case .failure(let error):
+      completion(.failure(error))
+      return
+    case .success(let value):
+      dc = value
+    }
+    monitorCharacteristic(for: dc, transactionId: transactionId, completion: completion)
   }
   
   func monitorCharacteristicForDevice(
     deviceIdentifier: String,
     serviceUUID: String,
     characteristicUUID: String,
-    transactionId: String?
+    transactionId: String?,
+    completion: @escaping (Result<(), ClientError>) -> ()
   ) {
-    
+    let dp: DiscoveredPeripheral
+    switch discoveredPeripheral(for: deviceIdentifier) {
+    case .failure(let error):
+      completion(.failure(error))
+      return
+    case .success(let value):
+      dp = value
+    }
+    guard
+      let ds = dp.discoveredServices[CBUUID(string: serviceUUID)]
+    else {
+      completion(
+        .failure(
+          .peripheral(.noServiceFound(dp.peripheral, id: serviceUUID))
+        )
+      )
+      return
+    }
+    guard
+      let dc = ds.discoveredCharacteristics[CBUUID(string: characteristicUUID)]
+    else {
+      completion(
+        .failure(
+          .peripheral(.noCharacteristicFound(ds.service, id: characteristicUUID))
+        )
+      )
+      return
+    }
+    monitorCharacteristic(
+      for: dc,
+      transactionId: transactionId,
+      completion: completion
+    )
   }
   
   func monitorCharacteristicForService(
-    serviceNumericId: Double,
+    serviceNumericId: Int,
     characteristicUUID: String,
-    transactionId: String?
+    transactionId: String?,
+    completion: @escaping (Result<(), ClientError>) -> ()
   ) {
-    
+    let ds: DiscoveredService
+    switch discoveredService(for: serviceNumericId) {
+    case .failure(let error):
+      completion(.failure(error))
+      return
+    case .success(let value):
+      ds = value
+    }
+    guard
+      let dc = ds.discoveredCharacteristics[CBUUID(string: characteristicUUID)]
+    else {
+      completion(
+        .failure(
+          .peripheral(.noCharacteristicFound(ds.service, id: characteristicUUID))
+        )
+      )
+      return
+    }
+    monitorCharacteristic(
+      for: dc,
+      transactionId: transactionId,
+      completion: completion
+    )
+  }
+  
+  private func readDescriptor(
+    for dd: DiscoveredDescriptor,
+    transactionId: String?,
+    completion: @escaping (Result<DescriptorResponse, ClientError>) -> ()
+  ) {
+    dd.read { res in
+      completion(
+        res.map({ desc in
+          return DescriptorResponse(
+            desc: desc,
+            descUuidCache: self.descriptorUuidCache,
+            charUuidChache: self.characteristicUuidCache,
+            serviceUuidCache: self.serviceUuidCache
+          )
+        }).mapError(ClientError.peripheral)
+      )
+    }
   }
   
   func readDescriptorForIdentifier(
-    descriptorNumericId: Double,
-    transactionId: String?
+    descriptorNumericId: Int,
+    transactionId: String?,
+    completion: @escaping (Result<DescriptorResponse, ClientError>) -> ()
   ) {
-    
+    let dd: DiscoveredDescriptor
+    switch discoveredDescriptor(for: descriptorNumericId) {
+    case .failure(let error):
+      completion(.failure(error))
+      return
+    case .success(let value):
+      dd = value
+    }
+    readDescriptor(
+      for: dd,
+      transactionId: transactionId,
+      completion: completion
+    )
   }
   
   func readDescriptorForCharacteristic(
-    characteristicNumericId: Double,
+    characteristicNumericId: Int,
     descriptorUUID: String,
-    transactionId: String?
+    transactionId: String?,
+    completion: @escaping (Result<DescriptorResponse, ClientError>) -> ()
   ) {
-    
+    let dc: DiscoveredCharacteristic
+    switch discoveredCharacteristic(for: characteristicNumericId) {
+    case .failure(let error):
+      completion(.failure(error))
+      return
+    case .success(let value):
+      dc = value
+    }
+    guard
+      let dd = dc.discoveredDescriptors[CBUUID(string:descriptorUUID)]
+    else {
+      completion(
+        .failure(
+          .peripheral(.noDescriptorFound(dc.characteristic, id: descriptorUUID))
+        )
+      )
+      return
+    }
+    readDescriptor(
+      for: dd,
+      transactionId: transactionId,
+      completion: completion
+    )
   }
   
   func readDescriptorForService(
-    serviceNumericId: Double,
+    serviceNumericId: Int,
     characteristicUUID: String,
     descriptorUUID: String,
-    transactionId: String?
+    transactionId: String?,
+    completion: @escaping (Result<DescriptorResponse, ClientError>) -> ()
   ) {
-    
+    let ds: DiscoveredService
+    switch discoveredService(for: serviceNumericId) {
+    case .failure(let error):
+      completion(.failure(error))
+      return
+    case .success(let value):
+      ds = value
+    }
+    guard
+      let dc = ds.discoveredCharacteristics[CBUUID(string: characteristicUUID)]
+    else {
+      completion(
+        .failure(
+          .peripheral(.noCharacteristicFound(ds.service, id: characteristicUUID))
+        )
+      )
+      return
+    }
+    guard
+      let dd = dc.discoveredDescriptors[CBUUID(string:descriptorUUID)]
+    else {
+      completion(
+        .failure(
+          .peripheral(.noDescriptorFound(dc.characteristic, id: descriptorUUID))
+        )
+      )
+      return
+    }
+    readDescriptor(
+      for: dd,
+      transactionId: transactionId,
+      completion: completion
+    )
   }
   
   func readDescriptorForDevice(
@@ -819,36 +1267,171 @@ class Client : NSObject {
     serviceUUID: String,
     characteristicUUID: String,
     descriptorUUID: String,
-    transactionId: String?
+    transactionId: String?,
+    completion: @escaping (Result<DescriptorResponse, ClientError>) -> ()
   ) {
-    
+    let dp: DiscoveredPeripheral
+    switch discoveredPeripheral(for: deviceIdentifier) {
+    case .failure(let error):
+      completion(.failure(error))
+      return
+    case .success(let value):
+      dp = value
+    }
+    guard
+      let ds = dp.discoveredServices[CBUUID(string: serviceUUID)]
+    else {
+      completion(
+        .failure(
+          .peripheral(.noServiceFound(dp.peripheral, id: serviceUUID))
+        )
+      )
+      return
+    }
+    guard
+      let dc = ds.discoveredCharacteristics[CBUUID(string: characteristicUUID)]
+    else {
+      completion(
+        .failure(
+          .peripheral(.noCharacteristicFound(ds.service, id: characteristicUUID))
+        )
+      )
+      return
+    }
+    guard
+      let dd = dc.discoveredDescriptors[CBUUID(string:descriptorUUID)]
+    else {
+      completion(
+        .failure(
+          .peripheral(.noDescriptorFound(dc.characteristic, id: descriptorUUID))
+        )
+      )
+      return
+    }
+    readDescriptor(
+      for: dd,
+      transactionId: transactionId,
+      completion: completion
+    )
+  }
+  
+  private func writeDescriptor(
+    for dd: DiscoveredDescriptor,
+    value: FlutterStandardTypedData,
+    transactionId: String?,
+    completion: @escaping (Result<DescriptorResponse, ClientError>) -> ()
+  ) {
+    dd.write(value.data) { res in
+      completion(
+        res.map({ desc in
+          return DescriptorResponse(
+            desc: desc,
+            descUuidCache: self.descriptorUuidCache,
+            charUuidChache: self.characteristicUuidCache,
+            serviceUuidCache: self.serviceUuidCache
+          )
+        }).mapError(ClientError.peripheral)
+      )
+    }
   }
   
   func writeDescriptorForIdentifier(
-    descriptorNumericId: Double,
+    descriptorNumericId: Int,
     value: FlutterStandardTypedData,
-    transactionId: String?
+    transactionId: String?,
+    completion: @escaping (Result<DescriptorResponse, ClientError>) -> ()
   ) {
-    
+    let dd: DiscoveredDescriptor
+    switch discoveredDescriptor(for: descriptorNumericId) {
+    case .failure(let error):
+      completion(.failure(error))
+      return
+    case .success(let value):
+      dd = value
+    }
+    writeDescriptor(
+      for: dd,
+      value: value,
+      transactionId: transactionId,
+      completion: completion
+    )
   }
   
   func writeDescriptorForCharacteristic(
-    characteristicNumericId: Double,
+    characteristicNumericId: Int,
     descriptorUUID: String,
     value: FlutterStandardTypedData,
-    transactionId: String?
+    transactionId: String?,
+    completion: @escaping (Result<DescriptorResponse, ClientError>) -> ()
   ) {
-    
+    let dc: DiscoveredCharacteristic
+    switch discoveredCharacteristic(for: characteristicNumericId) {
+    case .failure(let error):
+      completion(.failure(error))
+      return
+    case .success(let value):
+      dc = value
+    }
+    guard
+      let dd = dc.discoveredDescriptors[CBUUID(string:descriptorUUID)]
+    else {
+      completion(
+        .failure(
+          .peripheral(.noDescriptorFound(dc.characteristic, id: descriptorUUID))
+        )
+      )
+      return
+    }
+    writeDescriptor(
+      for: dd,
+      value: value,
+      transactionId: transactionId,
+      completion: completion
+    )
   }
   
   func writeDescriptorForService(
-    serviceNumericId: Double,
+    serviceNumericId: Int,
     characteristicUUID: String,
     descriptorUUID: String,
     value: FlutterStandardTypedData,
-    transactionId: String?
+    transactionId: String?,
+    completion: @escaping (Result<DescriptorResponse, ClientError>) -> ()
   ) {
-    
+    let ds: DiscoveredService
+    switch discoveredService(for: serviceNumericId) {
+    case .failure(let error):
+      completion(.failure(error))
+      return
+    case .success(let value):
+      ds = value
+    }
+    guard
+      let dc = ds.discoveredCharacteristics[CBUUID(string: characteristicUUID)]
+    else {
+      completion(
+        .failure(
+          .peripheral(.noCharacteristicFound(ds.service, id: characteristicUUID))
+        )
+      )
+      return
+    }
+    guard
+      let dd = dc.discoveredDescriptors[CBUUID(string:descriptorUUID)]
+    else {
+      completion(
+        .failure(
+          .peripheral(.noDescriptorFound(dc.characteristic, id: descriptorUUID))
+        )
+      )
+      return
+    }
+    writeDescriptor(
+      for: dd,
+      value: value,
+      transactionId: transactionId,
+      completion: completion
+    )
   }
   
   func writeDescriptorForDevice(
@@ -857,23 +1440,74 @@ class Client : NSObject {
     characteristicUUID: String,
     descriptorUUID: String,
     value: FlutterStandardTypedData,
-    transactionId: String?
+    transactionId: String?,
+    completion: @escaping (Result<DescriptorResponse, ClientError>) -> ()
   ) {
-    
+    let dp: DiscoveredPeripheral
+    switch discoveredPeripheral(for: deviceIdentifier) {
+    case .failure(let error):
+      completion(.failure(error))
+      return
+    case .success(let value):
+      dp = value
+    }
+    guard
+      let ds = dp.discoveredServices[CBUUID(string: serviceUUID)]
+    else {
+      completion(
+        .failure(
+          .peripheral(.noServiceFound(dp.peripheral, id: serviceUUID))
+        )
+      )
+      return
+    }
+    guard
+      let dc = ds.discoveredCharacteristics[CBUUID(string: characteristicUUID)]
+    else {
+      completion(
+        .failure(
+          .peripheral(.noCharacteristicFound(ds.service, id: characteristicUUID))
+        )
+      )
+      return
+    }
+    guard
+      let dd = dc.discoveredDescriptors[CBUUID(string:descriptorUUID)]
+    else {
+      completion(
+        .failure(
+          .peripheral(.noDescriptorFound(dc.characteristic, id: descriptorUUID))
+        )
+      )
+      return
+    }
+    writeDescriptor(
+      for: dd,
+      value: value,
+      transactionId: transactionId,
+      completion: completion
+    )
   }
 }
 
 
 extension Client : CBCentralManagerDelegate {
   func centralManagerDidUpdateState(_ central: CBCentralManager) {
-    
+    eventSink.stateChanges.sink(central.state.rawValue)
   }
   
   func centralManager(
     _ central: CBCentralManager,
     willRestoreState dict: [String : Any]
   ) {
-    
+    guard
+      let peripherals = dict[CBCentralManagerRestoredStatePeripheralsKey] as? [CBPeripheral]
+    else {
+      return
+    }
+    eventSink.stateRestoreEvents.sink(
+      peripherals.map(PeripheralResponse.init)
+    )
   }
   
   func centralManager(

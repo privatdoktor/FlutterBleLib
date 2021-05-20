@@ -57,20 +57,57 @@ extension CBDescriptor {
 //const NSString *keyDescriptorResponseDescriptors = @"descriptors";
 
 struct DescriptorResponse : Encodable {
+  let serviceId: Int
+  let serviceUuid: String
+  
+  let characteristicId: Int
+  let characteristicUuid: String
+  let isCharacteristicReadable: Bool
+  let isCharacteristicWritableWithResponse: Bool
+  let isCharacteristicWritableWithoutResponse: Bool
+  let isCharacteristicNotifiable: Bool
+  let isCharacteristicIndicatable: Bool
+  
+  
   let descriptorId: Int
   let descriptorUuid: String
   let value: String? // base64encodedString from Data
-  
+    
   init(
     desc: CBDescriptor,
-    using uuidCache: HashableIdCache<CBUUID>
+    descUuidCache: HashableIdCache<CBUUID>,
+    charUuidChache: HashableIdCache<CBUUID>,
+    serviceUuidCache: HashableIdCache<CBUUID>
   ) {
+    let char = desc.characteristic
+    let service = char.service
+    serviceUuid = service.uuid.fullUUIDString
+    serviceId = serviceUuidCache.numeric(from: desc.characteristic.service.uuid)
+    characteristicUuid = desc.characteristic.uuid.fullUUIDString
+    characteristicId = charUuidChache.numeric(from: desc.characteristic.uuid)
+    isCharacteristicReadable = char.properties.contains(.read)
+    isCharacteristicWritableWithResponse = char.properties.contains(.write)
+    isCharacteristicWritableWithoutResponse = char.properties.contains(.writeWithoutResponse)
+    isCharacteristicNotifiable = char.properties.contains(.notify)
+    isCharacteristicIndicatable = char.properties.contains(.indicate)
+    
     descriptorUuid = desc.uuid.fullUUIDString
-    descriptorId = uuidCache.numeric(from: desc.uuid)
+    descriptorId = descUuidCache.numeric(from: desc.uuid)
     value = desc.valueAsData?.base64EncodedString()
   }
   
   private enum CodingKeys: String, CodingKey {
+    case serviceId = "serviceId"
+    case serviceUuid = "serviceUuid"
+    
+    case characteristicId = "id"
+    case characteristicUuid = "characteristicUuid"
+    case isCharacteristicReadable = "isReadable"
+    case isCharacteristicWritableWithResponse = "isWritableWithResponse"
+    case isCharacteristicWritableWithoutResponse = "isWritableWithoutResponse"
+    case isCharacteristicNotifiable = "isNotifiable"
+    case isCharacteristicIndicatable = "isIndicatable"
+    
     case descriptorId = "descriptorId"
     case descriptorUuid = "descriptorUuid"
     case value = "value"
@@ -93,11 +130,11 @@ struct DescriptorsForPeripheralResponse : Encodable {
   
   init(
     with descs: [CBDescriptor],
-    using uuidCache: HashableIdCache<CBUUID>,
-    with char: CBCharacteristic,
-    using charUuidChache: HashableIdCache<CBUUID>,
-    with service: CBService,
-    using serviceUuidCache: HashableIdCache<CBUUID>
+    char: CBCharacteristic,
+    service: CBService,
+    descUuidCache: HashableIdCache<CBUUID>,
+    charUuidChache: HashableIdCache<CBUUID>,
+    serviceUuidCache: HashableIdCache<CBUUID>
   ) {
     serviceUuid = service.uuid.fullUUIDString
     serviceId = serviceUuidCache.numeric(from: service.uuid)
@@ -109,7 +146,12 @@ struct DescriptorsForPeripheralResponse : Encodable {
     isCharacteristicNotifiable = char.properties.contains(.notify)
     isCharacteristicIndicatable = char.properties.contains(.indicate)
     descriptors = descs.map({ desc in
-      return DescriptorResponse(desc: desc, using: uuidCache)
+      return DescriptorResponse(
+        desc: desc,
+        descUuidCache: descUuidCache,
+        charUuidChache: charUuidChache,
+        serviceUuidCache: serviceUuidCache
+      )
     })
   }
   
@@ -142,9 +184,10 @@ struct DescriptorsForServiceResponse : Encodable {
   
   init(
     with descs: [CBDescriptor],
-    using uuidCache: HashableIdCache<CBUUID>,
-    with char: CBCharacteristic,
-    using charUuidChache: HashableIdCache<CBUUID>
+    char: CBCharacteristic,
+    descUuidCache: HashableIdCache<CBUUID>,
+    charUuidChache: HashableIdCache<CBUUID>,
+    serviceUuidCache: HashableIdCache<CBUUID>
   ) {
     characteristicUuid = char.uuid.fullUUIDString
     characteristicId = charUuidChache.numeric(from: char.uuid)
@@ -154,7 +197,12 @@ struct DescriptorsForServiceResponse : Encodable {
     isCharacteristicNotifiable = char.properties.contains(.notify)
     isCharacteristicIndicatable = char.properties.contains(.indicate)
     descriptors = descs.map { desc in
-      return DescriptorResponse(desc: desc, using: uuidCache)
+      return DescriptorResponse(
+        desc: desc,
+        descUuidCache: descUuidCache,
+        charUuidChache: charUuidChache,
+        serviceUuidCache: serviceUuidCache
+      )
     }
   }
   
@@ -175,10 +223,17 @@ struct DescriptorsForCharacteristicResponse : Encodable {
   let descriptors : [DescriptorResponse]
   init(
     with descs: [CBDescriptor],
-    using uuidCache: HashableIdCache<CBUUID>
+    descUuidCache: HashableIdCache<CBUUID>,
+    charUuidChache: HashableIdCache<CBUUID>,
+    serviceUuidCache: HashableIdCache<CBUUID>
   ) {
     descriptors = descs.map { desc in
-      return DescriptorResponse(desc: desc, using: uuidCache)
+      return DescriptorResponse(
+        desc: desc,
+        descUuidCache: descUuidCache,
+        charUuidChache: charUuidChache,
+        serviceUuidCache: serviceUuidCache
+      )
     }
   }
   private enum CodingKeys: String, CodingKey {
@@ -188,8 +243,8 @@ struct DescriptorsForCharacteristicResponse : Encodable {
 
 class DiscoveredDescriptor {
   let descriptor: CBDescriptor
-  private var _readCompleted: ((_ res: Result<Any?, PeripheralError>) -> ())?
-  private var _writeCompleted: ((_ res: Result<(), PeripheralError>) -> ())?
+  private var _readCompleted: ((_ res: Result<CBDescriptor, PeripheralError>) -> ())?
+  private var _writeCompleted: ((_ res: Result<CBDescriptor, PeripheralError>) -> ())?
   
   init(_ descriptor: CBDescriptor) {
     self.descriptor = descriptor
@@ -198,14 +253,14 @@ class DiscoveredDescriptor {
 // MARK: - API
 extension DiscoveredDescriptor {
   func read(
-    _ completion: @escaping (_ res: Result<(Any?), PeripheralError>) -> ()
+    _ completion: @escaping (_ res: Result<CBDescriptor, PeripheralError>) -> ()
   ) {
     _readCompleted = completion
     descriptor.characteristic.service.peripheral.readValue(for: descriptor)
   }
-  func onWriteCompleted (
+  func write(
     _ data: Data,
-    completion: @escaping (_ res: Result<(), PeripheralError>) -> ()
+    completion: @escaping (_ res: Result<CBDescriptor, PeripheralError>) -> ()
   ) {
     _writeCompleted = completion
     descriptor.characteristic.service.peripheral.writeValue(
@@ -216,11 +271,11 @@ extension DiscoveredDescriptor {
 }
 // MARK: - For Publishers
 extension DiscoveredDescriptor {
-  func readCompleted(_ res: Result<Any?, PeripheralError>) {
+  func readCompleted(_ res: Result<CBDescriptor, PeripheralError>) {
     _readCompleted?(res)
     _readCompleted = nil
   }
-  func writeCompleted(_ res: Result<(), PeripheralError>) {
+  func writeCompleted(_ res: Result<CBDescriptor, PeripheralError>) {
     _writeCompleted?(res)
     _writeCompleted = nil
   }

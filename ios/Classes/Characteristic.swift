@@ -23,15 +23,18 @@ struct CharacteristicResponse : Encodable {
   let isWritableWithoutResponse: Bool
   let value: String? // base64encodedString from Data
   
+  let transactionId: String?
+  
   init(
     char: CBCharacteristic,
-    using uuidCache: HashableIdCache<CBUUID>,
-    usingSevice serviceUuidCache: HashableIdCache<CBUUID>
+    charUuidCache: HashableIdCache<CBUUID>,
+    serviceUuidCache: HashableIdCache<CBUUID>,
+    transactionId: String? = nil
   ) {
     serviceUuid = char.service.uuid.fullUUIDString
     serviceId = serviceUuidCache.numeric(from: char.service.uuid)
     characteristicUuid = char.uuid.fullUUIDString
-    id = uuidCache.numeric(from: char.uuid)
+    id = charUuidCache.numeric(from: char.uuid)
     let properties = char.properties
     isIndicatable = properties.contains(.indicate)
     isReadable = properties.contains(.read)
@@ -40,6 +43,8 @@ struct CharacteristicResponse : Encodable {
     isNotifiable =  properties.contains(.notify)
     isNotifying = char.isNotifying
     value = char.value?.base64EncodedString()
+    
+    self.transactionId = transactionId
   }
   
   private enum CodingKeys: String, CodingKey {
@@ -64,17 +69,17 @@ struct CharacteristicsResponse : Encodable {
   
   init(
     with chars: [CBCharacteristic],
-    using uuidCache: HashableIdCache<CBUUID>,
-    with service: CBService,
-    using serviceUuidCache: HashableIdCache<CBUUID>
+    service: CBService,
+    charUuidCache: HashableIdCache<CBUUID>,
+    serviceUuidCache: HashableIdCache<CBUUID>
   ) {
     serviceUuid = service.uuid.fullUUIDString
     serviceId = serviceUuidCache.numeric(from: service.uuid)
     characteristics = chars.map({ char in
       return CharacteristicResponse(
         char: char,
-        using: uuidCache,
-        usingSevice: serviceUuidCache
+        charUuidCache: charUuidCache,
+        serviceUuidCache: serviceUuidCache
       )
     })
   }
@@ -90,8 +95,9 @@ class DiscoveredCharacteristic {
   let characteristic: CBCharacteristic
   private var descriptorsDiscoveryCompleted: ((_ res: Result<[CBUUID : DiscoveredDescriptor], PeripheralError>) -> ())?
   private var _readCompleted: ((_ res: Result<CBCharacteristic, PeripheralError>) -> ())?
-  private var _writeCompleted: ((_ res: Result<(), PeripheralError>) -> ())?
-  private var _setNorifyCompleted: ((_ res: Result<(), PeripheralError>) -> ())?
+  private var _writeCompleted: ((_ res: Result<CBCharacteristic, PeripheralError>) -> ())?
+  private var _setNorifyCompleted: ((_ res: Result<CBCharacteristic, PeripheralError>) -> ())?
+  private var _valueUpdated: ((_ char: CBCharacteristic) -> ())?
   var discoveredDescriptors = [CBUUID : DiscoveredDescriptor]()
   
   init(_ characteristic: CBCharacteristic) {
@@ -120,7 +126,7 @@ extension DiscoveredCharacteristic {
   func write(
     _ data: Data,
     type: CBCharacteristicWriteType,
-    completion: @escaping (_ res: Result<(), PeripheralError>) -> ()
+    completion: @escaping (_ res: Result<CBCharacteristic, PeripheralError>) -> ()
   ) {
     _writeCompleted = completion
     characteristic.service.peripheral.writeValue(
@@ -129,15 +135,20 @@ extension DiscoveredCharacteristic {
       type: type
     )
   }
-  func setNorify(
+  func setNotify(
     _ enabled: Bool,
-    completion: @escaping (_ res: Result<(), PeripheralError>) -> ()
+    completion: @escaping (_ res: Result<CBCharacteristic, PeripheralError>) -> ()
   ) {
     _setNorifyCompleted = completion
     characteristic.service.peripheral.setNotifyValue(
       enabled,
       for: characteristic
     )
+  }
+  func onValueUpdate(
+    handler: ((_ char: CBCharacteristic) -> ())?
+  ) {
+    _valueUpdated = handler
   }
 }
 
@@ -151,12 +162,15 @@ extension DiscoveredCharacteristic {
     _readCompleted?(res)
     _readCompleted = nil
   }
-  func writeCompleted(_ res: Result<(), PeripheralError>) {
+  func writeCompleted(_ res: Result<CBCharacteristic, PeripheralError>) {
     _writeCompleted?(res)
     _writeCompleted = nil
   }
-  func setNorifyCompleted(_ res: Result<(), PeripheralError>) {
+  func setNotifyCompleted(_ res: Result<CBCharacteristic, PeripheralError>) {
     _setNorifyCompleted?(res)
     _setNorifyCompleted = nil
+  }
+  func valueUpdated(_ char: CBCharacteristic) {
+    _valueUpdated?(char)
   }
 }

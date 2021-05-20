@@ -15,11 +15,12 @@ enum PeripheralError : Error {
   case descriptorsDiscovery(CBCharacteristic, internal: Error)
   case characteristicRead(CBCharacteristic, internal: Error)
   case characteristicWrite(CBCharacteristic, internal: Error)
-  case characteristicSetNotify(CBCharacteristic, internal: Error)
+  case characteristicSetNotify(CBCharacteristic, internal: Error?)
   case descriptorRead(CBDescriptor, internal: Error)
   case descriptorWrite(CBDescriptor, internal: Error)
   case noServiceFound(CBPeripheral?, id: String)
   case noCharacteristicFound(CBService?, id: String)
+  case noDescriptorFound(CBCharacteristic?, id: String)
   case rssiUpdated(CBPeripheral, value: NSNumber, internal: Error)
 }
 
@@ -337,6 +338,7 @@ extension DiscoveredPeripheral : CBPeripheralDelegate {
       return
     }
     dc.readCompleted(.success(characteristic))
+    dc.valueUpdated(characteristic)
   }
   func peripheral(
     _ peripheral: CBPeripheral,
@@ -355,7 +357,7 @@ extension DiscoveredPeripheral : CBPeripheralDelegate {
       )
       return
     }
-    dc.writeCompleted(.success(()))
+    dc.writeCompleted(.success(characteristic))
   }
   func peripheral(
     _ peripheral: CBPeripheral,
@@ -369,12 +371,12 @@ extension DiscoveredPeripheral : CBPeripheralDelegate {
       return
     }
     if let error = error {
-      dc.setNorifyCompleted(
+      dc.setNotifyCompleted(
         .failure(.characteristicSetNotify(characteristic, internal: error))
       )
       return
     }
-    dc.setNorifyCompleted(.success(()))
+    dc.setNotifyCompleted(.success(characteristic))
   }
     
   func peripheralIsReady(toSendWriteWithoutResponse
@@ -428,7 +430,7 @@ extension DiscoveredPeripheral : CBPeripheralDelegate {
       )
       return
     }
-    discoveredDesc.readCompleted(.success(descriptor.value))
+    discoveredDesc.readCompleted(.success(descriptor))
   }
   func peripheral(
     _ peripheral: CBPeripheral,
@@ -448,7 +450,7 @@ extension DiscoveredPeripheral : CBPeripheralDelegate {
       )
       return
     }
-    discoveredDesc.writeCompleted(.success(()))
+    discoveredDesc.writeCompleted(.success(descriptor))
   }
   // MARK: - Other delegate methods
   func peripheralDidUpdateName(
