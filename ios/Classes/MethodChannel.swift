@@ -132,19 +132,7 @@ struct Method {
     func result<ResponseT : Any>(any: ResponseT) {
       result(any: Result<ResponseT,Error>.success(any))
     }
-    func result<ErrorT: Error>(
-      _ unitOrError: Result<(), ErrorT>
-    ) {
-      switch unitOrError {
-      case .success:
-        _result(.success(nil))
-      case .failure(let error):
-        _result(.failure(error))
-      }
-    }
-    func result() {
-      _result(.success(nil))
-    }
+    
     
     func result<ResponseT: Encodable, ErrorT: Error>(
       encodable encodableOrError: Result<ResponseT, ErrorT>
@@ -161,6 +149,22 @@ struct Method {
       case .failure(let error):
         _result(.failure(error))
       }
+    }
+    func result<ErrorT: Error>(
+      _ unitOrError: Result<(), ErrorT>
+    ) {
+      switch unitOrError {
+      case .success:
+        _result(.success(nil))
+      case .failure(let error):
+        _result(.failure(error))
+      }
+    }
+    func result() {
+      _result(.success(nil))
+    }
+    func result(error: Error) {
+      _result(.failure(error))
     }
     func result<ResponseT : Encodable>(encodable: ResponseT) {
       result(encodable: Result<ResponseT,Error>.success(encodable))

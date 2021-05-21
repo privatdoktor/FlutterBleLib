@@ -8,7 +8,42 @@
 import Foundation
 
 extension Client : CallHandler {
+  
+  private func validate(
+    call: Method.Call<SignatureEnumT>
+  ) -> Result<(),ClientError> {
+    switch call.signature {
+    case .isClientCreated,
+         .createClient,
+         .destroyClient,
+         .cancelTransaction,
+         .getState,
+         .enableRadio,
+         .disableRadio,
+         .startDeviceScan,
+         .stopDeviceScan,
+         .setLogLevel,
+         .logLevel:
+      return .success(())
+    default:
+      guard centralManager?.state == .poweredOn else {
+        return .failure(
+          .invalidState(centralManager?.state)
+        )
+      }
+      return .success(())
+    }
+  }
+  
   func handle(call: Method.Call<SignatureEnumT>) {
+    switch validate(call: call) {
+    case .failure(let error):
+      call.result(error: error)
+      return
+    case .success:
+      break
+    }
+    
     switch call.signature {
     case .isClientCreated:
       call.result(isCreated)

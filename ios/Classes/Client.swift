@@ -44,6 +44,7 @@ extension CBUUID {
 
 enum ClientError : LocalizedError {
   case notCreated
+  case invalidState(CBManagerState?)
   case invalidUUIDString(String)
   case noPeripheralFoundFor(UUID, expectedState: CBPeripheralState? = nil)
   case peripheralConnection(internal: Swift.Error?)
@@ -77,7 +78,7 @@ class Client : NSObject {
   typealias SignatureEnumT = Method.DefaultChannel.Signature
   
   private let eventSink: EventSink
-  private var centralManager: CBCentralManager?
+  var centralManager: CBCentralManager?
   
   private var discoveredPeripherals = [UUID : DiscoveredPeripheral]()
   private var peripheralUuidCache = HashableIdCache<UUID>()
@@ -86,6 +87,7 @@ class Client : NSObject {
   private var descriptorUuidCache =  HashableIdCache<CBUUID>()
   
   private var peerConnectionEventHandlers = [UUID : PeerConnectionEventHandler]()
+  private var onPowerOnListeners = Queue<() -> ()>()
   
   init(eventSink: EventSink) {
     self.eventSink = eventSink
@@ -318,15 +320,35 @@ extension Client {
     }
   }
   
-  func startDeviceScan(withServices services: [String]?, allowDuplicates: Bool?) {
+  func startDeviceScan(
+    withServices services: [String]?,
+    allowDuplicates: Bool?
+  ) -> Result<(), ClientError> {
     var options: [String : Any]?
     if let allowDuplicates = allowDuplicates {
       options = [CBCentralManagerScanOptionAllowDuplicatesKey : allowDuplicates]
     }
-    centralManager?.scanForPeripherals(
+    guard
+      let centralManager = centralManager
+    else {
+      return .failure(.notCreated)
+    }
+    guard
+      centralManager.state == .poweredOn
+    else {
+      onPowerOnListeners.enqueue {
+        centralManager.scanForPeripherals(
+          withServices: services?.map(CBUUID.init(string:)),
+          options: options
+        )
+      }
+      return .success(())
+    }
+    centralManager.scanForPeripherals(
       withServices: services?.map(CBUUID.init(string:)),
       options: options
     )
+    return .success(())
   }
   
   func stopDeviceScan() {
@@ -1490,9 +1512,13 @@ extension Client {
   }
 }
 
-
 extension Client : CBCentralManagerDelegate {
   func centralManagerDidUpdateState(_ central: CBCentralManager) {
+    if central.state == .poweredOn {
+      while onPowerOnListeners.isEmpty == false {
+        onPowerOnListeners.dequeue()?()
+      }
+    }
     eventSink.stateChanges.sink(central.state.rawValue)
   }
   
