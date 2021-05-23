@@ -147,8 +147,8 @@ class EventSink {
   }
   
   class MonitorCharacteristic : EventChannel, EventSinker {
-    typealias SinkableT = CharacteristicResponse
-    func sink(_ obj: CharacteristicResponse) {
+    typealias SinkableT = SingleCharacteristicResponse
+    func sink(_ obj: SingleCharacteristicResponse) {
       _sink(encodable: obj)
     }
   }

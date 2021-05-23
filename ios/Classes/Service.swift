@@ -25,8 +25,8 @@ struct ServiceResponse : Encodable {
   }
   
   private enum CodingKeys: String, CodingKey {
-    case id = "id"
-    case uuid = "uuid"
+    case id = "serviceId"
+    case uuid = "serviceUuid"
     case deviceID = "deviceID"
     case isPrimary = "isPrimary"
   }

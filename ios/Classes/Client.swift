@@ -87,7 +87,7 @@ class Client : NSObject {
   private var descriptorUuidCache =  HashableIdCache<CBUUID>()
   
   private var peerConnectionEventHandlers = [UUID : PeerConnectionEventHandler]()
-  private var onPowerOnListeners = Queue<() -> ()>()
+  private var onPowerOnListeners = Queue<(_ cm: CBCentralManager) -> ()>()
   
   init(eventSink: EventSink) {
     self.eventSink = eventSink
@@ -336,8 +336,8 @@ extension Client {
     guard
       centralManager.state == .poweredOn
     else {
-      onPowerOnListeners.enqueue {
-        centralManager.scanForPeripherals(
+      onPowerOnListeners.enqueue { cm in
+        cm.scanForPeripherals(
           withServices: services?.map(CBUUID.init(string:)),
           options: options
         )
@@ -351,8 +351,22 @@ extension Client {
     return .success(())
   }
   
-  func stopDeviceScan() {
-    centralManager?.stopScan()
+  func stopDeviceScan() -> Result<(), ClientError> {
+    guard
+      let centralManager = centralManager
+    else {
+      return .failure(.notCreated)
+    }
+    guard
+      centralManager.state == .poweredOn
+    else {
+      onPowerOnListeners.enqueue { cm in
+        cm.stopScan()
+      }
+      return .success(())
+    }
+    centralManager.stopScan()
+    return .success(())
   }
   
   func connectToDevice(
@@ -796,14 +810,14 @@ extension Client {
   private func readCharacteristic(
     for dc: DiscoveredCharacteristic,
     transactionId: String?,
-    completion: @escaping (Result<CharacteristicResponse, ClientError>) -> ()
+    completion: @escaping (Result<SingleCharacteristicResponse, ClientError>) -> ()
   ) {
     dc.read { res in
       switch res {
       case .failure(let error):
         completion(.failure(.peripheral(error)))
       case .success(let char):
-        let resp = CharacteristicResponse(
+        let resp = SingleCharacteristicResponse(
           char: char,
           charUuidCache: self.characteristicUuidCache,
           serviceUuidCache: self.serviceUuidCache
@@ -816,7 +830,7 @@ extension Client {
   func readCharacteristicForIdentifier(
     characteristicNumericId: Int,
     transactionId: String?,
-    completion: @escaping (Result<CharacteristicResponse, ClientError>) -> ()
+    completion: @escaping (Result<SingleCharacteristicResponse, ClientError>) -> ()
   ) {
     let dc: DiscoveredCharacteristic
     switch discoveredCharacteristic(for: characteristicNumericId) {
@@ -838,7 +852,7 @@ extension Client {
     serviceUUID: String,
     characteristicUUID: String,
     transactionId: String?,
-    completion: @escaping (Result<CharacteristicResponse, ClientError>) -> ()
+    completion: @escaping (Result<SingleCharacteristicResponse, ClientError>) -> ()
   ) {
     let dp: DiscoveredPeripheral
     switch discoveredPeripheral(for: deviceIdentifier) {
@@ -878,7 +892,7 @@ extension Client {
     serviceNumericId: Int,
     characteristicUUID: String,
     transactionId: String?,
-    completion: @escaping (Result<CharacteristicResponse, ClientError>) -> ()
+    completion: @escaping (Result<SingleCharacteristicResponse, ClientError>) -> ()
   ) {
     let ds: DiscoveredService
     switch discoveredService(for: serviceNumericId) {
@@ -909,7 +923,7 @@ extension Client {
     value: FlutterStandardTypedData,
     withResponse: Bool,
     transactionId: String?,
-    completion: @escaping (Result<CharacteristicResponse, ClientError>) -> ()
+    completion: @escaping (Result<SingleCharacteristicResponse, ClientError>) -> ()
   ) {
     dc.write(
       value.data,
@@ -917,7 +931,7 @@ extension Client {
     ) { res in
       completion(
         res.map({ char in
-          return CharacteristicResponse(
+          return SingleCharacteristicResponse(
             char: char,
             charUuidCache: self.characteristicUuidCache,
             serviceUuidCache: self.serviceUuidCache
@@ -932,7 +946,7 @@ extension Client {
     value: FlutterStandardTypedData,
     withResponse: Bool,
     transactionId: String?,
-    completion: @escaping (Result<CharacteristicResponse, ClientError>) -> ()
+    completion: @escaping (Result<SingleCharacteristicResponse, ClientError>) -> ()
   ) {
     let dc: DiscoveredCharacteristic
     switch discoveredCharacteristic(for: characteristicNumericId) {
@@ -958,7 +972,7 @@ extension Client {
     value: FlutterStandardTypedData,
     withResponse: Bool,
     transactionId: String?,
-    completion: @escaping (Result<CharacteristicResponse, ClientError>) -> ()
+    completion: @escaping (Result<SingleCharacteristicResponse, ClientError>) -> ()
   ) {
     let dp: DiscoveredPeripheral
     switch discoveredPeripheral(for: deviceIdentifier) {
@@ -1004,7 +1018,7 @@ extension Client {
     value: FlutterStandardTypedData,
     withResponse: Bool,
     transactionId: String?,
-    completion: @escaping (Result<CharacteristicResponse, ClientError>) -> ()
+    completion: @escaping (Result<SingleCharacteristicResponse, ClientError>) -> ()
   ) {
     let ds: DiscoveredService
     switch discoveredService(for: serviceNumericId) {
@@ -1048,7 +1062,7 @@ extension Client {
     }
     dc.onValueUpdate { char in
       charEvents.sink(
-        CharacteristicResponse(
+        SingleCharacteristicResponse(
           char: char,
           charUuidCache: self.characteristicUuidCache,
           serviceUuidCache: self.serviceUuidCache,
@@ -1516,7 +1530,7 @@ extension Client : CBCentralManagerDelegate {
   func centralManagerDidUpdateState(_ central: CBCentralManager) {
     if central.state == .poweredOn {
       while onPowerOnListeners.isEmpty == false {
-        onPowerOnListeners.dequeue()?()
+        onPowerOnListeners.dequeue()?(central)
       }
     }
     eventSink.stateChanges.sink(central.state.rawValue)

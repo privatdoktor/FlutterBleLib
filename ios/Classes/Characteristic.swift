@@ -8,11 +8,7 @@
 import Foundation
 import CoreBluetooth
 
-
 struct CharacteristicResponse : Encodable {
-  let serviceUuid: String
-  let serviceId: Int
-  
   let characteristicUuid: String
   let id: Int
   let isIndicatable: Bool
@@ -23,16 +19,10 @@ struct CharacteristicResponse : Encodable {
   let isWritableWithoutResponse: Bool
   let value: String? // base64encodedString from Data
   
-  let transactionId: String?
-  
   init(
     char: CBCharacteristic,
-    charUuidCache: HashableIdCache<CBUUID>,
-    serviceUuidCache: HashableIdCache<CBUUID>,
-    transactionId: String? = nil
+    charUuidCache: HashableIdCache<CBUUID>
   ) {
-    serviceUuid = char.service.uuid.fullUUIDString
-    serviceId = serviceUuidCache.numeric(from: char.service.uuid)
     characteristicUuid = char.uuid.fullUUIDString
     id = charUuidCache.numeric(from: char.uuid)
     let properties = char.properties
@@ -43,14 +33,9 @@ struct CharacteristicResponse : Encodable {
     isNotifiable =  properties.contains(.notify)
     isNotifying = char.isNotifying
     value = char.value?.base64EncodedString()
-    
-    self.transactionId = transactionId
   }
   
   private enum CodingKeys: String, CodingKey {
-    case serviceUuid = "serviceUuid"
-    case serviceId = "serviceId"
-    
     case characteristicUuid = "characteristicUuid"
     case id = "id"
     case isIndicatable = "isIndicatable"
@@ -59,6 +44,39 @@ struct CharacteristicResponse : Encodable {
     case isReadable = "isReadable"
     case isWritableWithResponse = "isWritableWithResponse"
     case isWritableWithoutResponse = "isWritableWithoutResponse"
+  }
+}
+
+struct SingleCharacteristicResponse : Encodable {
+  let serviceUuid: String
+  let serviceId: Int
+  
+  let transactionId: String?
+  
+  let characteristic: CharacteristicResponse
+  
+  init(
+    char: CBCharacteristic,
+    charUuidCache: HashableIdCache<CBUUID>,
+    serviceUuidCache: HashableIdCache<CBUUID>,
+    transactionId: String? = nil
+  ) {
+    serviceUuid = char.service.uuid.fullUUIDString
+    serviceId = serviceUuidCache.numeric(from: char.service.uuid)
+    
+    self.transactionId = transactionId
+    
+    characteristic =
+      CharacteristicResponse(char: char, charUuidCache: charUuidCache)
+  }
+  
+  private enum CodingKeys: String, CodingKey {
+    case serviceUuid = "serviceUuid"
+    case serviceId = "serviceId"
+    
+    case transactionId = "transactionId"
+    
+    case characteristic = "characteristic"
   }
 }
 
@@ -78,8 +96,7 @@ struct CharacteristicsResponse : Encodable {
     characteristics = chars.map({ char in
       return CharacteristicResponse(
         char: char,
-        charUuidCache: charUuidCache,
-        serviceUuidCache: serviceUuidCache
+        charUuidCache: charUuidCache
       )
     })
   }
