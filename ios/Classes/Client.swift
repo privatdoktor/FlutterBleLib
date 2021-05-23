@@ -810,14 +810,14 @@ extension Client {
   private func readCharacteristic(
     for dc: DiscoveredCharacteristic,
     transactionId: String?,
-    completion: @escaping (Result<SingleCharacteristicResponse, ClientError>) -> ()
+    completion: @escaping (Result<SingleCharacteristicWithValueResponse, ClientError>) -> ()
   ) {
     dc.read { res in
       switch res {
       case .failure(let error):
         completion(.failure(.peripheral(error)))
       case .success(let char):
-        let resp = SingleCharacteristicResponse(
+        let resp = SingleCharacteristicWithValueResponse(
           char: char,
           charUuidCache: self.characteristicUuidCache,
           serviceUuidCache: self.serviceUuidCache
@@ -830,7 +830,7 @@ extension Client {
   func readCharacteristicForIdentifier(
     characteristicNumericId: Int,
     transactionId: String?,
-    completion: @escaping (Result<SingleCharacteristicResponse, ClientError>) -> ()
+    completion: @escaping (Result<SingleCharacteristicWithValueResponse, ClientError>) -> ()
   ) {
     let dc: DiscoveredCharacteristic
     switch discoveredCharacteristic(for: characteristicNumericId) {
@@ -852,7 +852,7 @@ extension Client {
     serviceUUID: String,
     characteristicUUID: String,
     transactionId: String?,
-    completion: @escaping (Result<SingleCharacteristicResponse, ClientError>) -> ()
+    completion: @escaping (Result<SingleCharacteristicWithValueResponse, ClientError>) -> ()
   ) {
     let dp: DiscoveredPeripheral
     switch discoveredPeripheral(for: deviceIdentifier) {
@@ -892,7 +892,7 @@ extension Client {
     serviceNumericId: Int,
     characteristicUUID: String,
     transactionId: String?,
-    completion: @escaping (Result<SingleCharacteristicResponse, ClientError>) -> ()
+    completion: @escaping (Result<SingleCharacteristicWithValueResponse, ClientError>) -> ()
   ) {
     let ds: DiscoveredService
     switch discoveredService(for: serviceNumericId) {
@@ -1062,7 +1062,7 @@ extension Client {
     }
     dc.onValueUpdate { char in
       charEvents.sink(
-        SingleCharacteristicResponse(
+        SingleCharacteristicWithValueResponse(
           char: char,
           charUuidCache: self.characteristicUuidCache,
           serviceUuidCache: self.serviceUuidCache,
@@ -1582,6 +1582,7 @@ extension Client : CBCentralManagerDelegate {
     didFailToConnect peripheral: CBPeripheral,
     error: Swift.Error?
   ) {
+    
     discoveredPeripherals[peripheral.identifier]?.connected(
       .failure(ClientError.peripheralConnection(internal: error))
     )

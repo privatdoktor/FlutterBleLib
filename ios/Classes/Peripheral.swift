@@ -14,7 +14,7 @@ enum PeripheralError : Error {
   case characteristicsDiscovery(CBService, internal: Error)
   case descriptorsDiscovery(CBCharacteristic, internal: Error)
   case characteristicRead(CBCharacteristic, internal: Error)
-  case characteristicWrite(CBCharacteristic, internal: Error)
+  case characteristicWrite(CBCharacteristic, internal: Error?)
   case characteristicSetNotify(CBCharacteristic, internal: Error?)
   case descriptorRead(CBDescriptor, internal: Error)
   case descriptorWrite(CBDescriptor, internal: Error)

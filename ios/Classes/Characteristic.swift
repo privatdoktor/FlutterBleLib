@@ -17,7 +17,6 @@ struct CharacteristicResponse : Encodable {
   let isReadable: Bool
   let isWritableWithResponse: Bool
   let isWritableWithoutResponse: Bool
-  let value: String? // base64encodedString from Data
   
   init(
     char: CBCharacteristic,
@@ -32,7 +31,6 @@ struct CharacteristicResponse : Encodable {
     isWritableWithoutResponse = properties.contains(.writeWithoutResponse)
     isNotifiable =  properties.contains(.notify)
     isNotifying = char.isNotifying
-    value = char.value?.base64EncodedString()
   }
   
   private enum CodingKeys: String, CodingKey {
@@ -68,6 +66,79 @@ struct SingleCharacteristicResponse : Encodable {
     
     characteristic =
       CharacteristicResponse(char: char, charUuidCache: charUuidCache)
+  }
+  
+  private enum CodingKeys: String, CodingKey {
+    case serviceUuid = "serviceUuid"
+    case serviceId = "serviceId"
+    
+    case transactionId = "transactionId"
+    
+    case characteristic = "characteristic"
+  }
+}
+
+struct CharacteristicWithValueResponse : Encodable {
+  let characteristicUuid: String
+  let id: Int
+  let isIndicatable: Bool
+  let isNotifiable: Bool
+  let isNotifying: Bool
+  let isReadable: Bool
+  let isWritableWithResponse: Bool
+  let isWritableWithoutResponse: Bool
+  let value: String // base64encodedString from Data
+  
+  init(
+    char: CBCharacteristic,
+    charUuidCache: HashableIdCache<CBUUID>
+  ) {
+    characteristicUuid = char.uuid.fullUUIDString
+    id = charUuidCache.numeric(from: char.uuid)
+    let properties = char.properties
+    isIndicatable = properties.contains(.indicate)
+    isReadable = properties.contains(.read)
+    isWritableWithResponse = properties.contains(.write)
+    isWritableWithoutResponse = properties.contains(.writeWithoutResponse)
+    isNotifiable =  properties.contains(.notify)
+    isNotifying = char.isNotifying
+    value = char.value?.base64EncodedString() ?? ""
+  }
+  
+  private enum CodingKeys: String, CodingKey {
+    case characteristicUuid = "characteristicUuid"
+    case id = "id"
+    case isIndicatable = "isIndicatable"
+    case isNotifiable = "isNotifiable"
+    case isNotifying = "isNotifying"
+    case isReadable = "isReadable"
+    case isWritableWithResponse = "isWritableWithResponse"
+    case isWritableWithoutResponse = "isWritableWithoutResponse"
+    case value = "value"
+  }
+}
+
+struct SingleCharacteristicWithValueResponse : Encodable {
+  let serviceUuid: String
+  let serviceId: Int
+  
+  let transactionId: String?
+  
+  let characteristic: CharacteristicWithValueResponse
+  
+  init(
+    char: CBCharacteristic,
+    charUuidCache: HashableIdCache<CBUUID>,
+    serviceUuidCache: HashableIdCache<CBUUID>,
+    transactionId: String? = nil
+  ) {
+    serviceUuid = char.service.uuid.fullUUIDString
+    serviceId = serviceUuidCache.numeric(from: char.service.uuid)
+    
+    self.transactionId = transactionId
+    
+    characteristic =
+      CharacteristicWithValueResponse(char: char, charUuidCache: charUuidCache)
   }
   
   private enum CodingKeys: String, CodingKey {
@@ -121,6 +192,43 @@ class DiscoveredCharacteristic {
     self.characteristic = characteristic
   }
 }
+extension DiscoveredCharacteristic {
+  private func writeWithoutResponse(
+    _ data: Data
+  ) -> Result<CBCharacteristic, PeripheralError> {
+    guard
+      characteristic.properties.contains(.writeWithoutResponse)
+    else {
+      return .failure(.characteristicWrite(characteristic, internal: nil))
+    }
+    characteristic.service.peripheral.writeValue(
+      data,
+      for: characteristic,
+      type: .withoutResponse
+    )
+    return .success(characteristic)
+  }
+  private func writeWithResponse(
+    _ data: Data,
+    completion: @escaping (_ res: Result<CBCharacteristic, PeripheralError>) -> ()
+  ) {
+    guard
+      characteristic.properties.contains(.write)
+    else {
+      completion(
+        .failure(.characteristicWrite(characteristic, internal: nil))
+      )
+      return
+    }
+    _writeCompleted = completion
+    characteristic.service.peripheral.writeValue(
+      data,
+      for: characteristic,
+      type: .withResponse
+    )
+  }
+}
+
 
 // MARK: - API
 extension DiscoveredCharacteristic {
@@ -145,13 +253,22 @@ extension DiscoveredCharacteristic {
     type: CBCharacteristicWriteType,
     completion: @escaping (_ res: Result<CBCharacteristic, PeripheralError>) -> ()
   ) {
-    _writeCompleted = completion
-    characteristic.service.peripheral.writeValue(
-      data,
-      for: characteristic,
-      type: type
-    )
+    switch type {
+    case .withoutResponse:
+      completion(writeWithoutResponse(data))
+    case .withResponse:
+      writeWithResponse(data, completion: completion)
+    @unknown default:
+      completion(
+        .failure(
+          .characteristicWrite(characteristic, internal: nil)
+        )
+      )
+    }
   }
+  
+  
+  
   func setNotify(
     _ enabled: Bool,
     completion: @escaping (_ res: Result<CBCharacteristic, PeripheralError>) -> ()
