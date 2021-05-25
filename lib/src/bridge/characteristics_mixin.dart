@@ -1,10 +1,14 @@
 part of _internal;
 
 mixin CharacteristicsMixin on FlutterBLE {
-  final Stream<String> _characteristicsMonitoringEvents =
-      const EventChannel(ChannelName.monitorCharacteristic)
+  static const _characteristicsMonitoringEventChannel =
+      const EventChannel(ChannelName.monitorCharacteristic);
+  
+  Stream<String> get _characteristicsMonitoringEvents {
+    return _characteristicsMonitoringEventChannel
           .receiveBroadcastStream()
           .cast();
+  }
 
   Future<Uint8List> readCharacteristicForIdentifier(
     Peripheral peripheral,
@@ -255,7 +259,6 @@ mixin CharacteristicsMixin on FlutterBLE {
                 _throwErrorIfMatchesWithTransactionId(errorJson, transactionId))
             .transform<CharacteristicWithValueAndTransactionId>(
                 CancelOnErrorStreamTransformer());
-
     final streamController =
         StreamController<CharacteristicWithValueAndTransactionId>.broadcast(
       onListen: onListen,
