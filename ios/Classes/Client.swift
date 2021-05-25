@@ -1052,6 +1052,16 @@ extension Client {
     transactionId: String?,
     completion: @escaping (Result<(), ClientError>) -> ()
   ) {
+    let puuid = dc.characteristic.service.peripheral.identifier
+    guard
+      let dp =
+        discoveredPeripherals[puuid]
+    else {
+      completion(
+        .failure(.noPeripheralFoundFor(puuid, expectedState: nil))
+      )
+      return
+    }
     let charEvents = eventSink.monitorCharacteristic
     charEvents.afterCancelDo {
       let char = dc.characteristic
@@ -1059,6 +1069,9 @@ extension Client {
         char.service.peripheral.setNotifyValue(false, for: char)
       }
       dc.onValueUpdate(handler: nil)
+    }
+    dp.onDisconnected {
+      charEvents.end()
     }
     dc.onValueUpdate { char in
       charEvents.sink(

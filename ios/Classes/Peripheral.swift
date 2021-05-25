@@ -150,6 +150,7 @@ class DiscoveredPeripheral : NSObject {
   private var _disconnectCompleted: ((_ res: Result<(), ClientError>) -> ())?
   
   private var _connectionEventOccured: ((_ event: CBConnectionEvent) -> ())?
+  private var _onDisconnectedListeners = Queue<() -> ()>()
 
   
   private var _servicesDiscoveryCompleted: ((_ res: Result<[CBUUID : DiscoveredService], PeripheralError>) -> ())?
@@ -205,6 +206,9 @@ extension DiscoveredPeripheral {
     _readRSSICompleted = completion
     peripheral.readRSSI()
   }
+  func onDisconnected(listener: @escaping () -> ()) {
+    _onDisconnectedListeners.enqueue(listener)
+  }
 }
 // MARK: - For Publishers
 extension DiscoveredPeripheral {
@@ -217,6 +221,9 @@ extension DiscoveredPeripheral {
     _connectionEventOccured?(.peerDisconnected)
     _disconnectCompleted?(res)
     _disconnectCompleted = nil
+    while _onDisconnectedListeners.isEmpty == false {
+      _onDisconnectedListeners.dequeue()?()
+    }
   }
   private func servicesDiscovered(_ res: Result<[CBUUID : DiscoveredService], PeripheralError>) {
     _servicesDiscoveryCompleted?(res)
