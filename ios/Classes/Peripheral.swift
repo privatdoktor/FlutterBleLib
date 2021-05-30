@@ -9,19 +9,19 @@ import Foundation
 import CoreBluetooth
 
 enum PeripheralError : Error {
-  case serviceDiscovery(internal: Error)
-  case includedServicesDiscovery(CBService, internal: Error)
-  case characteristicsDiscovery(CBService, internal: Error)
-  case descriptorsDiscovery(CBCharacteristic, internal: Error)
-  case characteristicRead(CBCharacteristic, internal: Error)
+  case serviceDiscovery(internal: Error?)
+  case includedServicesDiscovery(CBService, internal: Error?)
+  case characteristicsDiscovery(CBService, internal: Error?)
+  case descriptorsDiscovery(CBCharacteristic, internal: Error?)
+  case characteristicRead(CBCharacteristic, internal: Error?)
   case characteristicWrite(CBCharacteristic, internal: Error?)
   case characteristicSetNotify(CBCharacteristic, internal: Error?)
-  case descriptorRead(CBDescriptor, internal: Error)
-  case descriptorWrite(CBDescriptor, internal: Error)
+  case descriptorRead(CBDescriptor, internal: Error?)
+  case descriptorWrite(CBDescriptor, internal: Error?)
   case noServiceFound(CBPeripheral?, id: String)
   case noCharacteristicFound(CBService?, id: String)
   case noDescriptorFound(CBCharacteristic?, id: String)
-  case rssiUpdated(CBPeripheral, value: NSNumber, internal: Error)
+  case rssiUpdated(CBPeripheral, value: NSNumber?, internal: Error?)
 }
 
 extension CBPeripheral {
@@ -179,6 +179,10 @@ extension DiscoveredPeripheral {
       _ res: Result<[CBUUID : DiscoveredService], PeripheralError>
     ) -> ()
   ) {
+    if let pending = _servicesDiscoveryCompleted {
+      _servicesDiscoveryCompleted = nil
+      pending(.failure(.serviceDiscovery(internal: nil)))
+    }
     _servicesDiscoveryCompleted = completion
     peripheral.discoverServices(serviceUUIDs)
   }
@@ -186,12 +190,20 @@ extension DiscoveredPeripheral {
     options: [String : Any]? = nil,
     _ completion: @escaping (_ res: Result<(), ClientError>) -> ()
   ) {
+    if let pending = _connectCompleted {
+      _connectCompleted = nil
+      pending(.failure(.peripheralConnection(internal: nil)))
+    }
     _connectCompleted = completion
     centralManager?.connect(peripheral, options: options)
   }
   func disconnect(
     _ completion: @escaping (_ res: Result<(), ClientError>) -> ()
   ) {
+    if let pending = _disconnectCompleted {
+      _disconnectCompleted = nil
+      pending(.failure(.peripheralDisconnection(internal: nil)))
+    }
     _disconnectCompleted = completion
     centralManager?.cancelPeripheralConnection(peripheral)
   }
@@ -203,6 +215,10 @@ extension DiscoveredPeripheral {
   func readRssi(
     _ completion: @escaping (_ res: Result<Int, ClientError>
     ) -> ()) {
+    if let pending = _readRSSICompleted {
+      _readRSSICompleted = nil
+      pending(.failure(.peripheral(.rssiUpdated(peripheral, value: nil, internal: nil))))
+    }
     _readRSSICompleted = completion
     peripheral.readRSSI()
   }

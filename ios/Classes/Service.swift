@@ -35,8 +35,8 @@ struct ServiceResponse : Encodable {
 class DiscoveredService {
   let service: CBService
   
-  private var includedServicesDiscoveryCompleted: ((_ res: Result<[CBUUID : DiscoveredService], PeripheralError>) -> ())?
-  private var characteristicsDiscoveryCompleted: ((_ res: Result<[CBUUID : DiscoveredCharacteristic], PeripheralError>) -> ())?
+  private var _includedServicesDiscoveryCompleted: ((_ res: Result<[CBUUID : DiscoveredService], PeripheralError>) -> ())?
+  private var _characteristicsDiscoveryCompleted: ((_ res: Result<[CBUUID : DiscoveredCharacteristic], PeripheralError>) -> ())?
   
   var includedDiscoveredServices: [CBUUID : DiscoveredService]?
   var discoveredCharacteristics = [CBUUID : DiscoveredCharacteristic]()
@@ -53,7 +53,11 @@ extension DiscoveredService {
       _ res: Result<[CBUUID : DiscoveredCharacteristic], PeripheralError>
     ) -> ()
   ) {
-    characteristicsDiscoveryCompleted = completion
+    if let pending = _characteristicsDiscoveryCompleted {
+      _characteristicsDiscoveryCompleted = nil
+      pending(.failure(.characteristicsDiscovery(service, internal: nil)))
+    }
+    _characteristicsDiscoveryCompleted = completion
     service.peripheral.discoverCharacteristics(
       characteristicUUIDs,
       for: service
@@ -64,7 +68,11 @@ extension DiscoveredService {
     _ completion:
       @escaping (_ res: Result<[CBUUID : DiscoveredService],PeripheralError>) -> ()
   ) {
-    includedServicesDiscoveryCompleted = completion
+    if let pending = _includedServicesDiscoveryCompleted {
+      _includedServicesDiscoveryCompleted = nil
+      pending(.failure(.includedServicesDiscovery(service, internal: nil)))
+    }
+    _includedServicesDiscoveryCompleted = completion
     service.peripheral.discoverIncludedServices(
       includedServiceUUIDs,
       for: service
@@ -74,11 +82,11 @@ extension DiscoveredService {
 // MARK: - For Publishers
 extension DiscoveredService {
   func includedServicesDiscovered(_ res: Result<[CBUUID : DiscoveredService], PeripheralError>) {
-    includedServicesDiscoveryCompleted?(res)
-    includedServicesDiscoveryCompleted = nil
+    _includedServicesDiscoveryCompleted?(res)
+    _includedServicesDiscoveryCompleted = nil
   }
   func characteristicsDiscovered(_ res: Result<[CBUUID : DiscoveredCharacteristic], PeripheralError>) {
-    characteristicsDiscoveryCompleted?(res)
-    characteristicsDiscoveryCompleted = nil
+    _characteristicsDiscoveryCompleted?(res)
+    _characteristicsDiscoveryCompleted = nil
   }
 }

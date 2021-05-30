@@ -47,15 +47,6 @@ extension CBDescriptor {
   }
 }
 
-//const NSString *keyDescriptorResponseDescriptorId = @"descriptorId";
-//const NSString *keyDescriptorResponseDescriptorUuid = @"descriptorUuid";
-//const NSString *keyDescriptorResponseValue = @"value";
-//const NSString *keyDescriptorResponseServiceId = @"serviceId";
-//const NSString *keyDescriptorResponseServiceUuid = @"serviceUuid";
-//const NSString *keyDescriptorResponseCharacteristicId = @"id";
-//const NSString *keyDescriptorResponseCharacteristicUuid = @"characteristicUuid";
-//const NSString *keyDescriptorResponseDescriptors = @"descriptors";
-
 struct DescriptorResponse : Encodable {
   let serviceId: Int
   let serviceUuid: String
@@ -255,6 +246,10 @@ extension DiscoveredDescriptor {
   func read(
     _ completion: @escaping (_ res: Result<CBDescriptor, PeripheralError>) -> ()
   ) {
+    if let pending = _readCompleted {
+      _readCompleted = nil
+      pending(.failure(.descriptorRead(descriptor, internal: nil)))
+    }
     _readCompleted = completion
     descriptor.characteristic.service.peripheral.readValue(for: descriptor)
   }
@@ -262,6 +257,10 @@ extension DiscoveredDescriptor {
     _ data: Data,
     completion: @escaping (_ res: Result<CBDescriptor, PeripheralError>) -> ()
   ) {
+    if let pending = _writeCompleted {
+      _writeCompleted = nil
+      pending(.failure(.descriptorWrite(descriptor, internal: nil)))
+    }
     _writeCompleted = completion
     descriptor.characteristic.service.peripheral.writeValue(
       data,

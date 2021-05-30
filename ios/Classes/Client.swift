@@ -48,7 +48,7 @@ enum ClientError : LocalizedError {
   case invalidUUIDString(String)
   case noPeripheralFoundFor(UUID, expectedState: CBPeripheralState? = nil)
   case peripheralConnection(internal: Swift.Error?)
-  case peripheralDisconnection(internal: Swift.Error)
+  case peripheralDisconnection(internal: Swift.Error?)
   case peripheral(PeripheralError)
 }
 

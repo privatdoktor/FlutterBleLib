@@ -181,7 +181,7 @@ struct CharacteristicsResponse : Encodable {
 
 class DiscoveredCharacteristic {
   let characteristic: CBCharacteristic
-  private var descriptorsDiscoveryCompleted: ((_ res: Result<[CBUUID : DiscoveredDescriptor], PeripheralError>) -> ())?
+  private var _descriptorsDiscoveryCompleted: ((_ res: Result<[CBUUID : DiscoveredDescriptor], PeripheralError>) -> ())?
   private var _readCompleted: ((_ res: Result<CBCharacteristic, PeripheralError>) -> ())?
   private var _writeCompleted: ((_ res: Result<CBCharacteristic, PeripheralError>) -> ())?
   private var _setNorifyCompleted: ((_ res: Result<CBCharacteristic, PeripheralError>) -> ())?
@@ -220,6 +220,10 @@ extension DiscoveredCharacteristic {
       )
       return
     }
+    if let pending = _writeCompleted {
+      _writeCompleted = nil
+      pending(.failure(.characteristicWrite(characteristic, internal: nil)))
+    }
     _writeCompleted = completion
     characteristic.service.peripheral.writeValue(
       data,
@@ -237,7 +241,11 @@ extension DiscoveredCharacteristic {
       _ res: Result<[CBUUID : DiscoveredDescriptor], PeripheralError>
     ) -> ()
   ) {
-    descriptorsDiscoveryCompleted = completion
+    if let pending = _descriptorsDiscoveryCompleted {
+      _descriptorsDiscoveryCompleted = nil
+      pending(.failure(.descriptorsDiscovery(characteristic, internal: nil)))
+    }
+    _descriptorsDiscoveryCompleted = completion
     characteristic.service.peripheral.discoverDescriptors(
       for: characteristic
     )
@@ -245,6 +253,10 @@ extension DiscoveredCharacteristic {
   func read(
     _ completion: @escaping (_ res: Result<CBCharacteristic, PeripheralError>) -> ()
   ) {
+    if let pending = _readCompleted {
+      _readCompleted = nil
+      pending(.failure(.characteristicRead(characteristic, internal: nil)))
+    }
     _readCompleted = completion
     characteristic.service.peripheral.readValue(for: characteristic)
   }
@@ -266,13 +278,14 @@ extension DiscoveredCharacteristic {
       )
     }
   }
-  
-  
-  
   func setNotify(
     _ enabled: Bool,
     completion: @escaping (_ res: Result<CBCharacteristic, PeripheralError>) -> ()
   ) {
+    if let pending = _setNorifyCompleted {
+      _setNorifyCompleted = nil
+      pending(.failure(.characteristicSetNotify(characteristic, internal: nil)))
+    }
     _setNorifyCompleted = completion
     characteristic.service.peripheral.setNotifyValue(
       enabled,
@@ -289,8 +302,8 @@ extension DiscoveredCharacteristic {
 // MARK: - For Publishers
 extension DiscoveredCharacteristic {
   func descriptorsDiscovered(_ res: Result<[CBUUID : DiscoveredDescriptor], PeripheralError>) {
-    descriptorsDiscoveryCompleted?(res)
-    descriptorsDiscoveryCompleted = nil
+    _descriptorsDiscoveryCompleted?(res)
+    _descriptorsDiscoveryCompleted = nil
   }
   func readCompleted(_ res: Result<CBCharacteristic, PeripheralError>) {
     _readCompleted?(res)
