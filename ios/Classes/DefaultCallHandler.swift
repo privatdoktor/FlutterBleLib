@@ -8,6 +8,7 @@
 import Foundation
 
 extension Client : CallHandler {
+  typealias SignatureEnumT = Method.DefaultChannel.Signature
   
   private func validate(
     call: Method.Call<SignatureEnumT>

@@ -17,45 +17,23 @@ enum PluginError : LocalizedError {
 
 
 public class Plugin: NSObject, FlutterPlugin {
-  private let client: Client
-  
-  init(withClient: Client) {
-    client = withClient
-  }
   
   public static func register(with registrar: FlutterPluginRegistrar) {
-    let messenger: FlutterBinaryMessenger = registrar.messenger()
-    let methodChannel =
-      FlutterMethodChannel(
-        name: Method.DefaultChannel.name,
-        binaryMessenger: messenger
-      )
-    let eventSink = EventSink(messenger: messenger)
-    let client = Client(eventSink: eventSink)
-    let plugin = Plugin(withClient: client)
     
-    registrar.addMethodCallDelegate(
-      plugin,
-      channel: methodChannel
-    )
+    Method.DefaultChannel.register(with: registrar)
+//    let messenger: FlutterBinaryMessenger = registrar.messenger()
+//    let methodChannel =
+//      FlutterMethodChannel(
+//        name: Method.DefaultChannel.name,
+//        binaryMessenger: messenger
+//      )
+//
+//    let plugin = Plugin(withClient: client)
+    
+    
   }
   
-  public func handle(
-    _ call: FlutterMethodCall,
-    result: @escaping FlutterResult
-  ) {
-    guard
-      let args = call.arguments as? Dictionary<String, Any>?,
-      let call = Method.Call<Method.DefaultChannel.Signature>(
-        call.method,
-        args: args,
-        onResult: result
-      )
-    else {
-      return
-    }
-    client.handle(call: call)
-  }
+ 
   
 }
 

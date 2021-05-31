@@ -75,8 +75,6 @@ class Client : NSObject {
     }
   }
   
-  typealias SignatureEnumT = Method.DefaultChannel.Signature
-  
   private let eventSink: EventSink
   var centralManager: CBCentralManager?
   
