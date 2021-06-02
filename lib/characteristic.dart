@@ -90,7 +90,7 @@ class Characteristic extends InternalCharacteristic {
   /// Subscribing to the returned object enables the notifications/indications
   /// on the peripheral. Cancelling the last subscription disables the
   /// notifications/indications on this characteristic.
-  Stream<Uint8List> monitor({String? transactionId}) =>
+  Future<Stream<Uint8List>> monitor({String? transactionId}) =>
       _manager.monitorCharacteristicForIdentifier(
         service.peripheral,
         this,

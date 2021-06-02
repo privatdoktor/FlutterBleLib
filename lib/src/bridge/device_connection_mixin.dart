@@ -1,9 +1,11 @@
 part of _internal;
 
 mixin DeviceConnectionMixin on FlutterBLE {
-  final Stream<dynamic> _peripheralConnectionStateChanges =
-      const EventChannel(ChannelName.connectionStateChangeEvents)
-          .receiveBroadcastStream();
+  static Stream<dynamic> _peripheralConnectionStateChanges({ 
+    required String id }) {
+    return EventChannel('${ChannelName.connectionStateChangeEvents}/$id')
+        .receiveBroadcastStream();
+  }
 
   Future<void> connectToPeripheral(
     String deviceIdentifier, 
@@ -42,7 +44,7 @@ mixin DeviceConnectionMixin on FlutterBLE {
       ),
     );
 
-    final sourceStream = _peripheralConnectionStateChanges
+    final sourceStream = _peripheralConnectionStateChanges(id: identifier)
         .map((jsonString) =>
             ConnectionStateContainer.fromJson(jsonDecode(jsonString)))
         .where((connectionStateContainer) =>

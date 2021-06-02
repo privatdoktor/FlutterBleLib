@@ -1,11 +1,8 @@
 part of _internal;
 
-mixin CharacteristicsMixin on FlutterBLE {
-  static const _characteristicsMonitoringEventChannel =
-      const EventChannel(ChannelName.monitorCharacteristic);
-  
-  Stream<String> get _characteristicsMonitoringEvents {
-    return _characteristicsMonitoringEventChannel
+mixin CharacteristicsMixin on FlutterBLE {  
+  Stream<String> _characteristicsMonitoringEvents({ required String id }) {
+    return EventChannel('${ChannelName.monitorCharacteristic}/$id')
           .receiveBroadcastStream()
           .cast();
   }
@@ -146,12 +143,12 @@ mixin CharacteristicsMixin on FlutterBLE {
                 _parseCharacteristicResponse(peripheral, rawJsonValue),
           );
 
-  Stream<Uint8List> monitorCharacteristicForIdentifier(
+  Future<Stream<Uint8List>> monitorCharacteristicForIdentifier(
     Peripheral peripheral,
     int characteristicIdentifier,
     String transactionId,
-  ) {
-    void startMonitoring() => _methodChannel.invokeMethod(
+  ) async {
+    await _methodChannel.invokeMethod(
           MethodName.monitorCharacteristicForIdentifier,
           <String, dynamic>{
             ArgumentName.characteristicIdentifier: characteristicIdentifier,
@@ -174,20 +171,21 @@ mixin CharacteristicsMixin on FlutterBLE {
     ;
 
     return _createMonitoringStream(
-      startMonitoring,
+      // startMonitoring,
       characteristicFilter,
       peripheral,
       transactionId,
+      '$characteristicIdentifier',
     ).map((characteristicWithValue) => characteristicWithValue.value);
   }
 
-  Stream<CharacteristicWithValue> monitorCharacteristicForDevice(
+  Future<Stream<CharacteristicWithValue>> monitorCharacteristicForDevice(
     Peripheral peripheral,
     String serviceUuid,
     String characteristicUuid,
     String transactionId,
-  ) {
-    void startMonitoring() => _methodChannel.invokeMethod(
+  ) async {
+    await _methodChannel.invokeMethod(
           MethodName.monitorCharacteristicForDevice,
           <String, dynamic>{
             ArgumentName.deviceIdentifier: peripheral.identifier,
@@ -205,20 +203,21 @@ mixin CharacteristicsMixin on FlutterBLE {
             transactionId, characteristic._transactionId ?? '');
 
     return _createMonitoringStream(
-      startMonitoring,
+      // startMonitoring,
       characteristicsFilter,
       peripheral,
       transactionId,
+      characteristicUuid,
     );
   }
 
-  Stream<CharacteristicWithValue> monitorCharacteristicForService(
+  Future<Stream<CharacteristicWithValue>> monitorCharacteristicForService(
     Peripheral peripheral,
     int serviceIdentifier,
     String characteristicUuid,
     String transactionId,
-  ) {
-    void startMonitoring() => _methodChannel.invokeMethod(
+  ) async {
+    await _methodChannel.invokeMethod(
           MethodName.monitorCharacteristicForService,
           <String, dynamic>{
             ArgumentName.serviceIdentifier: serviceIdentifier,
@@ -235,21 +234,23 @@ mixin CharacteristicsMixin on FlutterBLE {
             transactionId, characteristic._transactionId ?? '');
 
     return _createMonitoringStream(
-      startMonitoring,
+      // startMonitoring,
       characteristicFilter,
       peripheral,
       transactionId,
+      characteristicUuid
     );
   }
 
   Stream<CharacteristicWithValueAndTransactionId> _createMonitoringStream(
-    void Function() onListen,
+    // void Function() onListen,
     bool Function(CharacteristicWithValueAndTransactionId) filter,
     Peripheral peripheral,
     String transactionId,
+    String streamId,
   ) {
     final stream =
-        _characteristicsMonitoringEvents
+        _characteristicsMonitoringEvents(id: streamId)
             .map((rawValue) {
               return _parseCharacteristicWithValueWithTransactionIdResponse(
                   peripheral, rawValue);
@@ -261,7 +262,7 @@ mixin CharacteristicsMixin on FlutterBLE {
                 CancelOnErrorStreamTransformer());
     final streamController =
         StreamController<CharacteristicWithValueAndTransactionId>.broadcast(
-      onListen: onListen,
+      onListen: null,
       onCancel: () => cancelTransaction(transactionId),
     );
 

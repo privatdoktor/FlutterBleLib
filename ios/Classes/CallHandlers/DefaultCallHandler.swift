@@ -6,12 +6,13 @@
 //
 
 import Foundation
+import CoreBluetooth
 
 extension Client : CallHandler {
-  typealias SignatureEnumT = Method.DefaultChannel.Signature
+  typealias SignatureEnumT = DefaultMethodChannel.Signature
   
   private func validate(
-    call: Method.Call<SignatureEnumT>
+    call: Call<SignatureEnumT>
   ) -> Result<(),ClientError> {
     switch call.signature {
     case .isClientCreated,
@@ -36,7 +37,10 @@ extension Client : CallHandler {
     }
   }
   
-  func handle(call: Method.Call<SignatureEnumT>) {
+  func handle(
+    call: Call<SignatureEnumT>,
+    eventChannelFactory: EventChannelFactory
+  ) {
     switch validate(call: call) {
     case .failure(let error):
       call.result(error: error)
@@ -66,11 +70,11 @@ extension Client : CallHandler {
       noop()
       call.result()
     case .startDeviceScan(let uuids, let allowDuplicates):
-      startDeviceScan(withServices: uuids, allowDuplicates: allowDuplicates)
-      call.result()
+      let res = startDeviceScan(withServices: uuids, allowDuplicates: allowDuplicates)
+      call.result(res)
     case .stopDeviceScan:
-      stopDeviceScan()
-      call.result()
+      let res = stopDeviceScan()
+      call.result(res)
     case .connectToDevice(let id, let timoutMillis):
       connectToDevice(id: id, timoutMillis: timoutMillis) { res in
         call.result(res)
@@ -78,9 +82,25 @@ extension Client : CallHandler {
     case .isDeviceConnected(let id):
       call.result(isDeviceConnected(id: id))
     case .observeConnectionState(let deviceIdentifier, let emitCurrentValue):
+      let sink =
+        eventChannelFactory.makeEventChannel(
+          ConnectionStateChangeEvents.self,
+          id: deviceIdentifier
+        )
+      
+      let stream = Stream<CBPeripheralState>(eventHandler: { payload in
+        switch payload {
+        case .data(let state):
+          sink.sink(state)
+        case .endOfStream:
+          sink.end()
+        }
+      })
+      
       let res = observeConnectionState(
         deviceIdentifier: deviceIdentifier,
-        emitCurrentValue: emitCurrentValue
+        emitCurrentValue: emitCurrentValue,
+        eventStream: stream
       )
       call.result(res)
     case .cancelConnection(let deviceIdentifier):
@@ -224,9 +244,27 @@ extension Client : CallHandler {
       }
     case .monitorCharacteristicForIdentifier(let characteristicNumericId,
                                              let transactionId):
+      let sink =
+        eventChannelFactory.makeEventChannel(
+          MonitorCharacteristic.self,
+          id: "\(characteristicNumericId)"
+        )
+      let stream =
+        Client.Stream<SingleCharacteristicWithValueResponse>(
+          eventHandler: { payload in
+            switch payload {
+            case .data(let charRes):
+              sink.sink(charRes)
+            case .endOfStream:
+              sink.end()
+            }
+          }
+        )
+      
       monitorCharacteristicForIdentifier(
         characteristicNumericId: characteristicNumericId,
-        transactionId: transactionId
+        transactionId: transactionId,
+        eventSteam: stream
       ) { res in
         call.result(res)
       }
@@ -234,21 +272,57 @@ extension Client : CallHandler {
                                          let serviceUUID,
                                          let characteristicUUID,
                                          let transactionId):
+      let sink =
+        eventChannelFactory.makeEventChannel(
+          MonitorCharacteristic.self,
+          id: characteristicUUID
+        )
+      let stream =
+        Client.Stream<SingleCharacteristicWithValueResponse>(
+          eventHandler: { payload in
+            switch payload {
+            case .data(let charRes):
+              sink.sink(charRes)
+            case .endOfStream:
+              sink.end()
+            }
+          }
+        )
+      
       monitorCharacteristicForDevice(
         deviceIdentifier: deviceIdentifier,
         serviceUUID: serviceUUID,
         characteristicUUID: characteristicUUID,
-        transactionId: transactionId
+        transactionId: transactionId,
+        eventSteam: stream
       ) { res in
         call.result(res)
       }
     case .monitorCharacteristicForService(let serviceNumericId,
                                           let characteristicUUID,
                                           let transactionId):
+      let sink =
+        eventChannelFactory.makeEventChannel(
+          MonitorCharacteristic.self,
+          id: characteristicUUID
+        )
+      let stream =
+        Client.Stream<SingleCharacteristicWithValueResponse>(
+          eventHandler: { payload in
+            switch payload {
+            case .data(let charRes):
+              sink.sink(charRes)
+            case .endOfStream:
+              sink.end()
+            }
+          }
+        )
+      
       monitorCharacteristicForService(
         serviceNumericId: serviceNumericId,
         characteristicUUID: characteristicUUID,
-        transactionId: transactionId
+        transactionId: transactionId,
+        eventSteam: stream
       ) { res in
         call.result(res)
       }

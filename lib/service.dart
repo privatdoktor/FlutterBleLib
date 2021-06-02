@@ -76,7 +76,7 @@ class Service extends InternalService {
   /// but with an additonal `value` property of type [Uint8List]. Only
   /// [Characteristic] where [Characteristic.isNotifiable] is `true` can be
   /// monitored.
-  Stream<CharacteristicWithValue> monitorCharacteristic(
+  Future<Stream<CharacteristicWithValue>> monitorCharacteristic(
     String characteristicUuid, {
     String? transactionId,
   }) =>

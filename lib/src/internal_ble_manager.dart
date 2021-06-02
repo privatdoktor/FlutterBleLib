@@ -285,7 +285,7 @@ class InternalBleManager
       );
 
   @override
-  Stream<CharacteristicWithValue> monitorCharacteristicForDevice(
+  Future<Stream<CharacteristicWithValue>> monitorCharacteristicForDevice(
     Peripheral peripheral,
     String serviceUuid,
     String characteristicUuid,
@@ -299,7 +299,7 @@ class InternalBleManager
       );
 
   @override
-  Stream<CharacteristicWithValue> monitorCharacteristicForService(
+  Future<Stream<CharacteristicWithValue>> monitorCharacteristicForService(
     Peripheral peripheral,
     InternalService service,
     String characteristicUuid,
@@ -313,7 +313,7 @@ class InternalBleManager
       );
 
   @override
-  Stream<Uint8List> monitorCharacteristicForIdentifier(
+  Future<Stream<Uint8List>> monitorCharacteristicForIdentifier(
     Peripheral peripheral,
     InternalCharacteristic characteristic,
     String transactionId,

@@ -54,6 +54,19 @@ enum ClientError : LocalizedError {
 
 class Client : NSObject {
   
+  class Stream<AnyT: Any> {
+    enum Payload<AnyT: Any> {
+      case data(AnyT)
+      case endOfStream
+    }
+    let eventHandler: (_ payload: Payload<AnyT>) -> ()
+    var afterCancelDo: (() -> ())?
+    
+    init(eventHandler: @escaping (_ payload: Payload<AnyT>) -> ()) {
+      self.eventHandler = eventHandler
+    }
+  }
+  
   private class PeerConnectionEventHandler {
     let peerUUID: UUID
     
@@ -75,7 +88,6 @@ class Client : NSObject {
     }
   }
   
-  private let eventSink: EventSink
   var centralManager: CBCentralManager?
   
   private var discoveredPeripherals = [UUID : DiscoveredPeripheral]()
@@ -87,10 +99,9 @@ class Client : NSObject {
   private var peerConnectionEventHandlers = [UUID : PeerConnectionEventHandler]()
   private var onPowerOnListeners = Queue<(_ cm: CBCentralManager) -> ()>()
   
-  init(eventSink: EventSink) {
-    self.eventSink = eventSink
-    super.init()
-  }
+  var stateChanges: Stream<Int>?
+  var stateRestoreEvents: Stream<[PeripheralResponse]>?
+  var scanningEvents: Stream<ScanResultEvent>?
 }
 // MARK: -- Helpers
 extension Client {
@@ -389,10 +400,11 @@ extension Client {
       return .success(dp.peripheral.state == .connected)
     }
   }
-  
+
   func observeConnectionState(
     deviceIdentifier: String,
-    emitCurrentValue: Bool?
+    emitCurrentValue: Bool?,
+    eventStream: Stream<CBPeripheralState>
   ) -> Result<(), ClientError> {
     guard
       let centralManager = centralManager
@@ -404,21 +416,22 @@ extension Client {
     else {
       return .failure(ClientError.invalidUUIDString(deviceIdentifier))
     }
-    let connStateEvents = eventSink.connectionStateChangeEvents
     
     if emitCurrentValue == true {
-      connStateEvents.sink(
-        peripheralFor(
-          uuid: uuid,
-          centralManager: centralManager
-        )?.state ?? .disconnected
+      eventStream.eventHandler(
+        .data(
+          peripheralFor(
+            uuid: uuid,
+            centralManager: centralManager
+          )?.state ?? .disconnected
+        )
       )
     }
     if #available(iOS 13.0, *) {
       let handler = PeerConnectionEventHandler(uuid)
       peerConnectionEventHandlers[uuid] = handler
       
-      connStateEvents.afterCancelDo { [weak self] in
+      eventStream.afterCancelDo = { [weak self] in
         self?.peerConnectionEventHandlers[uuid] = nil
       }
       
@@ -432,7 +445,7 @@ extension Client {
         @unknown default:
           state = .disconnected
         }
-        connStateEvents.sink(state)
+        eventStream.eventHandler(.data(state))
       }
       
       centralManager.registerForConnectionEvents(
@@ -444,7 +457,7 @@ extension Client {
       else {
         return.success(())
       }
-      connStateEvents.afterCancelDo {
+      eventStream.afterCancelDo = {
         dp.onConnectionEvent(handler:nil)
       }
       
@@ -458,7 +471,7 @@ extension Client {
         @unknown default:
           state = .disconnected
         }
-        connStateEvents.sink(state)
+        eventStream.eventHandler(.data(state))
       }
     }
     
@@ -607,7 +620,6 @@ extension Client {
     let cbuuid = CBUUID(string: serviceUUID)
     return characteristics(for: discoPeri, serviceCbuuid: cbuuid)
   }
-  
   
   func characteristics(
     for serviceNumericId: Int
@@ -1048,6 +1060,7 @@ extension Client {
   private func monitorCharacteristic(
     for dc: DiscoveredCharacteristic,
     transactionId: String?,
+    eventSteam: Stream<SingleCharacteristicWithValueResponse>,
     completion: @escaping (Result<(), ClientError>) -> ()
   ) {
     let puuid = dc.characteristic.service.peripheral.identifier
@@ -1060,8 +1073,7 @@ extension Client {
       )
       return
     }
-    let charEvents = eventSink.monitorCharacteristic
-    charEvents.afterCancelDo {
+    eventSteam.afterCancelDo = {
       let char = dc.characteristic
       if char.isNotifying {
         char.service.peripheral.setNotifyValue(false, for: char)
@@ -1069,15 +1081,17 @@ extension Client {
       dc.onValueUpdate(handler: nil)
     }
     dp.onDisconnected {
-      charEvents.end()
+      eventSteam.eventHandler(.endOfStream)
     }
     dc.onValueUpdate { char in
-      charEvents.sink(
-        SingleCharacteristicWithValueResponse(
-          char: char,
-          charUuidCache: self.characteristicUuidCache,
-          serviceUuidCache: self.serviceUuidCache,
-          transactionId: transactionId
+      eventSteam.eventHandler(
+        .data(
+          SingleCharacteristicWithValueResponse(
+            char: char,
+            charUuidCache: self.characteristicUuidCache,
+            serviceUuidCache: self.serviceUuidCache,
+            transactionId: transactionId
+          )
         )
       )
     }
@@ -1111,6 +1125,7 @@ extension Client {
   func monitorCharacteristicForIdentifier(
     characteristicNumericId: Int,
     transactionId: String?,
+    eventSteam: Stream<SingleCharacteristicWithValueResponse>,
     completion: @escaping (Result<(), ClientError>) -> ()
   ) {
     let dc: DiscoveredCharacteristic
@@ -1121,7 +1136,12 @@ extension Client {
     case .success(let value):
       dc = value
     }
-    monitorCharacteristic(for: dc, transactionId: transactionId, completion: completion)
+    monitorCharacteristic(
+      for: dc,
+      transactionId: transactionId,
+      eventSteam: eventSteam,
+      completion: completion
+    )
   }
   
   func monitorCharacteristicForDevice(
@@ -1129,6 +1149,7 @@ extension Client {
     serviceUUID: String,
     characteristicUUID: String,
     transactionId: String?,
+    eventSteam: Stream<SingleCharacteristicWithValueResponse>,
     completion: @escaping (Result<(), ClientError>) -> ()
   ) {
     let dp: DiscoveredPeripheral
@@ -1162,6 +1183,7 @@ extension Client {
     monitorCharacteristic(
       for: dc,
       transactionId: transactionId,
+      eventSteam: eventSteam,
       completion: completion
     )
   }
@@ -1170,6 +1192,7 @@ extension Client {
     serviceNumericId: Int,
     characteristicUUID: String,
     transactionId: String?,
+    eventSteam: Stream<SingleCharacteristicWithValueResponse>,
     completion: @escaping (Result<(), ClientError>) -> ()
   ) {
     let ds: DiscoveredService
@@ -1193,6 +1216,7 @@ extension Client {
     monitorCharacteristic(
       for: dc,
       transactionId: transactionId,
+      eventSteam: eventSteam,
       completion: completion
     )
   }
@@ -1544,7 +1568,7 @@ extension Client : CBCentralManagerDelegate {
         onPowerOnListeners.dequeue()?(central)
       }
     }
-    eventSink.stateChanges.sink(central.state.rawValue)
+    stateChanges?.eventHandler(.data(central.state.rawValue))
   }
   
   func centralManager(
@@ -1556,8 +1580,8 @@ extension Client : CBCentralManagerDelegate {
     else {
       return
     }
-    eventSink.stateRestoreEvents.sink(
-      peripherals.map(PeripheralResponse.init)
+    stateRestoreEvents?.eventHandler(
+      .data(peripherals.map(PeripheralResponse.init))
     )
   }
   
@@ -1573,11 +1597,13 @@ extension Client : CBCentralManagerDelegate {
       discoveredPeripherals[peripheral.identifier] =
         DiscoveredPeripheral(peripheral, centralManager: central)
     }
-    eventSink.scanningEvents.sink(
-      ScanResultEvent(
-        peripheral: peripheral,
-        advertisementData: advertisementData,
-        rssi: RSSI.intValue
+    scanningEvents?.eventHandler(
+      .data(
+        ScanResultEvent(
+          peripheral: peripheral,
+          advertisementData: advertisementData,
+          rssi: RSSI.intValue
+        )
       )
     )
   }

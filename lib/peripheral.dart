@@ -226,7 +226,7 @@ class Peripheral {
   /// from the stream cancels monitoring.
   ///
   /// Will result in error if discovery was not done during this connection.
-  Stream<CharacteristicWithValue> monitorCharacteristic(
+  Future<Stream<CharacteristicWithValue>> monitorCharacteristic(
     String serviceUuid,
     String characteristicUuid, {
     String? transactionId,

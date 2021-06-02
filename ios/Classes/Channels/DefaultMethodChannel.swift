@@ -7,42 +7,87 @@
 
 import Foundation
 
-
-
-
-class DefaultChannel : NSObject, MethodChannel {
-  var handler: Client
-  
+final class DefaultMethodChannel : NSObject, MethodChannel {
   typealias CallHandlerT = Client
+  typealias SignatureEnumT = Signature
+
+  let handler: Client
+  let eventChannelFactory: EventChannelFactory
   
-  required init(handler: CallHandlerT) {
+  private func setupStaticEventChannels() {
+    let stateChangesSink =
+      eventChannelFactory.makeEventChannel(StateChanges.self)
+    let stateRestoreSink =
+      eventChannelFactory.makeEventChannel(StateRestoreEvents.self)
+    let scanningSink =
+      eventChannelFactory.makeEventChannel(ScanningEvents.self)
+    handler.stateChanges = Client.Stream<Int>(eventHandler: { payload in
+      switch payload {
+      case .data(let state):
+        stateChangesSink.sink(state)
+      case .endOfStream:
+        stateChangesSink.end()
+      }
+    })
+    stateChangesSink.afterCancelDo { [weak handler] in
+      handler?.stateChanges?.afterCancelDo?()
+      handler?.stateChanges = nil
+    }
+    handler.stateRestoreEvents = Client.Stream(eventHandler: { payload in
+      switch payload {
+      case .data(let states):
+        stateRestoreSink.sink(states)
+      case .endOfStream:
+        stateRestoreSink.end()
+      }
+    })
+    stateRestoreSink.afterCancelDo { [weak handler] in
+      handler?.stateRestoreEvents?.afterCancelDo?()
+      handler?.stateRestoreEvents = nil
+    }
+    handler.scanningEvents = Client.Stream(eventHandler: { payload in
+      switch payload {
+      case .data(let scanResult):
+        scanningSink.sink(scanResult)
+      case .endOfStream:
+        scanningSink.end()
+      }
+    })
+    scanningSink.afterCancelDo { [weak handler] in
+      handler?.scanningEvents?.afterCancelDo?()
+      handler?.scanningEvents = nil
+    }
+  }
+  
+  init(handler: Client, messenger: FlutterBinaryMessenger) {
     self.handler = handler
+    eventChannelFactory = EventChannelFactory(messenger: messenger)
+    super.init()
+    setupStaticEventChannels()
   }
   
   static func register(with registrar: FlutterPluginRegistrar) {
     let messenger: FlutterBinaryMessenger = registrar.messenger()
     let flutterChannel =
       FlutterMethodChannel(
-        name: DefaultChannel.name,
+        name: self.name,
         binaryMessenger: messenger
       )
-    let eventSink = EventSink(messenger: messenger)
-    let client = Client(eventSink: eventSink)
-    let channel = DefaultChannel(handler: client)
+    let channel = self.init(handler: Client(), messenger: messenger)
     
     registrar.addMethodCallDelegate(
       channel,
       channel: flutterChannel
     )
-    
   }
+  
   public func handle(
     _ call: FlutterMethodCall,
     result: @escaping FlutterResult
   ) {
     guard
       let args = call.arguments as? Dictionary<String, Any>?,
-      let call = Method.Call<Signature>(
+      let call = Call<CallHandlerT.SignatureEnumT>(
         call.method,
         args: args,
         onResult: result
@@ -50,11 +95,10 @@ class DefaultChannel : NSObject, MethodChannel {
     else {
       return
     }
-    handler.handle(call: call)
+    handler.handle(call: call, eventChannelFactory: eventChannelFactory)
   }
   
   static let name = "flutter_ble_lib"
-  typealias SignatureEnumT = Signature
   
   enum ArgumentKey : String, ArgumentKeyEnum {
     case restoreStateIdentifier = "restoreStateIdentifier"
@@ -97,26 +141,23 @@ class DefaultChannel : NSObject, MethodChannel {
           let value = args?[key],
           let args = args
         else {
-          throw PluginError.signature(
-            .missingArgsKey(
-              key,
-              inDict: args,
-              id: callId
-            )
+          throw SignatureError.missingArgsKey(
+            key,
+            inDict: args,
+            id: callId
           )
         }
         guard
           let argument = value as? ArgT
         else {
-          throw PluginError.signature(
-            .invalidValue(
-              forKey: key,
-              value: value,
-              inDict: args,
-              id: callId,
-              expected: type
-            )
+          throw SignatureError.invalidValue(
+            forKey: key,
+            value: value,
+            inDict: args,
+            id: callId,
+            expected: type
           )
+          
         }
         return argument
       }

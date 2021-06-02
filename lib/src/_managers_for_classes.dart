@@ -60,7 +60,7 @@ abstract class ManagerForPeripheral {
       bool withResponse,
       String transactionId);
 
-  Stream<CharacteristicWithValue> monitorCharacteristicForDevice(
+  Future<Stream<CharacteristicWithValue>> monitorCharacteristicForDevice(
     Peripheral peripheral,
     String serviceUuid,
     String characteristicUuid,
@@ -110,7 +110,7 @@ abstract class ManagerForService {
     String transactionId,
   );
 
-  Stream<CharacteristicWithValue> monitorCharacteristicForService(
+  Future<Stream<CharacteristicWithValue>> monitorCharacteristicForService(
     Peripheral peripheral,
     InternalService service,
     String characteristicUuid,
@@ -153,7 +153,7 @@ abstract class ManagerForCharacteristic {
     String transactionId,
   );
 
-  Stream<Uint8List> monitorCharacteristicForIdentifier(
+  Future<Stream<Uint8List>> monitorCharacteristicForIdentifier(
     Peripheral peripheral,
     InternalCharacteristic characteristic,
     String transactionId,

@@ -7,7 +7,7 @@
 
 import Foundation
 
-enum SignatureError : LocalizedError {
+enum SignatureError<ArgumentKeyT : ArgumentKeyEnum> : LocalizedError {
   
   var failureReason: String? {
     switch self {
@@ -28,12 +28,11 @@ enum SignatureError : LocalizedError {
         """
     }
   }
-  typealias ArgumentKey = Method.DefaultChannel.ArgumentKey
-  case missingArgsKey(ArgumentKey,
-                      inDict: Dictionary<ArgumentKey, Any>?,
+  case missingArgsKey(ArgumentKeyT,
+                      inDict: Dictionary<ArgumentKeyT, Any>?,
                       id: String)
-  case invalidValue(forKey: ArgumentKey, value: Any,
-                    inDict: Dictionary<ArgumentKey, Any>, id: String,
+  case invalidValue(forKey: ArgumentKeyT, value: Any,
+                    inDict: Dictionary<ArgumentKeyT, Any>, id: String,
                     expected: Any.Type)
 }
 
@@ -66,13 +65,17 @@ protocol MethodChannel : NSObject, FlutterPlugin {
   associatedtype SignatureEnumT: SignatureEnum
   associatedtype CallHandlerT: CallHandler
   static var name: String { get }
-  var handler: CallHandlerT { get set }
-  init(handler: CallHandlerT)
+  
+  var handler: CallHandlerT { get }
+  var eventChannelFactory: EventChannelFactory { get }
+  init(handler: CallHandlerT, messenger: FlutterBinaryMessenger)
 }
+
 
 protocol CallHandler {
   associatedtype SignatureEnumT: SignatureEnum
-  func handle(call: Method.Call<SignatureEnumT>)
+  func handle(call: Call<SignatureEnumT>,
+              eventChannelFactory: EventChannelFactory)
 }
 
 class Call<SignatureEnumT: SignatureEnum> {
@@ -98,7 +101,7 @@ class Call<SignatureEnumT: SignatureEnum> {
       signature = sig
       onResult = result
     } catch {
-      result(FlutterError(bleError: BleError(withError: error)))
+      result(FlutterError(withError: error as NSError))
       return nil
     }
   }

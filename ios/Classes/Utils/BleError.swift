@@ -101,23 +101,24 @@ struct BleError: Error, Encodable {
 }
 
 extension BleErrorCode {
-  init(pluginErr: PluginError) {
-    switch pluginErr {
-    case .signature(.invalidValue),
-         .signature(.missingArgsKey):
-      self = .invalidIdentifiers
-    case .coreBluetooth:
-      self = .unknownError
-    }
-
-  }
+//  init(pluginErr: PluginError) {
+//    switch pluginErr {
+//    case .signature(.invalidValue),
+//         .signature(.missingArgsKey):
+//      self = .invalidIdentifiers
+//    case .coreBluetooth:
+//      self = .unknownError
+//    }
+//
+//  }
 }
 
 extension BleError {
   init(withError error: Error) {
     switch error {
-    case let error as PluginError:
-      self.init(pluginErr: error)
+//    case let error as PluginError:
+//      self.init(pluginErr: error)
+//    case let nsError
     default:
       self.init(
         errorCode: .unknownError,
@@ -133,20 +134,20 @@ extension BleError {
     }
   }
   
-  init(pluginErr: PluginError) {
-    let code = BleErrorCode(pluginErr: pluginErr)
-    self.init(
-      errorCode: code,
-      reason: pluginErr.failureReason,
-      attErrorCode: nil,
-      iosErrorCode: nil,
-      deviceID: nil,
-      serviceUUID: nil,
-      characteristicUUID: nil,
-      descriptorUUID: nil,
-      internalMessage: nil
-    )
-  }
+//  init(pluginErr: PluginError) {
+//    let code = BleErrorCode(pluginErr: pluginErr)
+//    self.init(
+//      errorCode: code,
+//      reason: pluginErr.failureReason,
+//      attErrorCode: nil,
+//      iosErrorCode: nil,
+//      deviceID: nil,
+//      serviceUUID: nil,
+//      characteristicUUID: nil,
+//      descriptorUUID: nil,
+//      internalMessage: nil
+//    )
+//  }
 }
 
 extension FlutterError {
@@ -157,5 +158,21 @@ extension FlutterError {
       message: bleError.reason,
       details: jsonString ?? ""
     )
+  }
+  convenience init(withError error: Error) {
+    switch error {
+    case let error as NSError:
+      self.init(
+        code: "\(error.code)",
+        message: error.localizedDescription,
+        details: error.localizedFailureReason
+      )
+    default:
+      self.init(
+        code: "666",
+        message: error.localizedDescription,
+        details: ""
+      )
+    }
   }
 }
