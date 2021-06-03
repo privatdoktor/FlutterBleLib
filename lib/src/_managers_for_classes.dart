@@ -18,7 +18,7 @@ abstract class ManagerForPeripheral {
   Future<void> disconnectOrCancelPeripheralConnection(
       String peripheralIdentifier);
 
-  Stream<PeripheralConnectionState> observePeripheralConnectionState(
+  Future<Stream<PeripheralConnectionState>> observePeripheralConnectionState(
     String peripheralIdentifier,
     bool emitCurrentValue,
     bool completeOnDisconnect,

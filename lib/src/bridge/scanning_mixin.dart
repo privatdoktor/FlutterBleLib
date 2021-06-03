@@ -1,14 +1,14 @@
 part of _internal;
 
 mixin ScanningMixin on FlutterBLE {
+  static const EventChannel _scanningEventsEventChannel =
+    EventChannel(ChannelName.scanningEvents);
   Stream<ScanResult>? _activeScanEvents;
   Stream<ScanResult> get _scanEvents {
     var scanEvents = _activeScanEvents;
     if (scanEvents == null) {
       scanEvents = 
-        const EventChannel(
-          ChannelName.scanningEvents
-        ).receiveBroadcastStream().handleError(
+        _scanningEventsEventChannel.receiveBroadcastStream().handleError(
           (errorJson) => throw BleError.fromJson(
             jsonDecode(errorJson.details)
           ),
@@ -25,14 +25,18 @@ mixin ScanningMixin on FlutterBLE {
     _activeScanEvents = null;
   }
 
-  Stream<ScanResult> startDeviceScan(
+  Future<Stream<ScanResult>> startDeviceScan(
     int scanMode,
     int callbackType,
     List<String> uuids,
     bool allowDuplicates,
-  ) {
+  ) async {
+    await _methodChannel.invokeMethod(
+      MethodName.createScanningEventChannel
+    );
     final streamController = StreamController<ScanResult>.broadcast(
-      onListen: () => _methodChannel.invokeMethod(
+      onListen: () => 
+      _methodChannel.invokeMethod(
         MethodName.startDeviceScan,
         <String, dynamic>{
           ArgumentName.scanMode: scanMode,

@@ -15,14 +15,17 @@ protocol EventSinker : EventChannel {
   static var baseName: String { get }
   func sink(_ obj: SinkableT)
   func afterCancelDo(_ cleanUpClosure: @escaping () -> ())
+  var name: String { get }
 }
 
 class EventChannel : NSObject {
   private var flutterEventSink: FlutterEventSink?
   private var cleanUpClosure: (() -> ())?
   private let flutterEventChannel: FlutterEventChannel
+  let name: String
   
   required init(name: String, messenger: FlutterBinaryMessenger) {
+    self.name = name
     flutterEventChannel =
       FlutterEventChannel(
         name: name,
@@ -41,7 +44,6 @@ class EventChannel : NSObject {
     flutterEventSink = nil
     cleanUpClosure?()
     cleanUpClosure = nil
-    flutterEventChannel.setStreamHandler(nil)
   }
   
   func _sink(error: FlutterError) {
@@ -87,7 +89,7 @@ extension EventChannel : FlutterStreamHandler {
     flutterEventSink = nil
     cleanUpClosure?()
     cleanUpClosure = nil
-    flutterEventChannel.setStreamHandler(nil)
+//    flutterEventChannel.setStreamHandler(nil)
     return nil
   }
 }

@@ -62,7 +62,7 @@ class Peripheral {
   ///
   /// By default this stream will never end, but this behaviour can be changed
   /// by setting [completeOnDisconnect] to `true`.
-  Stream<PeripheralConnectionState> observeConnectionState(
+  Future<Stream<PeripheralConnectionState>> observeConnectionState(
           {bool emitCurrentValue = false, bool completeOnDisconnect = false}) =>
       _manager.observePeripheralConnectionState(
           identifier, emitCurrentValue, completeOnDisconnect);

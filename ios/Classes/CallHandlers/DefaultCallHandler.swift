@@ -69,6 +69,20 @@ extension Client : CallHandler {
     case .disableRadio:
       noop()
       call.result()
+    case .createScanningEventChannel:
+      if scanningEvents == nil {
+        let scanningSinker =
+          eventChannelFactory.makeEventChannel(ScanningEvents.self, idScheme: .justBaseName)
+        scanningEvents = Client.Stream(eventHandler: { payload in
+          switch payload {
+          case .data(let scanResult):
+            scanningSinker.sink(scanResult)
+          case .endOfStream:
+            scanningSinker.end()
+          }
+        })
+      }
+      call.result()
     case .startDeviceScan(let uuids, let allowDuplicates):
       let res = startDeviceScan(withServices: uuids, allowDuplicates: allowDuplicates)
       call.result(res)
@@ -82,18 +96,17 @@ extension Client : CallHandler {
     case .isDeviceConnected(let id):
       call.result(isDeviceConnected(id: id))
     case .observeConnectionState(let deviceIdentifier, let emitCurrentValue):
-      let sink =
+      let sinker =
         eventChannelFactory.makeEventChannel(
-          ConnectionStateChangeEvents.self,
-          id: deviceIdentifier
+          ConnectionStateChangeEvents.self
         )
-      
+      let sinkerName = sinker.name
       let stream = Stream<CBPeripheralState>(eventHandler: { payload in
         switch payload {
         case .data(let state):
-          sink.sink(state)
+          sinker.sink(state)
         case .endOfStream:
-          sink.end()
+          sinker.end()
         }
       })
       
@@ -102,7 +115,9 @@ extension Client : CallHandler {
         emitCurrentValue: emitCurrentValue,
         eventStream: stream
       )
-      call.result(res)
+      call.result(
+        res.map({ sinkerName })
+      )
     case .cancelConnection(let deviceIdentifier):
       cancelConnection(deviceIdentifier: deviceIdentifier) { res in
         call.result(res)
@@ -244,50 +259,58 @@ extension Client : CallHandler {
       }
     case .monitorCharacteristicForIdentifier(let characteristicNumericId,
                                              let transactionId):
-      let sink =
+      let sinker =
         eventChannelFactory.makeEventChannel(
-          MonitorCharacteristic.self,
-          id: "\(characteristicNumericId)"
+          MonitorCharacteristic.self
         )
+      let sinkerName = sinker.name
       let stream =
         Client.Stream<SingleCharacteristicWithValueResponse>(
           eventHandler: { payload in
             switch payload {
             case .data(let charRes):
-              sink.sink(charRes)
+              sinker.sink(charRes)
             case .endOfStream:
-              sink.end()
+              sinker.end()
             }
           }
         )
+      sinker.afterCancelDo {
+        eventChannelFactory.removeEventChannel(name: sinkerName)
+      }
       
       monitorCharacteristicForIdentifier(
         characteristicNumericId: characteristicNumericId,
         transactionId: transactionId,
         eventSteam: stream
       ) { res in
-        call.result(res)
+        call.result(
+          res.map({ sinkerName })
+        )
       }
     case .monitorCharacteristicForDevice(let deviceIdentifier,
                                          let serviceUUID,
                                          let characteristicUUID,
                                          let transactionId):
-      let sink =
+      let sinker =
         eventChannelFactory.makeEventChannel(
-          MonitorCharacteristic.self,
-          id: characteristicUUID
+          MonitorCharacteristic.self
         )
+      let sinkerName = sinker.name
       let stream =
         Client.Stream<SingleCharacteristicWithValueResponse>(
           eventHandler: { payload in
             switch payload {
             case .data(let charRes):
-              sink.sink(charRes)
+              sinker.sink(charRes)
             case .endOfStream:
-              sink.end()
+              sinker.end()
             }
           }
         )
+      sinker.afterCancelDo {
+        eventChannelFactory.removeEventChannel(name: sinkerName)
+      }
       
       monitorCharacteristicForDevice(
         deviceIdentifier: deviceIdentifier,
@@ -296,27 +319,32 @@ extension Client : CallHandler {
         transactionId: transactionId,
         eventSteam: stream
       ) { res in
-        call.result(res)
+        call.result(
+          res.map({ sinkerName })
+        )
       }
     case .monitorCharacteristicForService(let serviceNumericId,
                                           let characteristicUUID,
                                           let transactionId):
-      let sink =
+      let sinker =
         eventChannelFactory.makeEventChannel(
-          MonitorCharacteristic.self,
-          id: characteristicUUID
+          MonitorCharacteristic.self
         )
+      let sinkerName = sinker.name
       let stream =
         Client.Stream<SingleCharacteristicWithValueResponse>(
           eventHandler: { payload in
             switch payload {
             case .data(let charRes):
-              sink.sink(charRes)
+              sinker.sink(charRes)
             case .endOfStream:
-              sink.end()
+              sinker.end()
             }
           }
         )
+      sinker.afterCancelDo {
+        eventChannelFactory.removeEventChannel(name: sinkerName)
+      }
       
       monitorCharacteristicForService(
         serviceNumericId: serviceNumericId,
@@ -324,7 +352,9 @@ extension Client : CallHandler {
         transactionId: transactionId,
         eventSteam: stream
       ) { res in
-        call.result(res)
+        call.result(
+          res.map({ sinkerName })
+        )
       }
     case .readDescriptorForIdentifier(let descriptorNumericId,
                                       let transactionId):

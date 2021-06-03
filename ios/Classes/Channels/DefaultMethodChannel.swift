@@ -15,48 +15,37 @@ final class DefaultMethodChannel : NSObject, MethodChannel {
   let eventChannelFactory: EventChannelFactory
   
   private func setupStaticEventChannels() {
-    let stateChangesSink =
-      eventChannelFactory.makeEventChannel(StateChanges.self)
-    let stateRestoreSink =
-      eventChannelFactory.makeEventChannel(StateRestoreEvents.self)
-    let scanningSink =
-      eventChannelFactory.makeEventChannel(ScanningEvents.self)
+    let eventChannelFactory = eventChannelFactory
+    let stateChangesSinker =
+      eventChannelFactory.makeEventChannel(StateChanges.self, idScheme: .justBaseName)
+    let stateRestoreSinker =
+      eventChannelFactory.makeEventChannel(StateRestoreEvents.self, idScheme: .justBaseName)
+    let scanningSinker =
+      eventChannelFactory.makeEventChannel(ScanningEvents.self, idScheme: .justBaseName)
     handler.stateChanges = Client.Stream<Int>(eventHandler: { payload in
       switch payload {
       case .data(let state):
-        stateChangesSink.sink(state)
+        stateChangesSinker.sink(state)
       case .endOfStream:
-        stateChangesSink.end()
+        stateChangesSinker.end()
       }
     })
-    stateChangesSink.afterCancelDo { [weak handler] in
-      handler?.stateChanges?.afterCancelDo?()
-      handler?.stateChanges = nil
-    }
     handler.stateRestoreEvents = Client.Stream(eventHandler: { payload in
       switch payload {
       case .data(let states):
-        stateRestoreSink.sink(states)
+        stateRestoreSinker.sink(states)
       case .endOfStream:
-        stateRestoreSink.end()
+        stateRestoreSinker.end()
       }
     })
-    stateRestoreSink.afterCancelDo { [weak handler] in
-      handler?.stateRestoreEvents?.afterCancelDo?()
-      handler?.stateRestoreEvents = nil
-    }
     handler.scanningEvents = Client.Stream(eventHandler: { payload in
       switch payload {
       case .data(let scanResult):
-        scanningSink.sink(scanResult)
+        scanningSinker.sink(scanResult)
       case .endOfStream:
-        scanningSink.end()
+        scanningSinker.end()
       }
     })
-    scanningSink.afterCancelDo { [weak handler] in
-      handler?.scanningEvents?.afterCancelDo?()
-      handler?.scanningEvents = nil
-    }
   }
   
   init(handler: Client, messenger: FlutterBinaryMessenger) {
@@ -186,6 +175,8 @@ final class DefaultMethodChannel : NSObject, MethodChannel {
         self = .enableRadio
       case "disableRadio":
         self = .disableRadio
+      case "createScanningEventChannel":
+        self = .createScanningEventChannel
       case "startDeviceScan":
         let uuids = args?[.uuids] as? [String]
         let allowDuplicates = args?[.allowDuplicates] as? Bool
@@ -622,6 +613,7 @@ final class DefaultMethodChannel : NSObject, MethodChannel {
     case enableRadio
     case disableRadio
     
+    case createScanningEventChannel
     case startDeviceScan(uuids: [String]?, allowDuplicates: Bool?)
     case stopDeviceScan
     

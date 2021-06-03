@@ -9,26 +9,34 @@ import Foundation
 import CoreBluetooth
 
 class EventChannelFactory {
+  enum IdScheme {
+    case userDefined(String)
+    case generated
+    case justBaseName
+  }
   let messenger: FlutterBinaryMessenger
-  
-//  let stateChanges: StateChanges
-//  let stateRestoreEvents: StateRestoreEvents
-//  let scanningEvents = ScanningEvents()
-//  let connectionStateChangeEvents = ConnectionStateChangeEvents()
-//  let monitorCharacteristic = MonitorCharacteristic()
-//
+  private var eventChannels = [String : EventChannel]()
   
   func makeEventChannel<EventSinkerT : EventSinker>(
     _ type: EventSinkerT.Type,
-    id: String? = nil
+    idScheme: IdScheme = .generated
   ) -> EventSinkerT {
     let name: String
-    if let id = id {
+    switch idScheme {
+    case .userDefined(let id):
       name = "\(type.baseName)/\(id)"
-    } else {
+    case .generated:
+      name = "\(type.baseName)/\(UUID().uuidString)"
+    case .justBaseName:
       name = type.baseName
     }
-    return type.init(name: name, messenger: messenger)
+    let sinker = type.init(name: name, messenger: messenger)
+    eventChannels[name] = sinker
+    return sinker
+  }
+  
+  func removeEventChannel(name: String) {
+    eventChannels.removeValue(forKey: name)
   }
   
   init(messenger: FlutterBinaryMessenger) {

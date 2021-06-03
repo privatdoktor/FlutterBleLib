@@ -94,7 +94,7 @@ abstract class BleManager {
   ///   bleManager.stopPeripheralScan();
   /// });
   /// ```
-  Stream<ScanResult> startPeripheralScan({
+  Future<Stream<ScanResult>> startPeripheralScan({
     int scanMode = ScanMode.lowPower,
     int callbackType = CallbackType.allMatches,
     List<String> uuids = const [],

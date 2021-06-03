@@ -2,8 +2,13 @@ part of _internal;
 
 mixin DeviceConnectionMixin on FlutterBLE {
   static Stream<dynamic> _peripheralConnectionStateChanges({ 
-    required String id }) {
-    return EventChannel('${ChannelName.connectionStateChangeEvents}/$id')
+    required String? name }) {
+    if (name == null) {
+      print("connectionStateChangeEvents name was null. using fallback");
+    }
+    name ??= ChannelName.connectionStateChangeEvents;
+    
+    return EventChannel(name)
         .receiveBroadcastStream();
   }
 
@@ -30,21 +35,23 @@ mixin DeviceConnectionMixin on FlutterBLE {
     );
   }
 
-  Stream<PeripheralConnectionState> observePeripheralConnectionState(
-      String identifier, bool emitCurrentValue) {
-    final controller = StreamController<PeripheralConnectionState>(
-      onListen: () => _methodChannel.invokeMethod(
-        MethodName.observeConnectionState,
-        <String, dynamic>{
-          ArgumentName.deviceIdentifier: identifier,
-          ArgumentName.emitCurrentValue: emitCurrentValue,
-        },
-      ).catchError(
-        (errorJson) => throw BleError.fromJson(jsonDecode(errorJson.details)),
-      ),
+  Future<Stream<PeripheralConnectionState>> observePeripheralConnectionState(
+      String identifier, bool emitCurrentValue) async {
+    final channelName = await _methodChannel.invokeMethod<String>(
+      MethodName.observeConnectionState,
+      <String, dynamic>{
+        ArgumentName.deviceIdentifier: identifier,
+        ArgumentName.emitCurrentValue: emitCurrentValue,
+      },
+    ).catchError(
+      (errorJson) => throw BleError.fromJson(jsonDecode(errorJson.details)),
     );
 
-    final sourceStream = _peripheralConnectionStateChanges(id: identifier)
+    final controller = StreamController<PeripheralConnectionState>(
+      onListen: () {},
+    );
+
+    final sourceStream = _peripheralConnectionStateChanges(name: channelName)
         .map((jsonString) =>
             ConnectionStateContainer.fromJson(jsonDecode(jsonString)))
         .where((connectionStateContainer) =>

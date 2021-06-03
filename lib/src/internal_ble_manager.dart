@@ -53,7 +53,7 @@ class InternalBleManager
       _bleLib.observeBluetoothState(emitCurrentValue);
 
   @override
-  Stream<ScanResult> startPeripheralScan({
+  Future<Stream<ScanResult>> startPeripheralScan({
     int scanMode = ScanMode.lowPower,
     int callbackType = CallbackType.allMatches,
     List<String> uuids = const [],
@@ -86,10 +86,10 @@ class InternalBleManager
           identifier, isAutoConnect, requestMtu, refreshGatt, timeout);
 
   @override
-  Stream<PeripheralConnectionState> observePeripheralConnectionState(
+  Future<Stream<PeripheralConnectionState>> observePeripheralConnectionState(
       String peripheralIdentifier,
       bool emitCurrentValue,
-      bool completeOnDisconnect) {
+      bool completeOnDisconnect) async {
     var streamTransformer = StreamTransformer<PeripheralConnectionState,
             PeripheralConnectionState>.fromHandlers(
         handleData: (PeripheralConnectionState data, EventSink sink) {
@@ -103,7 +103,7 @@ class InternalBleManager
         },
         handleDone: (EventSink sink) => sink.close());
 
-    var stream = _bleLib.observePeripheralConnectionState(
+    final stream = await _bleLib.observePeripheralConnectionState(
         peripheralIdentifier, emitCurrentValue);
     if (completeOnDisconnect) {
       return stream.transform(streamTransformer);

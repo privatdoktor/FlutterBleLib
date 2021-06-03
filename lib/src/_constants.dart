@@ -10,6 +10,7 @@ abstract class MethodName {
   static const String enableRadio = 'enableRadio';
   static const String disableRadio = 'disableRadio';
 
+  static const String createScanningEventChannel = 'createScanningEventChannel';
   static const String startDeviceScan = 'startDeviceScan';
   static const String stopDeviceScan = 'stopDeviceScan';
 

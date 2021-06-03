@@ -27,8 +27,10 @@ class FlutterBleLib extends FlutterBLE
         DevicesMixin,
         CharacteristicsMixin,
         DescriptorsMixin {
-  final Stream<dynamic> _restoreStateEvents =
-      const EventChannel(ChannelName.stateRestoreEvents)
+  static const EventChannel _restoreStateEventsEventChannel =
+    EventChannel(ChannelName.stateRestoreEvents);
+  static Stream<dynamic> get _restoreStateEvents =>
+      _restoreStateEventsEventChannel
           .receiveBroadcastStream();
 
   FlutterBleLib(InternalBleManager manager) : super._(manager);

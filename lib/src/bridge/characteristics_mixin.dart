@@ -1,8 +1,12 @@
 part of _internal;
 
 mixin CharacteristicsMixin on FlutterBLE {  
-  Stream<String> _characteristicsMonitoringEvents({ required String id }) {
-    return EventChannel('${ChannelName.monitorCharacteristic}/$id')
+  Stream<String> _characteristicsMonitoringEvents({ required String? name }) {
+    if (name == null) {
+      print("characteristicsMonitoringEvents name was null. using fallback");
+    }
+    name ??= ChannelName.monitorCharacteristic;
+    return EventChannel(name)
           .receiveBroadcastStream()
           .cast();
   }
@@ -148,7 +152,7 @@ mixin CharacteristicsMixin on FlutterBLE {
     int characteristicIdentifier,
     String transactionId,
   ) async {
-    await _methodChannel.invokeMethod(
+    final channelName = await _methodChannel.invokeMethod(
           MethodName.monitorCharacteristicForIdentifier,
           <String, dynamic>{
             ArgumentName.characteristicIdentifier: characteristicIdentifier,
@@ -175,7 +179,7 @@ mixin CharacteristicsMixin on FlutterBLE {
       characteristicFilter,
       peripheral,
       transactionId,
-      '$characteristicIdentifier',
+      channelName,
     ).map((characteristicWithValue) => characteristicWithValue.value);
   }
 
@@ -185,7 +189,7 @@ mixin CharacteristicsMixin on FlutterBLE {
     String characteristicUuid,
     String transactionId,
   ) async {
-    await _methodChannel.invokeMethod(
+    final channelName = await _methodChannel.invokeMethod(
           MethodName.monitorCharacteristicForDevice,
           <String, dynamic>{
             ArgumentName.deviceIdentifier: peripheral.identifier,
@@ -207,7 +211,7 @@ mixin CharacteristicsMixin on FlutterBLE {
       characteristicsFilter,
       peripheral,
       transactionId,
-      characteristicUuid,
+      channelName,
     );
   }
 
@@ -217,7 +221,7 @@ mixin CharacteristicsMixin on FlutterBLE {
     String characteristicUuid,
     String transactionId,
   ) async {
-    await _methodChannel.invokeMethod(
+    final channelName = await _methodChannel.invokeMethod(
           MethodName.monitorCharacteristicForService,
           <String, dynamic>{
             ArgumentName.serviceIdentifier: serviceIdentifier,
@@ -238,7 +242,7 @@ mixin CharacteristicsMixin on FlutterBLE {
       characteristicFilter,
       peripheral,
       transactionId,
-      characteristicUuid
+      channelName
     );
   }
 
@@ -247,10 +251,10 @@ mixin CharacteristicsMixin on FlutterBLE {
     bool Function(CharacteristicWithValueAndTransactionId) filter,
     Peripheral peripheral,
     String transactionId,
-    String streamId,
+    String? channelName,
   ) {
     final stream =
-        _characteristicsMonitoringEvents(id: streamId)
+        _characteristicsMonitoringEvents(name: channelName)
             .map((rawValue) {
               return _parseCharacteristicWithValueWithTransactionIdResponse(
                   peripheral, rawValue);

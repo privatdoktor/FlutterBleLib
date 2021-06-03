@@ -1,8 +1,11 @@
 part of _internal;
 
 mixin BluetoothStateMixin on FlutterBLE {
-  final Stream<String> _adapterStateChanges =
-      const EventChannel(ChannelName.adapterStateChanges)
+
+  static const EventChannel _adapterStateChangesEventChannel = 
+    EventChannel(ChannelName.adapterStateChanges);
+  static Stream<String> get _adapterStateChanges =>
+      _adapterStateChangesEventChannel
           .receiveBroadcastStream().cast();
 
   Future<void> enableRadio(String transactionId) async {
