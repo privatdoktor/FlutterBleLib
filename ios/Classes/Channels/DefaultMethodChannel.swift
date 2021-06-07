@@ -214,6 +214,22 @@ final class DefaultMethodChannel : NSObject, MethodChannel {
           try argsHelper.requiredValueFor(.deviceUuid,
                                           type: String.self)
         self = .cancelConnection(deviceIdentifier: deviceId)
+      case "discoverServices":
+        let deviceId =
+          try argsHelper.requiredValueFor(.deviceUuid,
+                                          type: String.self)
+        self = .discoverServices(deviceIdentifier: deviceId)
+      case "discoverCharacteristics":
+        let deviceId =
+          try argsHelper.requiredValueFor(.deviceUuid,
+                                          type: String.self)
+        let serviceUuid =
+          try argsHelper.requiredValueFor(.serviceUuid,
+                                          type: String.self)
+        self = .discoverCharacteristics(
+          deviceIdentifier: deviceId,
+          serviceUuid: serviceUuid
+        )
       case "discoverAllServicesAndCharacteristics":
         let deviceId =
           try argsHelper.requiredValueFor(.deviceUuid,
@@ -623,6 +639,9 @@ final class DefaultMethodChannel : NSObject, MethodChannel {
                                 emitCurrentValue: Bool)
     case cancelConnection(deviceIdentifier: String)
     
+    case discoverServices(deviceIdentifier: String)
+    case discoverCharacteristics(deviceIdentifier: String,
+                                 serviceUuid: String)
     case discoverAllServicesAndCharacteristics(deviceIdentifier: String,
                                                transactionId: String?)
     case services(deviceIdentifier: String)

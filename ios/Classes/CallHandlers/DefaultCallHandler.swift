@@ -15,7 +15,8 @@ extension Client : CallHandler {
     call: Call<SignatureEnumT>
   ) -> Result<(),ClientError> {
     switch call.signature {
-    case .isClientCreated,
+    case .createScanningEventChannel,
+         .isClientCreated,
          .createClient,
          .destroyClient,
          .cancelTransaction,
@@ -121,6 +122,18 @@ extension Client : CallHandler {
     case .cancelConnection(let deviceIdentifier):
       cancelConnection(deviceIdentifier: deviceIdentifier) { res in
         call.result(res)
+      }
+    case .discoverServices(let deviceIdentifier):
+      discoverServices(deviceIdentifier: deviceIdentifier) { res in
+        call.result(res)
+      }
+    case .discoverCharacteristics(let deviceIdentifier,
+                                  let serviceUuid):
+      discoverCharacteristics(
+        deviceIdentifier: deviceIdentifier,
+        serviceUuid: serviceUuid
+      ) { res in
+        call.result(encodable: res)
       }
     case .discoverAllServicesAndCharacteristics(let deviceIdentifier,
                                                 let transactionId):

@@ -347,8 +347,14 @@ extension DiscoveredPeripheral : CBPeripheralDelegate {
       )
       return
     }
+    guard
+      let chars = service.characteristics
+    else {
+      ds.characteristicsDiscovered(.success([:]))
+      return
+    }
     ds.discoveredCharacteristics.removeAll()
-    for char in service.characteristics ?? [] {
+    for char in chars {
       ds.discoveredCharacteristics[char.uuid] = DiscoveredCharacteristic(char)
     }
     ds.characteristicsDiscovered(.success(ds.discoveredCharacteristics))

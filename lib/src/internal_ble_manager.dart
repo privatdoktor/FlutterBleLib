@@ -164,6 +164,14 @@ class InternalBleManager
       _bleLib.descriptorsForCharacteristic(characteristic);
 
   @override
+  Future<void> discoverServices(Peripheral peripheral) => 
+      _bleLib.discoverServices(peripheral);
+
+  @override
+  Future<List<Characteristic>> discoverCharacteristics(Service service) => 
+      _bleLib.discoverCharacteristics(service);
+
+  @override
   Future<void> discoverAllServicesAndCharacteristics(
     Peripheral peripheral,
     String transactionId,

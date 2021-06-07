@@ -19,6 +19,8 @@ abstract class MethodName {
   static const String observeConnectionState = 'observeConnectionState';
   static const String cancelConnection = 'cancelConnection';
 
+  static const String discoverServices = 'discoverServices';
+  static const String discoverCharacteristics = 'discoverCharacteristics';
   static const String discoverAllServicesAndCharacteristics =
       'discoverAllServicesAndCharacteristics';
   static const String services = 'services';

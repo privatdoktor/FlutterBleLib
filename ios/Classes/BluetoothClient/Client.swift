@@ -490,6 +490,71 @@ extension Client {
     }
   }
   
+  func discoverServices(
+    deviceIdentifier: String,
+    completion: @escaping (Result<(), ClientError>) -> ()
+  ) {
+    let discoPeri: DiscoveredPeripheral
+    switch discoveredPeripheral(for: deviceIdentifier) {
+    case .failure(let error):
+      completion(.failure(error))
+      return
+    case .success(let dp):
+      discoPeri = dp
+    }
+    discoPeri.discoverServices() { res in
+      switch res {
+      case .success:
+        completion(.success(()))
+      case .failure(let error):
+        completion(.failure(ClientError.peripheral(error)))
+      }
+    }
+  }
+  
+  func discoverCharacteristics(
+    deviceIdentifier: String,
+    serviceUuid: String,
+    completion: @escaping (Result<CharacteristicsResponse, ClientError>) -> ()
+  ) {
+    let discoPeri: DiscoveredPeripheral
+    switch discoveredPeripheral(for: deviceIdentifier) {
+    case .failure(let error):
+      completion(.failure(error))
+      return
+    case .success(let dp):
+      discoPeri = dp
+    }
+    guard
+      let ds = discoPeri.discoveredServices[CBUUID(string:serviceUuid)]
+    else {
+      completion(
+        .failure(
+          .peripheral(.noServiceFound(discoPeri.peripheral, id: serviceUuid))
+        )
+      )
+      return
+    }
+    ds.discoverCharacteristics { [self] res in
+      switch res {
+      case .success(let dss):
+        let chars = dss.map({ $0.value.characteristic })
+        completion(
+          .success(
+            CharacteristicsResponse(
+              with: chars,
+              service: ds.service,
+              charUuidCache: characteristicUuidCache,
+              serviceUuidCache: serviceUuidCache
+            )
+          )
+        )
+      case .failure(let error):
+        completion(.failure(.peripheral(error)))
+      }
+    }
+  }
+  
   func discoverAllServicesAndCharacteristics(
     deviceIdentifier: String,
     transactionId: String?,

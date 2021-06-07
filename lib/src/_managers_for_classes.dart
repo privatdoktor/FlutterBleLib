@@ -24,6 +24,8 @@ abstract class ManagerForPeripheral {
     bool completeOnDisconnect,
   );
 
+  Future<void> discoverServices(Peripheral peripheral);
+
   Future<void> discoverAllServicesAndCharacteristics(
       Peripheral peripheral, String transactionId);
 
@@ -92,6 +94,9 @@ abstract class ManagerForPeripheral {
 }
 
 abstract class ManagerForService {
+
+  Future<List<Characteristic>> discoverCharacteristics(Service service);
+
   Future<List<Characteristic>> characteristicsForService(Service service);
 
   Future<CharacteristicWithValue> readCharacteristicForService(

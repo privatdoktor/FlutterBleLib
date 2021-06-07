@@ -23,6 +23,9 @@ class Service extends InternalService {
       uuid = jsonObject[_ServiceMetadata.uuid],
       super(jsonObject[_ServiceMetadata.id]);
 
+  Future<List<Characteristic>> discoverCharacteristics() =>
+      _manager.discoverCharacteristics(this);
+
   /// Returns a list of [Characteristic]s of this service.
   Future<List<Characteristic>> characteristics() =>
       _manager.characteristicsForService(this);

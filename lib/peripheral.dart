@@ -75,6 +75,8 @@ class Peripheral {
   Future<void> disconnectOrCancelConnection() =>
       _manager.disconnectOrCancelPeripheralConnection(identifier);
 
+  Future<void> discoverServices() => _manager.discoverServices(this); 
+
   /// Discovers all [Service]s, [Characteristic]s and [Descriptor]s of this peripheral.
   /// Must be done prior to any other operation concerning those.
   ///
