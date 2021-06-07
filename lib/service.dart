@@ -6,11 +6,13 @@ abstract class _ServiceMetadata {
 }
 
 /// A collection of [Characteristic]s and associated behaviors.
-class Service extends InternalService {
-  /// [Peripheral] containing this service.
-  Peripheral peripheral;
+class Service {
+  final int _id;
 
-  final ManagerForService _manager;
+  /// [Peripheral] containing this service.
+  final Peripheral peripheral;
+
+  final BleManager _manager;
 
   /// The UUID of this service.
   String uuid;
@@ -21,7 +23,7 @@ class Service extends InternalService {
     this._manager,
   ) : peripheral = peripheral,
       uuid = jsonObject[_ServiceMetadata.uuid],
-      super(jsonObject[_ServiceMetadata.id]);
+      _id = jsonObject[_ServiceMetadata.id];
 
   Future<List<Characteristic>> discoverCharacteristics() =>
       _manager.discoverCharacteristics(this);

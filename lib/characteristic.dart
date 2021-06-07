@@ -16,32 +16,33 @@ abstract class _CharacteristicMetadata {
 /// It contains a single value and any number of [Descriptor]s describing that
 /// value. The properties of a characteristic determine how you can use
 /// a characteristic’s value, and how you access the descriptors.
-class Characteristic extends InternalCharacteristic {
+class Characteristic {
+  final int _id;
   /// The [Service] containing this characteristic.
   final Service service;
 
-  final ManagerForCharacteristic _manager;
+  final BleManager _manager;
 
   /// The UUID of this characteristic.
-  String uuid;
+  final String uuid;
 
   /// True if this characteristic can be read.
-  bool isReadable;
+  final bool isReadable;
 
   /// True if this characteristic can be written with resposne.
-  bool isWritableWithResponse;
+  final bool isWritableWithResponse;
 
   /// True if this characteristic can be written without resposne.
-  bool isWritableWithoutResponse;
+  final bool isWritableWithoutResponse;
 
   /// True if this characteristic can be monitored via notifications.
-  bool isNotifiable;
+  final bool isNotifiable;
 
   /// True if this characteristic can be monitored via indications.
-  bool isIndicatable;
+  final bool isIndicatable;
 
   Characteristic.fromJson(Map<String, dynamic> jsonObject, Service service,
-      ManagerForCharacteristic manager)
+      BleManager manager)
       : _manager = manager,
         service = service,
         uuid = jsonObject[_CharacteristicMetadata.uuid],
@@ -52,7 +53,7 @@ class Characteristic extends InternalCharacteristic {
             jsonObject[_CharacteristicMetadata.isWritableWithoutResponse],
         isNotifiable = jsonObject[_CharacteristicMetadata.isNotifiable],
         isIndicatable = jsonObject[_CharacteristicMetadata.isIndicatable],
-        super(jsonObject[_CharacteristicMetadata.id]);
+        _id = jsonObject[_CharacteristicMetadata.id];
 
   /// Reads the value of this characteristic.
   ///
@@ -174,7 +175,7 @@ class CharacteristicWithValue extends Characteristic {
   CharacteristicWithValue.fromJson(
     Map<String, dynamic> jsonObject,
     Service service,
-    ManagerForCharacteristic manager,
+    BleManager manager,
   ) : value = base64Decode(jsonObject[_CharacteristicMetadata.value]),
       super.fromJson(jsonObject, service, manager);
 

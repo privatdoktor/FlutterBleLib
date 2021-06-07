@@ -33,15 +33,37 @@
 /// For more samples refer to specific classes.
 library flutter_ble_lib;
 
+import 'package:flutter_ble_lib/src/util/_transaction_id_generator.dart';
+import 'package:flutter_ble_lib/src/util/_transformers.dart';
+
+import 'package:flutter_ble_lib/src/_constants.dart';
+import 'package:flutter_ble_lib/src/_containers.dart';
+
+import 'package:flutter/services.dart';
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:flutter_ble_lib/src/_internal.dart';
-import 'package:flutter_ble_lib/src/_managers_for_classes.dart';
-import 'package:flutter_ble_lib/src/util/_transaction_id_generator.dart';
+part 'src/bridge/bluetooth_state.dart';
 
-import 'src/_managers_for_classes.dart';
+part 'src/bridge/characteristics.dart';
+
+part 'src/bridge/device_connection.dart';
+
+part 'src/bridge/descriptors.dart';
+
+part 'src/bridge/device_rssi.dart';
+
+part 'src/bridge/devices.dart';
+
+part 'src/bridge/discovery.dart';
+
+part 'src/bridge/log_level.dart';
+
+part 'src/bridge/mtu.dart';
+
+part 'src/bridge/scanning.dart';
 
 part 'error/ble_error.dart';
 

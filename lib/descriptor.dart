@@ -6,19 +6,20 @@ abstract class _DescriptorMetadata {
   static const String value = 'value';
 }
 
-class Descriptor extends InternalDescriptor {
-  final ManagerForDescriptor _manager;
+class Descriptor {
+  final int _id;
+  final BleManager _manager;
   final Characteristic characteristic;
   final String uuid;
 
   Descriptor.fromJson(
     Map<String, dynamic> jsonObject,
     Characteristic characteristic,
-    ManagerForDescriptor manager,
+    BleManager manager,
   ) : _manager = manager,
       characteristic = characteristic,
       uuid = jsonObject[_DescriptorMetadata.uuid],
-      super(jsonObject[_DescriptorMetadata.id]);
+      _id = jsonObject[_DescriptorMetadata.id];
 
   Future<Uint8List> read({String? transactionId}) =>
       _manager.readDescriptorForIdentifier(
@@ -53,7 +54,7 @@ class DescriptorWithValue extends Descriptor {
   DescriptorWithValue.fromJson(
     Map<String, dynamic> jsonObject,
     Characteristic characteristic,
-    ManagerForDescriptor manager,
+    BleManager manager,
   ) : value = base64Decode(jsonObject[_DescriptorMetadata.value]),
       super.fromJson(jsonObject, characteristic, manager);
 }

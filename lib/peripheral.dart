@@ -15,12 +15,12 @@ abstract class _PeripheralMetadata {
 /// [disconnectOrCancelConnection()] can be used if peripheral is not connected.
 class Peripheral {
   static const int NO_MTU_NEGOTIATION = 0;
-  final ManagerForPeripheral _manager;
+  final BleManager _manager;
 
   String? name;
   String identifier;
 
-  Peripheral.fromJson(Map<String, dynamic> json, ManagerForPeripheral manager)
+  Peripheral.fromJson(Map<String, dynamic> json, BleManager manager)
       : _manager = manager,
         name = json[_PeripheralMetadata.name],
         identifier = json[_PeripheralMetadata.identifier];
@@ -63,9 +63,28 @@ class Peripheral {
   /// By default this stream will never end, but this behaviour can be changed
   /// by setting [completeOnDisconnect] to `true`.
   Future<Stream<PeripheralConnectionState>> observeConnectionState(
-          {bool emitCurrentValue = false, bool completeOnDisconnect = false}) =>
-      _manager.observePeripheralConnectionState(
-          identifier, emitCurrentValue, completeOnDisconnect);
+          {bool emitCurrentValue = false, bool completeOnDisconnect = false}) {
+            var streamTransformer = StreamTransformer<PeripheralConnectionState,
+            PeripheralConnectionState>.fromHandlers(
+        handleData: (PeripheralConnectionState data, EventSink sink) {
+          sink.add(data);
+          if (data == PeripheralConnectionState.disconnected) {
+            sink.close();
+          }
+        },
+        handleError: (Object error, StackTrace stacktrace, EventSink sink) {
+          sink.addError(error);
+        },
+        handleDone: (EventSink sink) => sink.close());
+
+    final stream = await _manager.observePeripheralConnectionState(
+        peripheralIdentifier, emitCurrentValue);
+    if (completeOnDisconnect) {
+      return stream.transform(streamTransformer);
+    } else {
+      return stream;
+    }
+  }
 
   /// Returns whether this peripheral is connected.
   Future<bool> isConnected() => _manager.isPeripheralConnected(identifier);

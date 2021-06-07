@@ -1,8 +1,8 @@
-part of _internal;
+part of flutter_ble_lib;
 
-mixin RssiMixin on FlutterBLE {
+extension Rssi on BleManager {
   Future<int> rssi(Peripheral peripheral, String transactionId) async {
-    return await _methodChannel.invokeMethod(MethodName.rssi, <String, dynamic>{
+    return await BleManager._methodChannel.invokeMethod(MethodName.rssi, <String, dynamic>{
       ArgumentName.deviceIdentifier: peripheral.identifier,
       ArgumentName.transactionId: transactionId
     }).catchError((errorJson) =>

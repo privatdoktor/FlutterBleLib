@@ -1,6 +1,6 @@
-part of _internal;
+part of flutter_ble_lib;
 
-mixin DeviceConnectionMixin on FlutterBLE {
+extension DeviceConnection on BleManager {
   static Stream<dynamic> _peripheralConnectionStateChanges({ 
     required String? name }) {
     if (name == null) {
@@ -19,7 +19,7 @@ mixin DeviceConnectionMixin on FlutterBLE {
     bool refreshGatt,
     Duration? timeout
   ) async {
-    return await _methodChannel.invokeMethod(
+    return await BleManager._methodChannel.invokeMethod(
       MethodName.connectToDevice,
       <String, dynamic>{
         ArgumentName.deviceIdentifier: deviceIdentifier,
@@ -37,7 +37,7 @@ mixin DeviceConnectionMixin on FlutterBLE {
 
   Future<Stream<PeripheralConnectionState>> observePeripheralConnectionState(
       String identifier, bool emitCurrentValue) async {
-    final channelName = await _methodChannel.invokeMethod<String>(
+    final channelName = await BleManager._methodChannel.invokeMethod<String>(
       MethodName.observeConnectionState,
       <String, dynamic>{
         ArgumentName.deviceIdentifier: identifier,

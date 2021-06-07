@@ -1,9 +1,9 @@
-part of _internal;
+part of flutter_ble_lib;
 
-mixin DiscoveryMixin on FlutterBLE {
+extension Discovery on BleManager {
   Future<void> discoverServices(
       Peripheral peripheral) async {
-    await _methodChannel.invokeMethod(
+    await BleManager._methodChannel.invokeMethod(
       MethodName.discoverServices,
       <String, dynamic>{
         ArgumentName.deviceIdentifier: peripheral.identifier,
@@ -14,7 +14,7 @@ mixin DiscoveryMixin on FlutterBLE {
 
   Future<List<Characteristic>> discoverCharacteristics(
       Service service) async {
-    final jsonString = await _methodChannel.invokeMethod(
+    final jsonString = await BleManager._methodChannel.invokeMethod(
       MethodName.discoverCharacteristics,
       <String, dynamic>{
         ArgumentName.deviceIdentifier: service.peripheral.identifier,
@@ -34,7 +34,7 @@ mixin DiscoveryMixin on FlutterBLE {
   
   Future<void> discoverAllServicesAndCharacteristics(
       Peripheral peripheral, String transactionId) async {
-    await _methodChannel.invokeMethod(
+    await BleManager._methodChannel.invokeMethod(
       MethodName.discoverAllServicesAndCharacteristics,
       <String, dynamic>{
         ArgumentName.deviceIdentifier: peripheral.identifier,
@@ -45,7 +45,7 @@ mixin DiscoveryMixin on FlutterBLE {
   }
 
   Future<List<Service>> services(Peripheral peripheral) async {
-    String jsonString = await _methodChannel.invokeMethod(
+    String jsonString = await BleManager._methodChannel.invokeMethod(
       MethodName.services,
       <String, dynamic>{
         ArgumentName.deviceIdentifier: peripheral.identifier,
@@ -64,7 +64,7 @@ mixin DiscoveryMixin on FlutterBLE {
 
   Future<List<Characteristic>> characteristics(
       Peripheral peripheral, String serviceUuid) async {
-    String jsonString = await _methodChannel.invokeMethod(
+    String jsonString = await BleManager._methodChannel.invokeMethod(
       MethodName.characteristics,
       <String, dynamic>{
         ArgumentName.deviceIdentifier: peripheral.identifier,
@@ -85,7 +85,7 @@ mixin DiscoveryMixin on FlutterBLE {
 
   Future<List<Characteristic>> characteristicsForService(
       Service service) async {
-    String jsonString = await _methodChannel.invokeMethod(
+    String jsonString = await BleManager._methodChannel.invokeMethod(
       MethodName.characteristicsForService,
       <String, dynamic>{
         ArgumentName.serviceIdentifier: service._id,
@@ -163,7 +163,7 @@ mixin DiscoveryMixin on FlutterBLE {
   Future<List<Descriptor>> descriptorsForCharacteristic(
     Characteristic characteristic,
   ) async {
-    String jsonString = await _methodChannel.invokeMethod(
+    String jsonString = await BleManager._methodChannel.invokeMethod(
         MethodName.descriptorsForCharacteristic, <String, dynamic>{
       ArgumentName.characteristicIdentifier: characteristic._id,
     }).catchError(

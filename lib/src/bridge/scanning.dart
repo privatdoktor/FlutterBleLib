@@ -1,6 +1,6 @@
-part of _internal;
+part of flutter_ble_lib;
 
-mixin ScanningMixin on FlutterBLE {
+extension Scanning on BleManager {
   static const EventChannel _scanningEventsEventChannel =
     EventChannel(ChannelName.scanningEvents);
   Stream<ScanResult>? _activeScanEvents;
@@ -31,12 +31,12 @@ mixin ScanningMixin on FlutterBLE {
     List<String> uuids,
     bool allowDuplicates,
   ) async {
-    await _methodChannel.invokeMethod(
+    await BleManager._methodChannel.invokeMethod(
       MethodName.createScanningEventChannel
     );
     final streamController = StreamController<ScanResult>.broadcast(
       onListen: () => 
-      _methodChannel.invokeMethod(
+      BleManager._methodChannel.invokeMethod(
         MethodName.startDeviceScan,
         <String, dynamic>{
           ArgumentName.scanMode: scanMode,
@@ -56,7 +56,7 @@ mixin ScanningMixin on FlutterBLE {
   }
 
   Future<void> stopDeviceScan() async {
-    await _methodChannel.invokeMethod(MethodName.stopDeviceScan);
+    await BleManager._methodChannel.invokeMethod(MethodName.stopDeviceScan);
     _resetScanEvents();
     return;
   }

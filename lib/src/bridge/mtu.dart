@@ -1,6 +1,6 @@
-part of _internal;
+part of flutter_ble_lib;
 
-mixin MtuMixin on FlutterBLE {
+extension Mtu on BleManager {
   Future<int> requestMtu(
       Peripheral peripheral, int mtu, String transactionId) async {
     return await _methodChannel

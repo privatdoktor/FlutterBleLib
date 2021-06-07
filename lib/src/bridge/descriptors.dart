@@ -1,6 +1,6 @@
-part of _internal;
+part of flutter_ble_lib;
 
-mixin DescriptorsMixin on FlutterBLE {
+extension Descriptors on BleManager {
   Future<DescriptorWithValue> readDescriptorForPeripheral(
     Peripheral peripheral,
     String serviceUuid,
@@ -180,7 +180,7 @@ mixin DescriptorsMixin on FlutterBLE {
     Uint8List value,
     String transactionId,
   ) =>
-      _methodChannel.invokeMethod(
+      BleManager._methodChannel.invokeMethod(
         MethodName.writeDescriptorForIdentifier,
         <String, dynamic>{
           ArgumentName.descriptorIdentifier: descriptor._id,

@@ -1,6 +1,6 @@
-part of _internal;
+part of flutter_ble_lib;
 
-mixin CharacteristicsMixin on FlutterBLE {  
+extension Characteristics on BleManager {  
   Stream<String> _characteristicsMonitoringEvents({ required String? name }) {
     if (name == null) {
       print("characteristicsMonitoringEvents name was null. using fallback");
@@ -16,7 +16,7 @@ mixin CharacteristicsMixin on FlutterBLE {
     int characteristicIdentifier,
     String transactionId,
   ) =>
-      _methodChannel
+      BleManager._methodChannel
           .invokeMethod<String>(
             MethodName.readCharacteristicForIdentifier,
             <String, dynamic>{
@@ -38,7 +38,7 @@ mixin CharacteristicsMixin on FlutterBLE {
     String characteristicUuid,
     String transactionId,
   ) =>
-      _methodChannel
+      BleManager._methodChannel
           .invokeMethod<String>(
             MethodName.readCharacteristicForDevice,
             <String, dynamic>{
@@ -61,7 +61,7 @@ mixin CharacteristicsMixin on FlutterBLE {
     String characteristicUuid,
     String transactionId,
   ) =>
-      _methodChannel
+      BleManager._methodChannel
           .invokeMethod<String>(
             MethodName.readCharacteristicForService,
             <String, dynamic>{
@@ -84,7 +84,7 @@ mixin CharacteristicsMixin on FlutterBLE {
     bool withResponse,
     String transactionId,
   ) =>
-      _methodChannel.invokeMethod<String>(
+      BleManager._methodChannel.invokeMethod<String>(
         MethodName.writeCharacteristicForIdentifier,
         <String, dynamic>{
           ArgumentName.characteristicIdentifier: characteristicIdentifier,
@@ -102,7 +102,7 @@ mixin CharacteristicsMixin on FlutterBLE {
           Uint8List value,
           bool withResponse,
           String transactionId) =>
-      _methodChannel
+      BleManager._methodChannel
           .invokeMethod<String>(
             MethodName.writeCharacteristicForDevice,
             <String, dynamic>{
@@ -129,7 +129,7 @@ mixin CharacteristicsMixin on FlutterBLE {
     bool withResponse,
     String transactionId,
   ) =>
-      _methodChannel
+      BleManager._methodChannel
           .invokeMethod<String>(
             MethodName.writeCharacteristicForService,
             <String, dynamic>{
@@ -152,7 +152,7 @@ mixin CharacteristicsMixin on FlutterBLE {
     int characteristicIdentifier,
     String transactionId,
   ) async {
-    final channelName = await _methodChannel.invokeMethod(
+    final channelName = await BleManager._methodChannel.invokeMethod(
           MethodName.monitorCharacteristicForIdentifier,
           <String, dynamic>{
             ArgumentName.characteristicIdentifier: characteristicIdentifier,
@@ -189,7 +189,7 @@ mixin CharacteristicsMixin on FlutterBLE {
     String characteristicUuid,
     String transactionId,
   ) async {
-    final channelName = await _methodChannel.invokeMethod(
+    final channelName = await BleManager._methodChannel.invokeMethod(
           MethodName.monitorCharacteristicForDevice,
           <String, dynamic>{
             ArgumentName.deviceIdentifier: peripheral.identifier,
@@ -221,7 +221,7 @@ mixin CharacteristicsMixin on FlutterBLE {
     String characteristicUuid,
     String transactionId,
   ) async {
-    final channelName = await _methodChannel.invokeMethod(
+    final channelName = await BleManager._methodChannel.invokeMethod(
           MethodName.monitorCharacteristicForService,
           <String, dynamic>{
             ArgumentName.serviceIdentifier: serviceIdentifier,
@@ -325,7 +325,7 @@ class CharacteristicWithValueAndTransactionId extends CharacteristicWithValue {
   CharacteristicWithValueAndTransactionId.fromJson(
     Map<String, dynamic> jsonObject,
     Service service,
-    ManagerForCharacteristic manager,
+    BleManager manager,
   ) : super.fromJson(jsonObject, service, manager);
 
   CharacteristicWithValueAndTransactionId setTransactionId(

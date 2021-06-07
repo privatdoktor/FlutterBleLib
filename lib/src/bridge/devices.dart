@@ -1,6 +1,6 @@
-part of _internal;
+part of flutter_ble_lib;
 
-mixin DevicesMixin on FlutterBLE {
+extension Devices on BleManager {
   Future<List<Peripheral>> knownDevices(
       List<String> peripheralIdentifiers) async {
     return _methodChannel
