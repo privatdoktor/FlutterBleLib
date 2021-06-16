@@ -153,29 +153,40 @@ class Peripheral {
     }
   }
 
-  Future<void> discoverServices() async {
+  Future<List<Service>> discoverServices({List<String>? serviceUuids}) async {
+    String? jsonString;
     try {
-      await BleManager._methodChannel.invokeMethod(
+      jsonString = await BleManager._methodChannel.invokeMethod(
         MethodName.discoverServices,
         <String, dynamic>{
           ArgumentName.deviceIdentifier: identifier,
+          ArgumentName.serviceUuids: serviceUuids,
         },
       );
     } on PlatformException catch (pe) {
       throw BleError.fromJson(jsonDecode(pe.details));
     }
+    final decodedJson =
+        (jsonDecode(jsonString!) as List<dynamic>).cast<Map<String, dynamic>>();
+
+    return decodedJson
+        .map((serviceJson) =>
+            Service.fromJson(serviceJson, this))
+        .toList();
   }
 
   Future<List<Characteristic>> discoverCharacteristics(
-    String serviceUuid
-  ) async {
+    String serviceUuid,
+    {List<String>? characteristicUuids
+  }) async {
     String? jsonString;
     try {
       jsonString = await BleManager._methodChannel.invokeMethod<String>(
         MethodName.discoverCharacteristics,
         <String, dynamic>{
           ArgumentName.deviceIdentifier: identifier,
-          ArgumentName.serviceUuid: serviceUuid
+          ArgumentName.serviceUuid: serviceUuid,
+          ArgumentName.characteristicUuids: characteristicUuids,
         },
       );
     } on PlatformException catch (pe) {

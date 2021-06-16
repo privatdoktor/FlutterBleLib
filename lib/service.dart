@@ -20,8 +20,13 @@ class Service {
   ) : peripheral = peripheral,
       uuid = jsonObject[_ServiceMetadata.uuid];
 
-  Future<List<Characteristic>> discoverCharacteristics() async {
-    return await peripheral.discoverCharacteristics(uuid);
+  Future<List<Characteristic>> discoverCharacteristics({
+    List<String>? characteristicUuids
+  }) async {
+    return await peripheral.discoverCharacteristics(
+      uuid, 
+      characteristicUuids: characteristicUuids
+    );
   }
 
   /// Returns a list of [Characteristic]s of this service.

@@ -94,10 +94,10 @@ final class DefaultMethodChannel : NSObject, MethodChannel {
     case emitCurrentValue = "emitCurrentValue"
     case logLevel = "logLevel"
     case serviceUuid = "serviceUuid"
-    case serviceNumericId = "serviceId"
+    case serviceUuids = "serviceUuids"
     case showPowerAlertOnIOS = "showPowerAlertOnIOS"
     case characteristicUuid = "characteristicUuid"
-    case characteristicNumericId = "characteristicIdentifier"
+    case characteristicUuids = "characteristicUuids"
     case value = "value"
     case withResponse = "withResponse"
     case descriptorUuid = "descriptorUuid"
@@ -206,7 +206,9 @@ final class DefaultMethodChannel : NSObject, MethodChannel {
         let deviceId =
           try argsHelper.requiredValueFor(.deviceUuid,
                                           type: String.self)
-        self = .discoverServices(deviceIdentifier: deviceId)
+        let serviceUUIDStrs = args?[.serviceUuids] as? [String]
+        self = .discoverServices(deviceIdentifier: deviceId,
+                                 serviceUuidStrs: serviceUUIDStrs)
       case "discoverCharacteristics":
         let deviceId =
           try argsHelper.requiredValueFor(.deviceUuid,
@@ -214,9 +216,11 @@ final class DefaultMethodChannel : NSObject, MethodChannel {
         let serviceUuid =
           try argsHelper.requiredValueFor(.serviceUuid,
                                           type: String.self)
+        let characteristicUuidStrs = args?[.characteristicUuids] as? [String]
         self = .discoverCharacteristics(
           deviceIdentifier: deviceId,
-          serviceUuid: serviceUuid
+          serviceUuid: serviceUuid,
+          characteristicsUuidStrs: characteristicUuidStrs
         )
       case "discoverAllServicesAndCharacteristics":
         let deviceId =
@@ -412,9 +416,11 @@ final class DefaultMethodChannel : NSObject, MethodChannel {
                                 emitCurrentValue: Bool)
     case cancelConnection(deviceIdentifier: String)
     
-    case discoverServices(deviceIdentifier: String)
+    case discoverServices(deviceIdentifier: String,
+                          serviceUuidStrs: [String]?)
     case discoverCharacteristics(deviceIdentifier: String,
-                                 serviceUuid: String)
+                                 serviceUuid: String,
+                                 characteristicsUuidStrs: [String]?)
     case discoverAllServicesAndCharacteristics(deviceIdentifier: String)
     case services(deviceIdentifier: String)
     

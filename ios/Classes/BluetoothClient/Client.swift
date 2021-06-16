@@ -367,7 +367,8 @@ extension Client {
   
   func discoverServices(
     deviceIdentifier: String,
-    completion: @escaping (Result<(), ClientError>) -> ()
+    serviceUUIDStrs: [String]? = nil,
+    completion: @escaping (Result<[ServiceResponse], ClientError>) -> ()
   ) {
     let discoPeri: DiscoveredPeripheral
     switch discoveredPeripheral(for: deviceIdentifier) {
@@ -377,10 +378,14 @@ extension Client {
     case .success(let dp):
       discoPeri = dp
     }
-    discoPeri.discoverServices() { res in
+    let serviceCBUUIDs = serviceUUIDStrs.map(
+      { $0.map( { CBUUID(string: $0) } ) }
+    )
+    discoPeri.discoverServices(serviceUUIDs: serviceCBUUIDs) { res in
       switch res {
-      case .success:
-        completion(.success(()))
+      case .success(let dss):
+        let services = dss.values.map { ServiceResponse(with: $0.service) }
+        completion(.success(services))
       case .failure(let error):
         completion(.failure(ClientError.peripheral(error)))
       }
@@ -390,6 +395,7 @@ extension Client {
   func discoverCharacteristics(
     deviceIdentifier: String,
     serviceUuid: String,
+    characteristicUUIDStrs: [String]? = nil,
     completion: @escaping (Result<CharacteristicsResponse, ClientError>) -> ()
   ) {
     let discoPeri: DiscoveredPeripheral
@@ -410,7 +416,10 @@ extension Client {
       )
       return
     }
-    ds.discoverCharacteristics { res in
+    let characteristicCBUUIDs = characteristicUUIDStrs.map(
+      { $0.map( { CBUUID(string: $0) } ) }
+    )
+    ds.discoverCharacteristics(characteristicUUIDs: characteristicCBUUIDs) { res in
       switch res {
       case .success(let dss):
         let chars = dss.map({ $0.value.characteristic })

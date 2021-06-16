@@ -120,15 +120,21 @@ extension Client : CallHandler {
       cancelConnection(deviceIdentifier: deviceIdentifier) { res in
         call.result(res)
       }
-    case .discoverServices(let deviceIdentifier):
-      discoverServices(deviceIdentifier: deviceIdentifier) { res in
-        call.result(res)
+    case .discoverServices(let deviceIdentifier,
+                           let serviceUUIDStrs):
+      discoverServices(
+        deviceIdentifier: deviceIdentifier,
+        serviceUUIDStrs: serviceUUIDStrs
+      ) { res in
+        call.result(encodable: res)
       }
     case .discoverCharacteristics(let deviceIdentifier,
-                                  let serviceUuid):
+                                  let serviceUuid,
+                                  let characteristicUUIDStrs):
       discoverCharacteristics(
         deviceIdentifier: deviceIdentifier,
-        serviceUuid: serviceUuid
+        serviceUuid: serviceUuid,
+        characteristicUUIDStrs: characteristicUUIDStrs
       ) { res in
         call.result(encodable: res)
       }
