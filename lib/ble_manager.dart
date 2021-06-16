@@ -5,8 +5,38 @@ part of flutter_ble_lib;
 /// iOS-specific.
 typedef RestoreStateAction = Function(List<Peripheral> peripherals);
 
+
 /// Level of details library is to output in logs.
 enum LogLevel { none, verbose, debug, info, warning, error }
+
+/// State of the Bluetooth Adapter.
+enum BluetoothState {
+  UNKNOWN,
+  UNSUPPORTED,
+  UNAUTHORIZED,
+  POWERED_ON,
+  POWERED_OFF,
+  RESETTING,
+}
+
+/// Mode of scan for peripherals - Android only.
+///
+/// See [Android documentation](https://developer.android.com/reference/android/bluetooth/le/ScanSettings) for more information.
+abstract class ScanMode {
+  static const int opportunistic = -1;
+  static const int lowPower = 0;
+  static const int balanced = 1;
+  static const int lowLatency = 2;
+}
+
+/// Type of scan for peripherals callback - Android only.
+///
+/// See [Android documentation](https://developer.android.com/reference/android/bluetooth/le/ScanSettings) for more information.
+abstract class CallbackType {
+  static const int allMatches = 1;
+  static const int firstMatch = 2;
+  static const int matchLost = 4;
+}
 
 /// Entry point for library operations, handling allocation and deallocation
 /// of underlying native resources and obtaining [Peripheral] instances.
@@ -53,6 +83,16 @@ class BleManager {
       _restoreStateEventsEventChannel
           .receiveBroadcastStream();
 
+  static const EventChannel _scanningEventsEventChannel =
+    EventChannel(ChannelName.scanningEvents);
+  Stream<ScanResult>? _activeScanEvents;
+
+  static const EventChannel _adapterStateChangesEventChannel = 
+    EventChannel(ChannelName.adapterStateChanges);
+  static Stream<String> get _adapterStateChanges =>
+      _adapterStateChangesEventChannel
+          .receiveBroadcastStream().cast();
+
   /// Cancels transaction's return, resulting in [BleError] with
   /// [BleError.errorCode] set to [BleErrorCode.operationCancelled] being returned
   /// from transaction's Future.
@@ -79,9 +119,8 @@ class BleManager {
               .cast<Map<String, dynamic>>();
           return restoredPeripheralsJson
               .map((peripheralJson) =>
-                  Peripheral.fromJson(peripheralJson, _manager))
+                  Peripheral.fromJson(peripheralJson, this))
               .toList();
-          
         },
       )
       .take(1)
@@ -91,9 +130,12 @@ class BleManager {
 
 
   /// Checks whether the native client exists.
-  Future<bool> isClientCreated() =>
-    BleManager._methodChannel.invokeMethod<bool>(MethodName.isClientCreated)
-      .then((value) => value!);
+  Future<bool> isClientCreated() async {
+    final raw = await BleManager._methodChannel.invokeMethod<bool>(
+      MethodName.isClientCreated
+    );
+    return raw!;
+  }
 
   /// Allocates native resources.
   ///
@@ -109,9 +151,8 @@ class BleManager {
     RestoreStateAction? restoreStateAction,
   }) async {
     if (restoreStateAction != null) {
-      _bleLib.restoredState().then((devices) {
-        restoreStateAction(devices);
-      });
+      final devices = await restoredState();
+      restoreStateAction(devices);
     }
     await BleManager._methodChannel.invokeMethod(MethodName.createClient, <String, String?>{
       ArgumentName.restoreStateIdentifier: restoreStateIdentifier
@@ -124,6 +165,27 @@ class BleManager {
   /// any BLE operation.
   Future<void> destroyClient() async {
     await BleManager._methodChannel.invokeMethod(MethodName.destroyClient);
+  }
+  
+  Stream<ScanResult> get _scanEvents {
+    var scanEvents = _activeScanEvents;
+    if (scanEvents == null) {
+      scanEvents = 
+        _scanningEventsEventChannel.receiveBroadcastStream().handleError(
+          (errorJson) => throw BleError.fromJson(
+            jsonDecode(errorJson.details)
+          ),
+          test: (error) => error is PlatformException,
+        ).map(
+          (scanResultJson) =>
+              ScanResult.fromJson(jsonDecode(scanResultJson), this),
+        );
+      _activeScanEvents = scanEvents;
+    }
+    return scanEvents;
+  }
+  void _resetScanEvents() {
+    _activeScanEvents = null;
   }
 
   /// Starts scanning for peripherals.
@@ -150,12 +212,23 @@ class BleManager {
     List<String> uuids = const [],
     bool allowDuplicates = false,
   }) async {
-    await startDeviceScan(scanMode, callbackType, uuids, allowDuplicates);
+    await BleManager._methodChannel.invokeMethod<void>(
+      MethodName.startDeviceScan,
+      <String, dynamic>{
+        ArgumentName.scanMode: scanMode,
+        ArgumentName.callbackType: callbackType,
+        ArgumentName.uuids: uuids,
+        ArgumentName.allowDuplicates: allowDuplicates,
+      },
+    );
+
+    return _scanEvents;
   }
 
   /// Finishes the scan operation on the device.
   Future<void> stopPeripheralScan() async {
-    await stopDeviceScan();
+    await BleManager._methodChannel.invokeMethod<void>(MethodName.stopDeviceScan);
+    // _resetScanEvents();  
   }
 
   /// Sets specified [LogLevel].
@@ -170,6 +243,12 @@ class BleManager {
       },
     ).catchError((errorJson) =>
         Future.error(BleError.fromJson(jsonDecode(errorJson.details))));
+  }
+
+  LogLevel _logLevelFromString(String logLevelName) {
+    print('try to get log level from: $logLevelName');
+    return LogLevel.values.firstWhere(
+        (e) => e.toString() == 'LogLevel.' + logLevelName.toLowerCase());
   }
 
   /// Returns current [LogLevel].
@@ -207,11 +286,30 @@ class BleManager {
         Future.error(BleError.fromJson(jsonDecode(errorJson.details))));
   }
 
+  BluetoothState _mapToBluetoothState(String? rawValue) {
+    switch (rawValue) {
+      case 'Unknown':
+        return BluetoothState.UNKNOWN;
+      case 'Unsupported':
+        return BluetoothState.UNSUPPORTED;
+      case 'Unauthorized':
+        return BluetoothState.UNAUTHORIZED;
+      case 'Resetting':
+        return BluetoothState.RESETTING;
+      case 'PoweredOn':
+        return BluetoothState.POWERED_ON;
+      case 'PoweredOff':
+        return BluetoothState.POWERED_OFF;
+      default:
+        throw 'Cannot map $rawValue to known bluetooth state';
+    }
+  }
+
   /// Returns current state of the Bluetooth adapter.
   Future<BluetoothState> bluetoothState() async {
-    await _methodChannel
-      .invokeMethod<String>(MethodName.getState)
-      .then(_mapToBluetoothState);
+    final stateStr = await BleManager._methodChannel
+      .invokeMethod<String>(MethodName.getState);
+    return _mapToBluetoothState(stateStr);
   }
 
   /// Returns a stream of changes to the state of the Bluetooth adapter.
@@ -220,10 +318,18 @@ class BleManager {
   /// overridden by passing `false` as [emitCurrentValue].
   Stream<BluetoothState> observeBluetoothState({ bool emitCurrentValue = true }) async* {
     if (emitCurrentValue == true) {
-      final currentState = await state();
+      final currentState = await bluetoothState();
       yield currentState;
     }
     yield* _adapterStateChanges.map(_mapToBluetoothState);
+  }
+
+  List<Peripheral> _parsePeripheralsJson(String peripheralsJson) {
+    List list = json
+        .decode(peripheralsJson)
+        .map((peripheral) => Peripheral.fromJson(peripheral, this))
+        .toList();
+    return list.cast<Peripheral>();
   }
 
   /// Returns a list of [Peripheral]: on iOS known to system, on Android
@@ -231,15 +337,25 @@ class BleManager {
   ///
   /// If [peripheralIdentifiers] is empty, this will return an empty list.
   Future<List<Peripheral>> knownPeripherals(List<String> peripheralIdentifiers) async {
-    await knownDevices(peripheralIdentifiers);
+    final peripheralsJson = await BleManager._methodChannel
+        .invokeMethod(MethodName.knownDevices, <String, dynamic>{
+      ArgumentName.deviceIdentifiers: peripheralIdentifiers,
+    });
+    print('known devices json: $peripheralsJson');
+    return _parsePeripheralsJson(peripheralsJson!);
   }
 
   /// Returns a list of [Peripheral]: on iOS connected and known to system,
   /// on Android connected and known to the library.
   ///
   /// If [serviceUUIDs] is empty, this will return an empty list.
-  Future<List<Peripheral>> connectedPeripherals(List<String> serviceUUIDs) async {
-    await connectedDevices(serviceUUIDs);
+  Future<List<Peripheral>> connectedPeripherals(List<String> serviceUuids) async {
+    final peripheralsJson = await BleManager._methodChannel
+        .invokeMethod<String>(MethodName.connectedDevices, <String, dynamic>{
+      ArgumentName.uuids: serviceUuids,
+      });
+    print('connected devices json: $peripheralsJson');
+    return _parsePeripheralsJson(peripheralsJson!);
   }
 
   /// Creates a peripheral which may not exist or be available. Since the
@@ -251,7 +367,7 @@ class BleManager {
   /// On Android [peripheralId] scanned on one  device may or may not be
   /// recognized on a different Android device depending on peripheral’s
   /// implementation and changes in future OS releases.
-  Peripheral createUnsafePeripheral(String peripheralId, {String? name}) async {
+  Peripheral createUnsafePeripheral(String peripheralId, {String? name}) {
     const nameField = 'name';
     const identifierField = 'id';
     return Peripheral.fromJson({
@@ -259,33 +375,4 @@ class BleManager {
       identifierField: peripheralId,
     }, this);
   }
-}
-
-/// State of the Bluetooth Adapter.
-enum BluetoothState {
-  UNKNOWN,
-  UNSUPPORTED,
-  UNAUTHORIZED,
-  POWERED_ON,
-  POWERED_OFF,
-  RESETTING,
-}
-
-/// Mode of scan for peripherals - Android only.
-///
-/// See [Android documentation](https://developer.android.com/reference/android/bluetooth/le/ScanSettings) for more information.
-abstract class ScanMode {
-  static const int opportunistic = -1;
-  static const int lowPower = 0;
-  static const int balanced = 1;
-  static const int lowLatency = 2;
-}
-
-/// Type of scan for peripherals callback - Android only.
-///
-/// See [Android documentation](https://developer.android.com/reference/android/bluetooth/le/ScanSettings) for more information.
-abstract class CallbackType {
-  static const int allMatches = 1;
-  static const int firstMatch = 2;
-  static const int matchLost = 4;
 }

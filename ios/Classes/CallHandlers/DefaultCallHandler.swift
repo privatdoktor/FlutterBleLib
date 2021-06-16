@@ -15,8 +15,7 @@ extension Client : CallHandler {
     call: Call<SignatureEnumT>
   ) -> Result<(),ClientError> {
     switch call.signature {
-    case .createScanningEventChannel,
-         .isClientCreated,
+    case .isClientCreated,
          .createClient,
          .destroyClient,
          .cancelTransaction,
@@ -60,7 +59,7 @@ extension Client : CallHandler {
       destroy()
       call.result()
     case .cancelTransaction(let transactionId):
-      cancelTransaction(transactionId: transactionId)
+      noop()
       call.result()
     case .getState:
       call.result(state)
@@ -70,7 +69,7 @@ extension Client : CallHandler {
     case .disableRadio:
       noop()
       call.result()
-    case .createScanningEventChannel:
+    case .startDeviceScan(let uuids, let allowDuplicates):
       if scanningEvents == nil {
         let scanningSinker =
           eventChannelFactory.makeEventChannel(ScanningEvents.self, idScheme: .justBaseName)
@@ -83,8 +82,6 @@ extension Client : CallHandler {
           }
         })
       }
-      call.result()
-    case .startDeviceScan(let uuids, let allowDuplicates):
       let res = startDeviceScan(withServices: uuids, allowDuplicates: allowDuplicates)
       call.result(res)
     case .stopDeviceScan:
@@ -135,11 +132,9 @@ extension Client : CallHandler {
       ) { res in
         call.result(encodable: res)
       }
-    case .discoverAllServicesAndCharacteristics(let deviceIdentifier,
-                                                let transactionId):
+    case .discoverAllServicesAndCharacteristics(let deviceIdentifier):
       discoverAllServicesAndCharacteristics(
-        deviceIdentifier: deviceIdentifier,
-        transactionId: transactionId
+        deviceIdentifier: deviceIdentifier
       ) { res in
         call.result(res)
       }
@@ -153,9 +148,6 @@ extension Client : CallHandler {
         serviceUUID: serviceUUID
       )
       call.result(encodable: res)
-    case .characteristicsForService(let serviceNumericId):
-      let res = characteristics(for: serviceNumericId)
-      call.result(encodable: res)
     case .descriptorsForDevice(let deviceIdentifier,
                                let serviceUUID,
                                let characteristicUUID):
@@ -166,32 +158,16 @@ extension Client : CallHandler {
           characteristicUUID: characteristicUUID
         )
       call.result(encodable: res)
-    case .descriptorsForService(let serviceNumericId,
-                                let characteristicUUID):
-      let res =
-        descriptorsForService(
-          serviceNumericId: serviceNumericId,
-          characteristicUUID: characteristicUUID
-        )
-      call.result(encodable: res)
-    case .descriptorsForCharacteristic(let characteristicNumericId):
-      let res =
-        descriptorsForCharacteristic(
-          characteristicNumericId: characteristicNumericId
-        )
-      call.result(encodable: res)
     case .logLevel:
       call.result(logLevel)
     case .setLogLevel(let level):
       logLevel = level
       call.result()
-    case .rssi(let deviceIdentifier,
-               let transactionId):
-      readRssi(for: deviceIdentifier,
-               transactionId: transactionId) { res in
+    case .rssi(let deviceIdentifier):
+      readRssi(for: deviceIdentifier) { res in
         call.result(res)
       }
-    case .requestMtu(let deviceIdentifier, _, _):
+    case .requestMtu(let deviceIdentifier, _):
       call.result(requestMtu(for: deviceIdentifier))
     case .getConnectedDevices(let serviceUUIDs):
       let res = connectedDevices(serviceUUIDs: serviceUUIDs)
@@ -199,45 +175,13 @@ extension Client : CallHandler {
     case .getKnownDevices(let deviceIdentifiers):
       let res = knownDevices(deviceIdentifiers: deviceIdentifiers)
       call.result(encodable: res)
-    case .readCharacteristicForIdentifier(let characteristicNumericId,
-                                          let transactionId):
-      readCharacteristicForIdentifier(
-        characteristicNumericId: characteristicNumericId,
-        transactionId: transactionId
-      ) { res in
-        call.result(encodable: res)
-      }
     case .readCharacteristicForDevice(let deviceIdentifier,
                                       let serviceUUID,
-                                      let characteristicUUID,
-                                      let transactionId):
+                                      let characteristicUUID):
       readCharacteristicForDevice(
         deviceIdentifier: deviceIdentifier,
         serviceUUID: serviceUUID,
-        characteristicUUID: characteristicUUID,
-        transactionId: transactionId
-      ) { res in
-        call.result(encodable: res)
-      }
-    case .readCharacteristicForService(let serviceNumericId,
-                                       let characteristicUUID,
-                                       let transactionId):
-      readCharacteristicForService(
-        serviceNumericId: serviceNumericId,
-        characteristicUUID: characteristicUUID,
-        transactionId: transactionId
-      ) { res in
-        call.result(encodable: res)
-      }
-    case .writeCharacteristicForIdentifier(let characteristicNumericId,
-                                           let value,
-                                           let withResponse,
-                                           let transactionId):
-      writeCharacteristicForIdentifier(
-        characteristicNumericId: characteristicNumericId,
-        value: value,
-        withResponse: withResponse,
-        transactionId: transactionId
+        characteristicUUID: characteristicUUID
       ) { res in
         call.result(encodable: res)
       }
@@ -245,66 +189,18 @@ extension Client : CallHandler {
                                        let serviceUUID,
                                        let characteristicUUID,
                                        let value,
-                                       let withResponse,
-                                       let transactionId):
+                                       let withResponse):
       writeCharacteristicForDevice(
         deviceIdentifier: deviceIdentifier,
         serviceUUID: serviceUUID,
         characteristicUUID: characteristicUUID,
-        value: value, withResponse: withResponse,
-        transactionId: transactionId
+        value: value, withResponse: withResponse
       ) { res in
         call.result(encodable: res)
-      }
-    case .writeCharacteristicForService(let serviceNumericId,
-                                        let characteristicUUID,
-                                        let value,
-                                        let withResponse,
-                                        let transactionId):
-      writeCharacteristicForService(
-        serviceNumericId: serviceNumericId,
-        characteristicUUID: characteristicUUID,
-        value: value,
-        withResponse: withResponse,
-        transactionId: transactionId
-      ) { res in
-        call.result(encodable: res)
-      }
-    case .monitorCharacteristicForIdentifier(let characteristicNumericId,
-                                             let transactionId):
-      let sinker =
-        eventChannelFactory.makeEventChannel(
-          MonitorCharacteristic.self
-        )
-      let sinkerName = sinker.name
-      let stream =
-        Client.Stream<SingleCharacteristicWithValueResponse>(
-          eventHandler: { payload in
-            switch payload {
-            case .data(let charRes):
-              sinker.sink(charRes)
-            case .endOfStream:
-              sinker.end()
-            }
-          }
-        )
-      sinker.afterCancelDo {
-        eventChannelFactory.removeEventChannel(name: sinkerName)
-      }
-      
-      monitorCharacteristicForIdentifier(
-        characteristicNumericId: characteristicNumericId,
-        transactionId: transactionId,
-        eventSteam: stream
-      ) { res in
-        call.result(
-          res.map({ sinkerName })
-        )
       }
     case .monitorCharacteristicForDevice(let deviceIdentifier,
                                          let serviceUUID,
-                                         let characteristicUUID,
-                                         let transactionId):
+                                         let characteristicUUID):
       let sinker =
         eventChannelFactory.makeEventChannel(
           MonitorCharacteristic.self
@@ -324,128 +220,25 @@ extension Client : CallHandler {
       sinker.afterCancelDo {
         eventChannelFactory.removeEventChannel(name: sinkerName)
       }
-      
       monitorCharacteristicForDevice(
         deviceIdentifier: deviceIdentifier,
         serviceUUID: serviceUUID,
         characteristicUUID: characteristicUUID,
-        transactionId: transactionId,
         eventSteam: stream
       ) { res in
         call.result(
           res.map({ sinkerName })
         )
-      }
-    case .monitorCharacteristicForService(let serviceNumericId,
-                                          let characteristicUUID,
-                                          let transactionId):
-      let sinker =
-        eventChannelFactory.makeEventChannel(
-          MonitorCharacteristic.self
-        )
-      let sinkerName = sinker.name
-      let stream =
-        Client.Stream<SingleCharacteristicWithValueResponse>(
-          eventHandler: { payload in
-            switch payload {
-            case .data(let charRes):
-              sinker.sink(charRes)
-            case .endOfStream:
-              sinker.end()
-            }
-          }
-        )
-      sinker.afterCancelDo {
-        eventChannelFactory.removeEventChannel(name: sinkerName)
-      }
-      
-      monitorCharacteristicForService(
-        serviceNumericId: serviceNumericId,
-        characteristicUUID: characteristicUUID,
-        transactionId: transactionId,
-        eventSteam: stream
-      ) { res in
-        call.result(
-          res.map({ sinkerName })
-        )
-      }
-    case .readDescriptorForIdentifier(let descriptorNumericId,
-                                      let transactionId):
-      readDescriptorForIdentifier(
-        descriptorNumericId: descriptorNumericId,
-        transactionId: transactionId
-      ) { res in
-        call.result(encodable: res)
-      }
-    case .readDescriptorForCharacteristic(let characteristicNumericId,
-                                          let descriptorUUID,
-                                          let transactionId):
-      readDescriptorForCharacteristic(
-        characteristicNumericId: characteristicNumericId,
-        descriptorUUID: descriptorUUID,
-        transactionId: transactionId
-      ) { res in
-        call.result(encodable: res)
-      }
-    case .readDescriptorForService(let serviceNumericId,
-                                   let characteristicUUID,
-                                   let descriptorUUID,
-                                   let transactionId):
-      readDescriptorForService(
-        serviceNumericId: serviceNumericId,
-        characteristicUUID: characteristicUUID,
-        descriptorUUID: descriptorUUID,
-        transactionId: transactionId
-      ) { res in
-        call.result(encodable: res)
       }
     case .readDescriptorForDevice(let deviceIdentifier,
                                   let serviceUUID,
                                   let characteristicUUID,
-                                  let descriptorUUID,
-                                  let transactionId):
+                                  let descriptorUUID):
       readDescriptorForDevice(
         deviceIdentifier: deviceIdentifier,
         serviceUUID: serviceUUID,
         characteristicUUID: characteristicUUID,
-        descriptorUUID: descriptorUUID,
-        transactionId: transactionId
-      ) { res in
-        call.result(encodable: res)
-      }
-    case .writeDescriptorForIdentifier(let descriptorNumericId,
-                                       let value,
-                                       let transactionId):
-      writeDescriptorForIdentifier(
-        descriptorNumericId: descriptorNumericId,
-        value: value,
-        transactionId: transactionId
-      ) { res in
-        call.result(encodable: res)
-      }
-    case .writeDescriptorForCharacteristic(let characteristicNumericId,
-                                           let descriptorUUID,
-                                           let value,
-                                           let transactionId):
-      writeDescriptorForCharacteristic(
-        characteristicNumericId: characteristicNumericId,
-        descriptorUUID: descriptorUUID,
-        value: value,
-        transactionId: transactionId
-      ) { res in
-        call.result(encodable: res)
-      }
-    case .writeDescriptorForService(let serviceNumericId,
-                                    let characteristicUUID,
-                                    let descriptorUUID,
-                                    let value,
-                                    let transactionId):
-      writeDescriptorForService(
-        serviceNumericId: serviceNumericId,
-        characteristicUUID: characteristicUUID,
-        descriptorUUID: descriptorUUID,
-        value: value,
-        transactionId: transactionId
+        descriptorUUID: descriptorUUID
       ) { res in
         call.result(encodable: res)
       }
@@ -453,15 +246,13 @@ extension Client : CallHandler {
                                    let serviceUUID,
                                    let characteristicUUID,
                                    let descriptorUUID,
-                                   let value,
-                                   let transactionId):
+                                   let value):
       writeDescriptorForDevice(
         deviceIdentifier: deviceIdentifier,
         serviceUUID: serviceUUID,
         characteristicUUID: characteristicUUID,
         descriptorUUID: descriptorUUID,
-        value: value,
-        transactionId: transactionId
+        value: value
       ) { res in
         call.result(encodable: res)
       }

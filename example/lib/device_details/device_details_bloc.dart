@@ -25,7 +25,7 @@ class DeviceDetailsBloc {
 
   Stream<List<DebugLog>> get logs => _logsController.stream;
 
-  Stream<Null?> get disconnectedDevice => _deviceRepository.pickedDevice
+  Stream<Null> get disconnectedDevice => _deviceRepository.pickedDevice
       .skipWhile((bleDevice) => bleDevice != null).cast<Null>();
 
   List<DebugLog> _logs = [];
@@ -185,9 +185,9 @@ class DeviceDetailsBloc {
     _clearLogs();
     var peripheral = _bleDevice.peripheral;
 
-    peripheral
+    (await peripheral
         .observeConnectionState(
-            emitCurrentValue: true, completeOnDisconnect: true)
+            emitCurrentValue: true, completeOnDisconnect: true))
         .listen((connectionState) {
       log('Observed new connection state: \n$connectionState');
       _connectionStateController.add(connectionState);
@@ -221,8 +221,8 @@ class DeviceDetailsBloc {
     log("Current log level $logLevel");
 
     var peripheral = bleDevice.peripheral;
-    peripheral
-        .observeConnectionState(emitCurrentValue: true)
+    (await peripheral
+        .observeConnectionState(emitCurrentValue: true))
         .listen((connectionState) {
       log('Observed new connection state: \n$connectionState');
       _connectionStateController.add(connectionState);

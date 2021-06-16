@@ -15,14 +15,12 @@ abstract class _PeripheralMetadata {
 /// [disconnectOrCancelConnection()] can be used if peripheral is not connected.
 class Peripheral {
   static const int NO_MTU_NEGOTIATION = 0;
-  final BleManager _manager;
 
-  String? name;
-  String identifier;
+  final String? name;
+  final String identifier;
 
   Peripheral.fromJson(Map<String, dynamic> json, BleManager manager)
-      : _manager = manager,
-        name = json[_PeripheralMetadata.name],
+      : name = json[_PeripheralMetadata.name],
         identifier = json[_PeripheralMetadata.identifier];
 
   /// Connects to the peripheral.
@@ -47,67 +45,195 @@ class Peripheral {
   /// is established right after timeout event, peripheral will be disconnected
   /// immediately. Timeout may happen earlier than specified due to OS
   /// specific behavior.
-  Future<void> connect(
-          {bool isAutoConnect = false,
-          int requestMtu = NO_MTU_NEGOTIATION,
-          bool refreshGatt = false,
-          Duration? timeout}) =>
-      _manager.connectToPeripheral(identifier,
-          isAutoConnect: isAutoConnect,
-          requestMtu: requestMtu,
-          refreshGatt: refreshGatt,
-          timeout: timeout);
+  Future<void> connect({
+    bool isAutoConnect = false,
+    int requestMtu = NO_MTU_NEGOTIATION,
+    bool refreshGatt = false,
+    Duration? timeout,
+  }) async {
+    try {
+      return await BleManager._methodChannel.invokeMethod<void>(
+        MethodName.connectToDevice,
+        <String, dynamic>{
+          ArgumentName.deviceIdentifier: identifier,
+          ArgumentName.isAutoConnect: isAutoConnect,
+          ArgumentName.requestMtu: requestMtu,
+          ArgumentName.refreshGatt: refreshGatt,
+          ArgumentName.timeoutMillis: timeout?.inMilliseconds
+        },
+      );
+    } on PlatformException catch (pe) {
+      throw BleError.fromJson(jsonDecode(pe.details));
+    }
+  }
+
+  static Stream<dynamic> _peripheralConnectionStateChanges({ 
+    required String? name ,
+  }) {
+    if (name == null) {
+      print('connectionStateChangeEvents name was null. using fallback');
+    }
+    name ??= ChannelName.connectionStateChangeEvents;
+    
+    return EventChannel(name)
+        .receiveBroadcastStream();
+  }
 
   /// Returns a stream of [PeripheralConnectionState].
   ///
   /// By default this stream will never end, but this behaviour can be changed
   /// by setting [completeOnDisconnect] to `true`.
-  Future<Stream<PeripheralConnectionState>> observeConnectionState(
-          {bool emitCurrentValue = false, bool completeOnDisconnect = false}) {
-            var streamTransformer = StreamTransformer<PeripheralConnectionState,
-            PeripheralConnectionState>.fromHandlers(
-        handleData: (PeripheralConnectionState data, EventSink sink) {
-          sink.add(data);
-          if (data == PeripheralConnectionState.disconnected) {
-            sink.close();
-          }
-        },
-        handleError: (Object error, StackTrace stacktrace, EventSink sink) {
-          sink.addError(error);
-        },
-        handleDone: (EventSink sink) => sink.close());
+  Future<Stream<PeripheralConnectionState>> observeConnectionState({
+    bool emitCurrentValue = false,
+    bool completeOnDisconnect = false
+  }) async {
+    final channelName = await BleManager._methodChannel.invokeMethod<String>(
+      MethodName.observeConnectionState,
+      <String, dynamic>{
+        ArgumentName.deviceIdentifier: identifier,
+        ArgumentName.emitCurrentValue: emitCurrentValue,
+      },
+    ).catchError(
+      (errorJson) => throw BleError.fromJson(jsonDecode(errorJson.details)),
+    );
 
-    final stream = await _manager.observePeripheralConnectionState(
-        peripheralIdentifier, emitCurrentValue);
-    if (completeOnDisconnect) {
-      return stream.transform(streamTransformer);
-    } else {
-      return stream;
-    }
+    final stream = _peripheralConnectionStateChanges(name: channelName)
+        .map(
+          (jsonString) 
+          => ConnectionStateContainer.fromJson(
+            jsonDecode(jsonString)
+          ).connectionState
+        )
+        .map((connectionStateString) {
+      switch (connectionStateString.toLowerCase()) {
+        case NativeConnectionState.connected:
+          return PeripheralConnectionState.connected;
+        case NativeConnectionState.connecting:
+          return PeripheralConnectionState.connecting;
+        case NativeConnectionState.disconnected:
+          return PeripheralConnectionState.disconnected;
+        case NativeConnectionState.disconnecting:
+          return PeripheralConnectionState.disconnecting;
+        default:
+          throw FormatException(
+            'Unrecognized value of device connection state. Value: $connectionStateString',
+          );
+      }
+    });
+    return stream;
   }
 
   /// Returns whether this peripheral is connected.
-  Future<bool> isConnected() => _manager.isPeripheralConnected(identifier);
+  Future<bool> isConnected() async {
+    try {
+      final raw = await BleManager._methodChannel.invokeMethod<bool>(
+        MethodName.isDeviceConnected, 
+        <String, dynamic>{
+          ArgumentName.deviceIdentifier: identifier,
+        });
+      return raw!;
+    } on MissingPluginException catch (_) {
+      rethrow;
+    } on PlatformException catch (pe) {
+      throw BleError.fromJson(jsonDecode(pe.details));
+    }
+  } 
 
   /// Disconnects from this peripheral if it's connected or cancels pending
   /// connection.
-  Future<void> disconnectOrCancelConnection() =>
-      _manager.disconnectOrCancelPeripheralConnection(identifier);
+  Future<void> disconnectOrCancelConnection() async {
+    try {
+      await BleManager._methodChannel.invokeMethod<void>(
+        MethodName.cancelConnection, 
+        <String, dynamic>{
+          ArgumentName.deviceIdentifier: identifier,
+      });
+    } on PlatformException catch (pe) {
+      throw BleError.fromJson(jsonDecode(pe.details));
+    }
+  }
 
-  Future<void> discoverServices() => _manager.discoverServices(this); 
+  Future<void> discoverServices() async {
+    try {
+      await BleManager._methodChannel.invokeMethod(
+        MethodName.discoverServices,
+        <String, dynamic>{
+          ArgumentName.deviceIdentifier: identifier,
+        },
+      );
+    } on PlatformException catch (pe) {
+      throw BleError.fromJson(jsonDecode(pe.details));
+    }
+  }
+
+  Future<List<Characteristic>> discoverCharacteristics(
+    String serviceUuid
+  ) async {
+    String? jsonString;
+    try {
+      jsonString = await BleManager._methodChannel.invokeMethod<String>(
+        MethodName.discoverCharacteristics,
+        <String, dynamic>{
+          ArgumentName.deviceIdentifier: identifier,
+          ArgumentName.serviceUuid: serviceUuid
+        },
+      );
+    } on PlatformException catch (pe) {
+      throw BleError.fromJson(jsonDecode(pe.details));
+    }
+
+    Map<String, dynamic> jsonObject = jsonDecode(jsonString!);
+    final jsonCharacteristics = (jsonObject['characteristics'] as List<dynamic>)
+        .cast<Map<String, dynamic>>();
+
+    final service = Service.fromJson(jsonObject, this);
+
+    return jsonCharacteristics.map((characteristicJson) {
+      return Characteristic.fromJson(characteristicJson, service);
+    }).toList();
+  }
+
+  
 
   /// Discovers all [Service]s, [Characteristic]s and [Descriptor]s of this peripheral.
   /// Must be done prior to any other operation concerning those.
-  ///
-  /// Optional [transactionId] could be used to cancel operation.
-  Future<void> discoverAllServicesAndCharacteristics({String? transactionId}) =>
-      _manager.discoverAllServicesAndCharacteristics(
-          this, transactionId ?? TransactionIdGenerator.getNextId());
+  Future<void> discoverAllServicesAndCharacteristics() async {
+    try {
+      await BleManager._methodChannel.invokeMethod(
+        MethodName.discoverAllServicesAndCharacteristics,
+        <String, dynamic>{
+          ArgumentName.deviceIdentifier: identifier,
+        },
+      );
+    } on PlatformException catch (pe) {
+      throw BleError.fromJson(jsonDecode(pe.details));
+    }
+  }
 
   /// Returns a list of [Service]s of this peripheral.
   ///
   /// Will result in error if discovery was not done during this connection.
-  Future<List<Service>> services() => _manager.services(this);
+  Future<List<Service>> services() async {
+    String? jsonString;
+    try {
+      jsonString = await BleManager._methodChannel.invokeMethod<String>(
+        MethodName.services,
+        <String, dynamic>{
+          ArgumentName.deviceIdentifier: identifier,
+        },
+      );
+    } on PlatformException catch (pe) {
+      throw BleError.fromJson(jsonDecode(pe.details));
+    }
+
+    final decodedJson =
+        (jsonDecode(jsonString!) as List<dynamic>).cast<Map<String, dynamic>>();
+
+    return decodedJson
+        .map((serviceJson) =>
+            Service.fromJson(serviceJson, this))
+        .toList();
+  }
 
   /// Returns a list of discovered [Characteristic]s of a [Service] identified
   /// by [servicedUuid].
@@ -116,14 +242,43 @@ class Peripheral {
   /// service are returned.
   ///
   /// Will result in error if discovery was not done during this connection.
-  Future<List<Characteristic>> characteristics(String servicedUuid) =>
-      _manager.characteristics(this, servicedUuid);
+  Future<List<Characteristic>> characteristics(String serviceUuid) async {
+    String? jsonString;
+    try {
+      await BleManager._methodChannel.invokeMethod<String>(
+        MethodName.characteristics,
+        <String, dynamic>{
+          ArgumentName.deviceIdentifier: identifier,
+          ArgumentName.serviceUuid: serviceUuid,
+        },
+      );
+    } on PlatformException catch (pe) {
+      throw BleError.fromJson(jsonDecode(pe.details));
+    }
+
+    Map<String, dynamic> jsonObject = jsonDecode(jsonString!);
+    final jsonCharacteristics = (jsonObject['characteristics'] as List<dynamic>)
+        .cast<Map<String, dynamic>>();
+    final service = Service.fromJson(jsonObject, this);
+
+    return jsonCharacteristics.map((characteristicJson) {
+      return Characteristic.fromJson(characteristicJson, service);
+    }).toList();
+  }
 
   /// Reads RSSI for the peripheral.
   ///
   /// Optional [transactionId] could be used to cancel operation.
-  Future<int> rssi({String? transactionId}) =>
-      _manager.rssi(this, transactionId ?? TransactionIdGenerator.getNextId());
+  Future<int> rssi() async {
+    try {
+      final raw = await BleManager._methodChannel.invokeMethod<int>(MethodName.rssi, <String, dynamic>{
+        ArgumentName.deviceIdentifier: identifier,
+      });
+      return raw!;
+    } on PlatformException catch (pe) {
+      throw BleError.fromJson(jsonDecode(pe.details));
+    }
+  }
 
   /// Requests new MTU value for current connection and return the negotiation
   /// result on Android, reads MTU on iOS.
@@ -136,9 +291,35 @@ class Peripheral {
   /// Optional [transactionId] could be used to cancel operation.
   ///
   /// If MTU has been requested in [connect()] this method will end with [BleError].
-  Future<int> requestMtu(int mtu, {String? transactionId}) =>
-      _manager.requestMtu(
-          this, mtu, transactionId ?? TransactionIdGenerator.getNextId());
+  Future<int> requestMtu(int mtu) async {
+    try {
+      final raw = await BleManager._methodChannel.invokeMethod<int>(
+        MethodName.requestMtu, <String, dynamic>{
+          ArgumentName.deviceIdentifier: identifier,
+          ArgumentName.mtu: mtu,
+        }
+      );
+      return raw!;
+    } on PlatformException catch (pe) {
+      throw BleError.fromJson(jsonDecode(pe.details));
+    }
+  }
+
+  Characteristic _parseCharacteristic(String rawJsonValue) {
+    Map<String, dynamic> rootObject = jsonDecode(rawJsonValue);
+    final service = Service.fromJson(rootObject, this);
+
+    return Characteristic.fromJson(
+            rootObject['characteristic'], service);
+  }
+
+  CharacteristicWithValue _parseCharacteristicWithValue(String rawJsonValue) {
+    Map<String, dynamic> rootObject = jsonDecode(rawJsonValue);
+    final service = Service.fromJson(rootObject, this);
+
+    return CharacteristicWithValue.fromJson(
+            rootObject['characteristic'], service);
+  }
 
   /// Reads value of [Characteristic] matching specified UUIDs.
   ///
@@ -148,15 +329,25 @@ class Peripheral {
   /// Will result in error if discovery was not done during this connection.
   Future<CharacteristicWithValue> readCharacteristic(
     String serviceUuid,
-    String characteristicUuid, {
-    String? transactionId,
-  }) =>
-      _manager.readCharacteristicForDevice(
-        this,
-        serviceUuid,
-        characteristicUuid,
-        transactionId ?? TransactionIdGenerator.getNextId(),
-      );
+    String characteristicUuid
+  ) async {
+    String? rawValue;
+    try {
+      rawValue = await BleManager._methodChannel
+          .invokeMethod<String>(
+            MethodName.readCharacteristicForDevice,
+            <String, dynamic>{
+              ArgumentName.deviceIdentifier: identifier,
+              ArgumentName.serviceUuid: serviceUuid,
+              ArgumentName.characteristicUuid: characteristicUuid,
+            },
+          );
+    } on PlatformException catch (pe) {
+      throw BleError.fromJson(jsonDecode(pe.details));
+    }
+    return _parseCharacteristicWithValue(rawValue!);
+  }
+
 
   /// Writes value of [Characteristic] matching specified UUIDs.
   ///
@@ -168,74 +359,35 @@ class Peripheral {
     String serviceUuid,
     String characteristicUuid,
     Uint8List value,
-    bool withResponse, {
-    String? transactionId,
-  }) =>
-      _manager.writeCharacteristicForDevice(
-        this,
-        serviceUuid,
-        characteristicUuid,
-        value,
-        withResponse,
-        transactionId ?? TransactionIdGenerator.getNextId(),
+    bool withResponse
+  ) async {
+    String? rawValue;
+    try {
+      rawValue = await BleManager._methodChannel.invokeMethod<String>(
+        MethodName.writeCharacteristicForDevice,
+        <String, dynamic>{
+          ArgumentName.deviceIdentifier: identifier,
+          ArgumentName.serviceUuid: serviceUuid,
+          ArgumentName.characteristicUuid: characteristicUuid,
+          ArgumentName.value: value,
+          ArgumentName.withResponse: withResponse,
+        },
       );
+    } on PlatformException catch (pe) {
+      throw BleError.fromJson(jsonDecode(pe.details));
+    }
+    return _parseCharacteristic(rawValue!);
+  }
 
-  /// Returns a list of [Descriptor]s for [Characteristic] matching specified UUIDs.
-  ///
-  /// Returns list of discovered Descriptors for given [serviceUuid] in specified
-  /// characteristic with [characteristicUuid]
-  ///
-  /// Will result in error if discovery was not done during this connection.
-  Future<List<Descriptor>> descriptorsForCharacteristic(
-    String serviceUuid,
-    String characteristicUuid,
-  ) =>
-      _manager.descriptorsForPeripheral(this, serviceUuid, characteristicUuid);
-
-  /// Reads value of [Descriptor] matching specified UUIDs.
-  ///
-  /// Returns Descriptor object matching specified [serviceUuid],
-  /// [characteristicUuid] and [descriptorUuid]. Latest value of the descriptor will
-  /// be stored inside returned object. Optional [transactionId] could be used
-  /// to cancel operation.
-  ///
-  /// Will result in error if discovery was not done during this connection.
-  Future<DescriptorWithValue> readDescriptor(
-    String serviceUuid,
-    String characteristicUuid,
-    String descriptorUuid, {
-    String? transactionId,
-  }) =>
-      _manager.readDescriptorForPeripheral(
-        this,
-        serviceUuid,
-        characteristicUuid,
-        descriptorUuid,
-        transactionId ?? TransactionIdGenerator.getNextId(),
-      );
-
-  /// Writes value of [Descriptor] matching specified UUIDs.
-  ///
-  /// Write [value] to Descriptor specified by [serviceUuid],
-  /// [characteristicUuid] and [descriptorUuid]. Returns Descriptor which saved
-  /// passed value. Optional [transactionId] could be used to cancel operation.
-  ///
-  /// Will result in error if discovery was not done during this connection.
-  Future<Descriptor> writeDescriptor(
-    String serviceUuid,
-    String characteristicUuid,
-    String descriptorUuid,
-    Uint8List value, {
-    String? transactionId,
-  }) =>
-      _manager.writeDescriptorForPeripheral(
-        this,
-        serviceUuid,
-        characteristicUuid,
-        descriptorUuid,
-        value,
-        transactionId ?? TransactionIdGenerator.getNextId(),
-      );
+  static Stream<String> _characteristicsMonitoringEvents({ required String? name }) {
+    if (name == null) {
+      print('characteristicsMonitoringEvents name was null. using fallback');
+    }
+    name ??= ChannelName.monitorCharacteristic;
+    return EventChannel(name)
+          .receiveBroadcastStream()
+          .cast();
+  }
 
   /// Returns a stream of notifications/indications from [Characteristic]
   /// matching specified UUIDs.
@@ -251,17 +403,149 @@ class Peripheral {
     String serviceUuid,
     String characteristicUuid, {
     String? transactionId,
-  }) =>
-      _manager.monitorCharacteristicForDevice(
-        this,
-        serviceUuid,
-        characteristicUuid,
-        transactionId ?? TransactionIdGenerator.getNextId(),
-      );
+  }) async {
+      final channelName = await BleManager._methodChannel.invokeMethod<String>(
+          MethodName.monitorCharacteristicForDevice,
+          <String, dynamic>{
+            ArgumentName.deviceIdentifier: identifier,
+            ArgumentName.serviceUuid: serviceUuid,
+            ArgumentName.characteristicUuid: characteristicUuid,
+          },
+        );
+    return _characteristicsMonitoringEvents(name: channelName!)
+        .map((rawValue) {
+          return _parseCharacteristicWithValue(rawValue);
+        });
+  }
 
   @override
   String toString() {
     return 'Peripheral{\n\tname: $name, \n\tidentifier: $identifier\n}';
+  }
+
+  /// Returns a list of [Descriptor]s for [Characteristic] matching specified UUIDs.
+  ///
+  /// Returns list of discovered Descriptors for given [serviceUuid] in specified
+  /// characteristic with [characteristicUuid]
+  ///
+  /// Will result in error if discovery was not done during this connection.
+  Future<List<Descriptor>> descriptorsForCharacteristic(
+    String serviceUuid,
+    String characteristicUuid,
+  ) async {
+    String? jsonString;
+    try {
+      jsonString = await BleManager._methodChannel.invokeMethod(
+        MethodName.descriptorsForDevice, 
+        <String, dynamic>{
+          ArgumentName.deviceIdentifier: identifier,
+          ArgumentName.serviceUuid: serviceUuid,
+          ArgumentName.characteristicUuid: characteristicUuid,
+        }
+      );
+    } on PlatformException catch (pe) {
+      throw BleError.fromJson(jsonDecode(pe.details));
+    }
+
+    Map<String, dynamic> jsonObject = jsonDecode(jsonString!);
+
+    final service = Service.fromJson(jsonObject, this);
+    final characteristic =
+        Characteristic.fromJson(jsonObject, service);
+
+    final jsonDescriptors = (jsonObject['descriptors'] as List<dynamic>)
+        .cast<Map<String, dynamic>>();
+
+    return jsonDescriptors
+        .map((jsonDescriptor) {
+          final uuid = jsonDescriptor[DescriptorMetadata.uuid] as String;
+          return Descriptor(uuid, characteristic);
+        })
+        .toList();
+
+  }
+
+  /// Reads value of [Descriptor] matching specified UUIDs.
+  ///
+  /// Returns Descriptor object matching specified [serviceUuid],
+  /// [characteristicUuid] and [descriptorUuid]. Latest value of the descriptor will
+  /// be stored inside returned object.
+  ///
+  /// Will result in error if discovery was not done during this connection.
+  Future<DescriptorWithValue> readDescriptor(
+    String serviceUuid,
+    String characteristicUuid,
+    String descriptorUuid, 
+  ) async {
+    String? jsonResponse;
+    try {
+      jsonResponse = await BleManager._methodChannel.invokeMethod<String>(
+        MethodName.readDescriptorForDevice,
+        <String, dynamic>{
+          ArgumentName.deviceIdentifier: identifier,
+          ArgumentName.serviceUuid: serviceUuid,
+          ArgumentName.characteristicUuid: characteristicUuid,
+          ArgumentName.descriptorUuid: descriptorUuid,
+        },
+      );
+    } on PlatformException catch (pe) {
+      throw BleError.fromJson(jsonDecode(pe.details));
+    }
+
+    Map<String, dynamic> jsonObject = jsonDecode(jsonResponse!);
+    final service =
+        Service.fromJson(jsonObject, this);
+    final characteristic =
+        Characteristic.fromJson(jsonObject, service);
+        
+    final valueStr = jsonObject[DescriptorMetadata.value] as String;
+    final descUuid = jsonObject[DescriptorMetadata.uuid] as String;
+    return DescriptorWithValue(
+      base64Decode(valueStr),
+      descUuid, 
+      characteristic
+    );
+  }
+
+  /// Writes value of [Descriptor] matching specified UUIDs.
+  ///
+  /// Write [value] to Descriptor specified by [serviceUuid],
+  /// [characteristicUuid] and [descriptorUuid]. Returns Descriptor which saved
+  /// passed value. Optional [transactionId] could be used to cancel operation.
+  ///
+  /// Will result in error if discovery was not done during this connection.
+  Future<Descriptor> writeDescriptor(
+    String serviceUuid,
+    String characteristicUuid,
+    String descriptorUuid,
+    Uint8List value, {
+    String? transactionId,
+  }) async {
+    String? jsonResponse;
+    try {
+      jsonResponse = await BleManager._methodChannel.invokeMethod<String>(
+        MethodName.writeDescriptorForDevice,
+        <String, dynamic>{
+          ArgumentName.deviceIdentifier: identifier,
+          ArgumentName.serviceUuid: serviceUuid,
+          ArgumentName.characteristicUuid: characteristicUuid,
+          ArgumentName.descriptorUuid: descriptorUuid,
+          ArgumentName.value: value,
+          ArgumentName.transactionId: transactionId,
+        },
+      );
+    } on PlatformException catch (pe) {
+      throw BleError.fromJson(jsonDecode(pe.details));
+    }
+
+    Map<String, dynamic> jsonObject = jsonDecode(jsonResponse!);
+    final service =
+        Service.fromJson(jsonObject, this);
+    final characteristic =
+        Characteristic.fromJson(jsonObject, service);
+    
+    final descUuid = jsonObject[DescriptorMetadata.uuid] as String;
+    return Descriptor(descUuid, characteristic);
   }
 }
 

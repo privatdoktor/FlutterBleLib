@@ -48,10 +48,8 @@ extension CBDescriptor {
 }
 
 struct DescriptorResponse : Encodable {
-  let serviceId: Int
   let serviceUuid: String
   
-  let characteristicId: Int
   let characteristicUuid: String
   let isCharacteristicReadable: Bool
   let isCharacteristicWritableWithResponse: Bool
@@ -60,22 +58,16 @@ struct DescriptorResponse : Encodable {
   let isCharacteristicIndicatable: Bool
   
   
-  let descriptorId: Int
   let descriptorUuid: String
   let value: String? // base64encodedString from Data
     
   init(
-    desc: CBDescriptor,
-    descUuidCache: HashableIdCache<CBUUID>,
-    charUuidChache: HashableIdCache<CBUUID>,
-    serviceUuidCache: HashableIdCache<CBUUID>
+    desc: CBDescriptor
   ) {
     let char = desc.characteristic
     let service = char.service
     serviceUuid = service.uuid.fullUUIDString
-    serviceId = serviceUuidCache.numeric(from: desc.characteristic.service.uuid)
     characteristicUuid = desc.characteristic.uuid.fullUUIDString
-    characteristicId = charUuidChache.numeric(from: desc.characteristic.uuid)
     isCharacteristicReadable = char.properties.contains(.read)
     isCharacteristicWritableWithResponse = char.properties.contains(.write)
     isCharacteristicWritableWithoutResponse = char.properties.contains(.writeWithoutResponse)
@@ -83,15 +75,12 @@ struct DescriptorResponse : Encodable {
     isCharacteristicIndicatable = char.properties.contains(.indicate)
     
     descriptorUuid = desc.uuid.fullUUIDString
-    descriptorId = descUuidCache.numeric(from: desc.uuid)
     value = desc.valueAsData?.base64EncodedString()
   }
   
   private enum CodingKeys: String, CodingKey {
-    case serviceId = "serviceId"
     case serviceUuid = "serviceUuid"
     
-    case characteristicId = "id"
     case characteristicUuid = "characteristicUuid"
     case isCharacteristicReadable = "isReadable"
     case isCharacteristicWritableWithResponse = "isWritableWithResponse"
@@ -99,17 +88,14 @@ struct DescriptorResponse : Encodable {
     case isCharacteristicNotifiable = "isNotifiable"
     case isCharacteristicIndicatable = "isIndicatable"
     
-    case descriptorId = "descriptorId"
     case descriptorUuid = "descriptorUuid"
     case value = "value"
   }
 }
 
 struct DescriptorsForPeripheralResponse : Encodable {
-  let serviceId: Int
   let serviceUuid: String
   
-  let characteristicId: Int
   let characteristicUuid: String
   let isCharacteristicReadable: Bool
   let isCharacteristicWritableWithResponse: Bool
@@ -122,15 +108,10 @@ struct DescriptorsForPeripheralResponse : Encodable {
   init(
     with descs: [CBDescriptor],
     char: CBCharacteristic,
-    service: CBService,
-    descUuidCache: HashableIdCache<CBUUID>,
-    charUuidChache: HashableIdCache<CBUUID>,
-    serviceUuidCache: HashableIdCache<CBUUID>
+    service: CBService
   ) {
     serviceUuid = service.uuid.fullUUIDString
-    serviceId = serviceUuidCache.numeric(from: service.uuid)
     characteristicUuid = char.uuid.fullUUIDString
-    characteristicId = charUuidChache.numeric(from: char.uuid)
     isCharacteristicReadable = char.properties.contains(.read)
     isCharacteristicWritableWithResponse = char.properties.contains(.write)
     isCharacteristicWritableWithoutResponse = char.properties.contains(.writeWithoutResponse)
@@ -138,19 +119,14 @@ struct DescriptorsForPeripheralResponse : Encodable {
     isCharacteristicIndicatable = char.properties.contains(.indicate)
     descriptors = descs.map({ desc in
       return DescriptorResponse(
-        desc: desc,
-        descUuidCache: descUuidCache,
-        charUuidChache: charUuidChache,
-        serviceUuidCache: serviceUuidCache
+        desc: desc
       )
     })
   }
   
   private enum CodingKeys: String, CodingKey {
-    case serviceId = "serviceId"
     case serviceUuid = "serviceUuid"
     
-    case characteristicId = "id"
     case characteristicUuid = "characteristicUuid"
     case isCharacteristicReadable = "isReadable"
     case isCharacteristicWritableWithResponse = "isWritableWithResponse"
@@ -163,7 +139,6 @@ struct DescriptorsForPeripheralResponse : Encodable {
 }
 
 struct DescriptorsForServiceResponse : Encodable {
-  let characteristicId: Int
   let characteristicUuid: String
   let isCharacteristicReadable: Bool
   let isCharacteristicWritableWithResponse: Bool
@@ -175,13 +150,9 @@ struct DescriptorsForServiceResponse : Encodable {
   
   init(
     with descs: [CBDescriptor],
-    char: CBCharacteristic,
-    descUuidCache: HashableIdCache<CBUUID>,
-    charUuidChache: HashableIdCache<CBUUID>,
-    serviceUuidCache: HashableIdCache<CBUUID>
+    char: CBCharacteristic
   ) {
     characteristicUuid = char.uuid.fullUUIDString
-    characteristicId = charUuidChache.numeric(from: char.uuid)
     isCharacteristicReadable = char.properties.contains(.read)
     isCharacteristicWritableWithResponse = char.properties.contains(.write)
     isCharacteristicWritableWithoutResponse = char.properties.contains(.writeWithoutResponse)
@@ -189,16 +160,12 @@ struct DescriptorsForServiceResponse : Encodable {
     isCharacteristicIndicatable = char.properties.contains(.indicate)
     descriptors = descs.map { desc in
       return DescriptorResponse(
-        desc: desc,
-        descUuidCache: descUuidCache,
-        charUuidChache: charUuidChache,
-        serviceUuidCache: serviceUuidCache
+        desc: desc
       )
     }
   }
   
   private enum CodingKeys: String, CodingKey {
-    case characteristicId = "id"
     case characteristicUuid = "characteristicUuid"
     case isCharacteristicReadable = "isReadable"
     case isCharacteristicWritableWithResponse = "isWritableWithResponse"
@@ -213,17 +180,11 @@ struct DescriptorsForServiceResponse : Encodable {
 struct DescriptorsForCharacteristicResponse : Encodable {
   let descriptors : [DescriptorResponse]
   init(
-    with descs: [CBDescriptor],
-    descUuidCache: HashableIdCache<CBUUID>,
-    charUuidChache: HashableIdCache<CBUUID>,
-    serviceUuidCache: HashableIdCache<CBUUID>
+    with descs: [CBDescriptor]
   ) {
     descriptors = descs.map { desc in
       return DescriptorResponse(
-        desc: desc,
-        descUuidCache: descUuidCache,
-        charUuidChache: charUuidChache,
-        serviceUuidCache: serviceUuidCache
+        desc: desc
       )
     }
   }

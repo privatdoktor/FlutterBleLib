@@ -16,7 +16,7 @@ class SensorTagTestWithScanAndConnectionScenario implements TestScenario {
     log("STARTING SCAN...");
     log("Looking for Sensor Tag...");
 
-    bleManager.startPeripheralScan().listen((scanResult) async {
+    (await bleManager.startPeripheralScan()).listen((scanResult) async {
       log("RECEIVED SCAN RESULT: "
           "\n name: ${scanResult.peripheral.name}"
           "\n identifier: ${scanResult.peripheral.identifier}"
@@ -40,8 +40,8 @@ class SensorTagTestWithScanAndConnectionScenario implements TestScenario {
     log("OBSERVING connection state \nfor ${peripheral.name},"
         " ${peripheral.identifier}...");
 
-    peripheral
-        .observeConnectionState(emitCurrentValue: true)
+    (await peripheral
+        .observeConnectionState(emitCurrentValue: true))
         .listen((connectionState) {
       log("Current connection state is: \n $connectionState");
       if (connectionState == PeripheralConnectionState.disconnected) {

@@ -1,8 +1,7 @@
 part of flutter_ble_lib;
 
-abstract class _CharacteristicMetadata {
+abstract class CharacteristicMetadata {
   static const String uuid = 'characteristicUuid';
-  static const String id = 'id';
   static const String isReadable = 'isReadable';
   static const String isWritableWithResponse = 'isWritableWithResponse';
   static const String isWritableWithoutResponse = 'isWritableWithoutResponse';
@@ -17,11 +16,8 @@ abstract class _CharacteristicMetadata {
 /// value. The properties of a characteristic determine how you can use
 /// a characteristic’s value, and how you access the descriptors.
 class Characteristic {
-  final int _id;
   /// The [Service] containing this characteristic.
   final Service service;
-
-  final BleManager _manager;
 
   /// The UUID of this characteristic.
   final String uuid;
@@ -41,29 +37,26 @@ class Characteristic {
   /// True if this characteristic can be monitored via indications.
   final bool isIndicatable;
 
-  Characteristic.fromJson(Map<String, dynamic> jsonObject, Service service,
-      BleManager manager)
-      : _manager = manager,
-        service = service,
-        uuid = jsonObject[_CharacteristicMetadata.uuid],
-        isReadable = jsonObject[_CharacteristicMetadata.isReadable],
+  Characteristic.fromJson(Map<String, dynamic> jsonObject, Service service,)
+      : service = service,
+        uuid = jsonObject[CharacteristicMetadata.uuid],
+        isReadable = jsonObject[CharacteristicMetadata.isReadable],
         isWritableWithResponse =
-            jsonObject[_CharacteristicMetadata.isWritableWithResponse],
+            jsonObject[CharacteristicMetadata.isWritableWithResponse],
         isWritableWithoutResponse =
-            jsonObject[_CharacteristicMetadata.isWritableWithoutResponse],
-        isNotifiable = jsonObject[_CharacteristicMetadata.isNotifiable],
-        isIndicatable = jsonObject[_CharacteristicMetadata.isIndicatable],
-        _id = jsonObject[_CharacteristicMetadata.id];
+            jsonObject[CharacteristicMetadata.isWritableWithoutResponse],
+        isNotifiable = jsonObject[CharacteristicMetadata.isNotifiable],
+        isIndicatable = jsonObject[CharacteristicMetadata.isIndicatable];
+
 
   /// Reads the value of this characteristic.
   ///
   /// The value can be read only if [isReadable] is `true`.
-  Future<Uint8List> read({String? transactionId}) =>
-      _manager.readCharacteristicForIdentifier(
-        service.peripheral,
-        this,
-        transactionId ?? TransactionIdGenerator.getNextId(),
-      );
+  Future<Uint8List> read() async {
+    final charWithVal =
+      await service.peripheral.readCharacteristic(service.uuid, uuid);
+    return charWithVal.value;
+  }
 
   /// Writes to the value of this characteristic.
   ///
@@ -72,16 +65,15 @@ class Characteristic {
   /// set accordingly.
   Future<void> write(
     Uint8List value,
-    bool withResponse, {
-    String? transactionId,
-  }) =>
-      _manager.writeCharacteristicForIdentifier(
-        service.peripheral,
-        this,
-        value,
-        withResponse,
-        transactionId ?? TransactionIdGenerator.getNextId(),
-      );
+    bool withResponse,
+  ) async {
+    await service.peripheral.writeCharacteristic(
+      service.uuid, 
+      uuid, 
+      value, 
+      withResponse
+    );
+  }
 
   /// Returns a [Stream] of notifications/indications emitted by this
   /// characteristic.
@@ -91,40 +83,46 @@ class Characteristic {
   /// Subscribing to the returned object enables the notifications/indications
   /// on the peripheral. Cancelling the last subscription disables the
   /// notifications/indications on this characteristic.
-  Future<Stream<Uint8List>> monitor({String? transactionId}) =>
-      _manager.monitorCharacteristicForIdentifier(
-        service.peripheral,
-        this,
-        transactionId ?? TransactionIdGenerator.getNextId(),
-      );
+  Future<Stream<Uint8List>> monitor() async {
+    final stream = 
+      await service.peripheral.monitorCharacteristic(service.uuid, uuid);
+
+    return stream.map((charWithValue) => charWithValue.value);
+  }
 
   /// Returns a list of [Descriptor]s of this characteristic.
-  Future<List<Descriptor>> descriptors() =>
-      _manager.descriptorsForCharacteristic(this);
+  Future<List<Descriptor>> descriptors() async {
+    return await service.peripheral.descriptorsForCharacteristic(
+      service.uuid,
+      uuid
+    );
+  }
 
   /// Reads the value of a [Descriptor] identified by [descriptorUuid].
   Future<DescriptorWithValue> readDescriptor(
     String descriptorUuid, {
     String? transactionId,
-  }) =>
-      _manager.readDescriptorForCharacteristic(
-        this,
-        descriptorUuid,
-        transactionId ?? TransactionIdGenerator.getNextId(),
-      );
+  }) async {
+    return service.peripheral.readDescriptor(
+      service.uuid,
+      uuid,
+      descriptorUuid
+    );
+  }
 
   /// Writes the [value] of a [Descriptor] identified by [descriptorUuid].
   Future<Descriptor> writeDescriptor(
     String descriptorUuid,
-    Uint8List value, {
-    String? transactionId,
-  }) =>
-      _manager.writeDescriptorForCharacteristic(
-        this,
-        descriptorUuid,
-        value,
-        transactionId ?? TransactionIdGenerator.getNextId(),
-      );
+    Uint8List value
+  ) async {
+    return service.peripheral.writeDescriptor(
+      service.uuid, 
+      uuid, 
+      descriptorUuid, 
+      value
+    );
+  }
+
 
   @override
   bool operator ==(Object other) =>
@@ -142,7 +140,6 @@ class Characteristic {
   @override
   int get hashCode =>
       service.hashCode ^
-      _manager.hashCode ^
       uuid.hashCode ^
       isReadable.hashCode ^
       isWritableWithResponse.hashCode ^
@@ -155,7 +152,6 @@ class Characteristic {
   @override
   String toString() {
     return 'Characteristic{service: $service,'
-        ' _manager: $_manager,'
         ' uuid: $uuid,'
         ' isReadable: $isReadable,'
         ' isWritableWithResponse: $isWritableWithResponse,'
@@ -175,9 +171,8 @@ class CharacteristicWithValue extends Characteristic {
   CharacteristicWithValue.fromJson(
     Map<String, dynamic> jsonObject,
     Service service,
-    BleManager manager,
-  ) : value = base64Decode(jsonObject[_CharacteristicMetadata.value]),
-      super.fromJson(jsonObject, service, manager);
+  ) : value = base64Decode(jsonObject[CharacteristicMetadata.value]),
+      super.fromJson(jsonObject, service);
 
   @override
   bool operator ==(Object other) {

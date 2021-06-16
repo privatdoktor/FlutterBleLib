@@ -10,7 +10,6 @@ import CoreBluetooth
 
 struct CharacteristicResponse : Encodable {
   let characteristicUuid: String
-  let id: Int
   let isIndicatable: Bool
   let isNotifiable: Bool
   let isNotifying: Bool
@@ -19,11 +18,9 @@ struct CharacteristicResponse : Encodable {
   let isWritableWithoutResponse: Bool
   
   init(
-    char: CBCharacteristic,
-    charUuidCache: HashableIdCache<CBUUID>
+    char: CBCharacteristic
   ) {
     characteristicUuid = char.uuid.fullUUIDString
-    id = charUuidCache.numeric(from: char.uuid)
     let properties = char.properties
     isIndicatable = properties.contains(.indicate)
     isReadable = properties.contains(.read)
@@ -35,7 +32,6 @@ struct CharacteristicResponse : Encodable {
   
   private enum CodingKeys: String, CodingKey {
     case characteristicUuid = "characteristicUuid"
-    case id = "id"
     case isIndicatable = "isIndicatable"
     case isNotifiable = "isNotifiable"
     case isNotifying = "isNotifying"
@@ -47,40 +43,27 @@ struct CharacteristicResponse : Encodable {
 
 struct SingleCharacteristicResponse : Encodable {
   let serviceUuid: String
-  let serviceId: Int
-  
-  let transactionId: String?
-  
+    
   let characteristic: CharacteristicResponse
   
   init(
-    char: CBCharacteristic,
-    charUuidCache: HashableIdCache<CBUUID>,
-    serviceUuidCache: HashableIdCache<CBUUID>,
-    transactionId: String? = nil
+    char: CBCharacteristic
   ) {
     serviceUuid = char.service.uuid.fullUUIDString
-    serviceId = serviceUuidCache.numeric(from: char.service.uuid)
-    
-    self.transactionId = transactionId
-    
+        
     characteristic =
-      CharacteristicResponse(char: char, charUuidCache: charUuidCache)
+      CharacteristicResponse(char: char)
   }
   
   private enum CodingKeys: String, CodingKey {
     case serviceUuid = "serviceUuid"
-    case serviceId = "serviceId"
-    
-    case transactionId = "transactionId"
-    
+        
     case characteristic = "characteristic"
   }
 }
 
 struct CharacteristicWithValueResponse : Encodable {
   let characteristicUuid: String
-  let id: Int
   let isIndicatable: Bool
   let isNotifiable: Bool
   let isNotifying: Bool
@@ -90,11 +73,9 @@ struct CharacteristicWithValueResponse : Encodable {
   let value: String // base64encodedString from Data
   
   init(
-    char: CBCharacteristic,
-    charUuidCache: HashableIdCache<CBUUID>
+    char: CBCharacteristic
   ) {
     characteristicUuid = char.uuid.fullUUIDString
-    id = charUuidCache.numeric(from: char.uuid)
     let properties = char.properties
     isIndicatable = properties.contains(.indicate)
     isReadable = properties.contains(.read)
@@ -107,7 +88,6 @@ struct CharacteristicWithValueResponse : Encodable {
   
   private enum CodingKeys: String, CodingKey {
     case characteristicUuid = "characteristicUuid"
-    case id = "id"
     case isIndicatable = "isIndicatable"
     case isNotifiable = "isNotifiable"
     case isNotifying = "isNotifying"
@@ -120,61 +100,43 @@ struct CharacteristicWithValueResponse : Encodable {
 
 struct SingleCharacteristicWithValueResponse : Encodable {
   let serviceUuid: String
-  let serviceId: Int
-  
-  let transactionId: String?
-  
+    
   let characteristic: CharacteristicWithValueResponse
   
   init(
-    char: CBCharacteristic,
-    charUuidCache: HashableIdCache<CBUUID>,
-    serviceUuidCache: HashableIdCache<CBUUID>,
-    transactionId: String? = nil
+    char: CBCharacteristic
   ) {
     serviceUuid = char.service.uuid.fullUUIDString
-    serviceId = serviceUuidCache.numeric(from: char.service.uuid)
-    
-    self.transactionId = transactionId
-    
+        
     characteristic =
-      CharacteristicWithValueResponse(char: char, charUuidCache: charUuidCache)
+      CharacteristicWithValueResponse(char: char)
   }
   
   private enum CodingKeys: String, CodingKey {
     case serviceUuid = "serviceUuid"
-    case serviceId = "serviceId"
-    
-    case transactionId = "transactionId"
-    
+        
     case characteristic = "characteristic"
   }
 }
 
 struct CharacteristicsResponse : Encodable {
   let serviceUuid: String
-  let serviceId: Int
   let characteristics: [CharacteristicResponse]
   
   init(
     with chars: [CBCharacteristic],
-    service: CBService,
-    charUuidCache: HashableIdCache<CBUUID>,
-    serviceUuidCache: HashableIdCache<CBUUID>
+    service: CBService
   ) {
     serviceUuid = service.uuid.fullUUIDString
-    serviceId = serviceUuidCache.numeric(from: service.uuid)
     characteristics = chars.map({ char in
       return CharacteristicResponse(
-        char: char,
-        charUuidCache: charUuidCache
+        char: char
       )
     })
   }
   
   private enum CodingKeys: String, CodingKey {
     case serviceUuid = "serviceUuid"
-    case serviceId = "serviceId"
     case characteristics = "characteristics"
   }
 }

@@ -20,8 +20,6 @@ final class DefaultMethodChannel : NSObject, MethodChannel {
       eventChannelFactory.makeEventChannel(StateChanges.self, idScheme: .justBaseName)
     let stateRestoreSinker =
       eventChannelFactory.makeEventChannel(StateRestoreEvents.self, idScheme: .justBaseName)
-    let scanningSinker =
-      eventChannelFactory.makeEventChannel(ScanningEvents.self, idScheme: .justBaseName)
     handler.stateChanges = Client.Stream<Int>(eventHandler: { payload in
       switch payload {
       case .data(let state):
@@ -36,14 +34,6 @@ final class DefaultMethodChannel : NSObject, MethodChannel {
         stateRestoreSinker.sink(states)
       case .endOfStream:
         stateRestoreSinker.end()
-      }
-    })
-    handler.scanningEvents = Client.Stream(eventHandler: { payload in
-      switch payload {
-      case .data(let scanResult):
-        scanningSinker.sink(scanResult)
-      case .endOfStream:
-        scanningSinker.end()
       }
     })
   }
@@ -175,8 +165,6 @@ final class DefaultMethodChannel : NSObject, MethodChannel {
         self = .enableRadio
       case "disableRadio":
         self = .disableRadio
-      case "createScanningEventChannel":
-        self = .createScanningEventChannel
       case "startDeviceScan":
         let uuids = args?[.uuids] as? [String]
         let allowDuplicates = args?[.allowDuplicates] as? Bool
@@ -234,10 +222,8 @@ final class DefaultMethodChannel : NSObject, MethodChannel {
         let deviceId =
           try argsHelper.requiredValueFor(.deviceUuid,
                                           type: String.self)
-        let transactionId = args?[.transactionId] as? String
         self = .discoverAllServicesAndCharacteristics(
-          deviceIdentifier: deviceId,
-          transactionId: transactionId
+          deviceIdentifier: deviceId
         )
       case "services":
         let deviceId =
@@ -256,11 +242,6 @@ final class DefaultMethodChannel : NSObject, MethodChannel {
           deviceIdentifier: deviceId,
           serviceUUID: serviceUUID
         )
-      case "characteristicsForService":
-        let serviceNumericId =
-          try argsHelper.requiredValueFor(.serviceNumericId,
-                                          type: Int.self)
-        self = .characteristicsForService(serviceNumericId: serviceNumericId)
       case "descriptorsForDevice":
         let deviceId =
           try argsHelper.requiredValueFor(.deviceUuid,
@@ -276,25 +257,6 @@ final class DefaultMethodChannel : NSObject, MethodChannel {
           serviceUUID: serviceUUID,
           characteristicUUID: characteristicUUID
         )
-      case "descriptorsForService":
-        let serviceNumericId =
-          try argsHelper.requiredValueFor(.serviceNumericId,
-                                          type: Int.self)
-        let characteristicUUID =
-          try argsHelper.requiredValueFor(.characteristicUuid,
-                                          type: String.self)
-
-        self = .descriptorsForService(
-          serviceNumericId: serviceNumericId,
-          characteristicUUID: characteristicUUID
-        )
-      case "descriptorsForCharacteristic":
-        let characteristicNumericId =
-          try argsHelper.requiredValueFor(.characteristicNumericId,
-                                          type: Int.self)
-        self = .descriptorsForCharacteristic(
-          characteristicNumericId: characteristicNumericId
-        )
       case "logLevel":
         self = .logLevel
       case "setLogLevel":
@@ -306,10 +268,8 @@ final class DefaultMethodChannel : NSObject, MethodChannel {
         let deviceId =
           try argsHelper.requiredValueFor(.deviceUuid,
                                           type: String.self)
-        let transactionId = args?[.transactionId] as? String
         self = .rssi(
-          deviceIdentifier: deviceId,
-          transactionId: transactionId
+          deviceIdentifier: deviceId
         )
       case "requestMtu":
         let deviceId =
@@ -318,11 +278,9 @@ final class DefaultMethodChannel : NSObject, MethodChannel {
         let mtu =
           try argsHelper.requiredValueFor(.mtu,
                                           type: Int.self)
-        let transactionId = args?[.transactionId] as? String
         self = .requestMtu(
           deviceIdentifier: deviceId,
-          mtu: mtu,
-          transactionId: transactionId
+          mtu: mtu
         )
       case "getConnectedDevices":
         let serviceUUIDs =
@@ -334,16 +292,6 @@ final class DefaultMethodChannel : NSObject, MethodChannel {
           try argsHelper.requiredValueFor(.deviceUuids,
                                           type: [String].self)
         self = .getKnownDevices(deviceIdentifiers: deviceIdentifiers)
-      case "readCharacteristicForIdentifier":
-        let characteristicNumericId =
-          try argsHelper.requiredValueFor(.characteristicNumericId,
-                                          type: Int.self)
-          
-        let transactionId = args?[.transactionId] as? String
-        self = .readCharacteristicForIdentifier(
-          characteristicNumericId: characteristicNumericId,
-          transactionId: transactionId
-        )
       case "readCharacteristicForDevice":
         let deviceId =
           try argsHelper.requiredValueFor(.deviceUuid,
@@ -354,42 +302,10 @@ final class DefaultMethodChannel : NSObject, MethodChannel {
         let characteristicUUID =
           try argsHelper.requiredValueFor(.characteristicUuid,
                                           type: String.self)
-        let transactionId = args?[.transactionId] as? String
         self = .readCharacteristicForDevice(
           deviceIdentifier: deviceId,
           serviceUUID: serviceUUID,
-          characteristicUUID: characteristicUUID,
-          transactionId: transactionId
-        )
-      case "readCharacteristicForService":
-        let serviceNumericId =
-          try argsHelper.requiredValueFor(.serviceNumericId,
-                                          type: Int.self)
-        let characteristicUUID =
-          try argsHelper.requiredValueFor(.characteristicUuid,
-                                          type: String.self)
-        let transactionId = args?[.transactionId] as? String
-        self = .readCharacteristicForService(
-          serviceNumericId: serviceNumericId,
-          characteristicUUID: characteristicUUID,
-          transactionId: transactionId
-        )
-      case "writeCharacteristicForIdentifier":
-        let characteristicNumericId =
-          try argsHelper.requiredValueFor(.characteristicNumericId,
-                                          type: Int.self)
-        let value =
-          try argsHelper.requiredValueFor(.value,
-                                          type: FlutterStandardTypedData.self)
-        let withResponse =
-          try argsHelper.requiredValueFor(.withResponse,
-                                          type: Bool.self)
-        let transactionId = args?[.transactionId] as? String
-        self = .writeCharacteristicForIdentifier(
-          characteristicNumericId: characteristicNumericId,
-          value: value,
-          withResponse: withResponse,
-          transactionId: transactionId
+          characteristicUUID: characteristicUUID
         )
       case "writeCharacteristicForDevice":
         let deviceId =
@@ -407,45 +323,12 @@ final class DefaultMethodChannel : NSObject, MethodChannel {
         let withResponse =
           try argsHelper.requiredValueFor(.withResponse,
                                           type: Bool.self)
-        let transactionId = args?[.transactionId] as? String
         self = .writeCharacteristicForDevice(
           deviceIdentifier: deviceId,
           serviceUUID: serviceUUID,
           characteristicUUID: characteristicUUID,
           value: value,
-          withResponse: withResponse,
-          transactionId: transactionId
-        )
-      case "writeCharacteristicForService":
-        let serviceNumericId =
-          try argsHelper.requiredValueFor(.serviceNumericId,
-                                          type: Int.self)
-        let characteristicUUID =
-          try argsHelper.requiredValueFor(.characteristicUuid,
-                                          type: String.self)
-        let value =
-          try argsHelper.requiredValueFor(.value,
-                                          type: FlutterStandardTypedData.self)
-        let withResponse =
-          try argsHelper.requiredValueFor(.withResponse,
-                                          type: Bool.self)
-        let transactionId = args?[.transactionId] as? String
-        self = .writeCharacteristicForService(
-          serviceNumericId: serviceNumericId,
-          characteristicUUID: characteristicUUID,
-          value: value,
-          withResponse: withResponse,
-          transactionId: transactionId
-        )
-      case "monitorCharacteristicForIdentifier":
-        let characteristicNumericId =
-          try argsHelper.requiredValueFor(.characteristicNumericId,
-                                          type: Int.self)
-          
-        let transactionId = args?[.transactionId] as? String
-        self = .monitorCharacteristicForIdentifier(
-          characteristicNumericId: characteristicNumericId,
-          transactionId: transactionId
+          withResponse: withResponse
         )
       case "monitorCharacteristicForDevice":
         let deviceId =
@@ -457,64 +340,10 @@ final class DefaultMethodChannel : NSObject, MethodChannel {
         let characteristicUUID =
           try argsHelper.requiredValueFor(.characteristicUuid,
                                           type: String.self)
-        let transactionId = args?[.transactionId] as? String
         self = .monitorCharacteristicForDevice(
           deviceIdentifier: deviceId,
           serviceUUID: serviceUUID,
-          characteristicUUID: characteristicUUID,
-          transactionId: transactionId
-        )
-      case "monitorCharacteristicForService":
-        let serviceNumericId =
-          try argsHelper.requiredValueFor(.serviceNumericId,
-                                          type: Int.self)
-        let characteristicUUID =
-          try argsHelper.requiredValueFor(.characteristicUuid,
-                                          type: String.self)
-        let transactionId = args?[.transactionId] as? String
-        self = .monitorCharacteristicForService(
-          serviceNumericId: serviceNumericId,
-          characteristicUUID: characteristicUUID,
-          transactionId: transactionId
-        )
-      case "readDescriptorForIdentifier":
-        let descriptorNumericId =
-          try argsHelper.requiredValueFor(.descriptorNumericId,
-                                          type: Int.self)
-        let transactionId = args?[.transactionId] as? String
-        self = .readDescriptorForIdentifier(
-          descriptorNumericId: descriptorNumericId,
-          transactionId: transactionId
-        )
-      case "readDescriptorForCharacteristic":
-        let characteristicNumericId =
-          try argsHelper.requiredValueFor(.characteristicNumericId,
-                                          type: Int.self)
-        let descriptorUUID =
-          try argsHelper.requiredValueFor(.descriptorUuid,
-                                          type: String.self)
-        let transactionId = args?[.transactionId] as? String
-        self = .readDescriptorForCharacteristic(
-          characteristicNumericId: characteristicNumericId,
-          descriptorUUID: descriptorUUID,
-          transactionId: transactionId
-        )
-      case "readDescriptorForService":
-        let serviceNumericId =
-          try argsHelper.requiredValueFor(.serviceNumericId,
-                                      type: Int.self)
-        let characteristicUUID =
-          try argsHelper.requiredValueFor(.characteristicUuid,
-                                          type: String.self)
-        let descriptorUUID =
-          try argsHelper.requiredValueFor(.descriptorUuid,
-                                          type: String.self)
-        let transactionId = args?[.transactionId] as? String
-        self = .readDescriptorForService(
-          serviceNumericId: serviceNumericId,
-          characteristicUUID: characteristicUUID,
-          descriptorUUID: descriptorUUID,
-          transactionId: transactionId
+          characteristicUUID: characteristicUUID
         )
       case "readDescriptorForDevice":
         let deviceId =
@@ -529,64 +358,11 @@ final class DefaultMethodChannel : NSObject, MethodChannel {
         let descriptorUUID =
           try argsHelper.requiredValueFor(.descriptorUuid,
                                           type: String.self)
-        let transactionId = args?[.transactionId] as? String
         self = .readDescriptorForDevice(
           deviceIdentifier: deviceId,
           serviceUUID: serviceUUID,
           characteristicUUID: characteristicUUID,
-          descriptorUUID: descriptorUUID,
-          transactionId: transactionId
-        )
-      case "writeDescriptorForIdentifier":
-        let descriptorNumericId =
-          try argsHelper.requiredValueFor(.descriptorNumericId,
-                                          type: Int.self)
-        let value =
-          try argsHelper.requiredValueFor(.value,
-                                          type: FlutterStandardTypedData.self)
-        let transactionId = args?[.transactionId] as? String
-        self = .writeDescriptorForIdentifier(
-          descriptorNumericId: descriptorNumericId,
-          value: value,
-          transactionId: transactionId
-        )
-      case "writeDescriptorForCharacteristic":
-        let characteristicNumericId =
-          try argsHelper.requiredValueFor(.characteristicNumericId,
-                                          type: Int.self)
-        let descriptorUUID =
-          try argsHelper.requiredValueFor(.descriptorUuid,
-                                          type: String.self)
-        let value =
-          try argsHelper.requiredValueFor(.value,
-                                          type: FlutterStandardTypedData.self)
-        let transactionId = args?[.transactionId] as? String
-        self = .writeDescriptorForCharacteristic(
-          characteristicNumericId: characteristicNumericId,
-          descriptorUUID: descriptorUUID,
-          value: value,
-          transactionId: transactionId
-        )
-      case "writeDescriptorForService":
-        let serviceNumericId =
-          try argsHelper.requiredValueFor(.serviceNumericId,
-                                      type: Int.self)
-        let characteristicUUID =
-          try argsHelper.requiredValueFor(.characteristicUuid,
-                                          type: String.self)
-        let descriptorUUID =
-          try argsHelper.requiredValueFor(.descriptorUuid,
-                                          type: String.self)
-        let value =
-          try argsHelper.requiredValueFor(.value,
-                                          type: FlutterStandardTypedData.self)
-        let transactionId = args?[.transactionId] as? String
-        self = .writeDescriptorForService(
-          serviceNumericId: serviceNumericId,
-          characteristicUUID: characteristicUUID,
-          descriptorUUID: descriptorUUID,
-          value: value,
-          transactionId: transactionId
+          descriptorUUID: descriptorUUID
         )
       case "writeDescriptorForDevice":
         let deviceId =
@@ -604,14 +380,12 @@ final class DefaultMethodChannel : NSObject, MethodChannel {
         let value =
           try argsHelper.requiredValueFor(.value,
                                           type: FlutterStandardTypedData.self)
-        let transactionId = args?[.transactionId] as? String
         self = .writeDescriptorForDevice(
           deviceIdentifier: deviceId,
           serviceUUID: serviceUUID,
           characteristicUUID: characteristicUUID,
           descriptorUUID: descriptorUUID,
-          value: value,
-          transactionId: transactionId
+          value: value
         )
       default:
         return nil
@@ -629,7 +403,6 @@ final class DefaultMethodChannel : NSObject, MethodChannel {
     case enableRadio
     case disableRadio
     
-    case createScanningEventChannel
     case startDeviceScan(uuids: [String]?, allowDuplicates: Bool?)
     case stopDeviceScan
     
@@ -642,100 +415,50 @@ final class DefaultMethodChannel : NSObject, MethodChannel {
     case discoverServices(deviceIdentifier: String)
     case discoverCharacteristics(deviceIdentifier: String,
                                  serviceUuid: String)
-    case discoverAllServicesAndCharacteristics(deviceIdentifier: String,
-                                               transactionId: String?)
+    case discoverAllServicesAndCharacteristics(deviceIdentifier: String)
     case services(deviceIdentifier: String)
+    
     case characteristics(deviceIdentifier: String, serviceUUID: String)
-    case characteristicsForService(serviceNumericId: Int)
+    
     case descriptorsForDevice(deviceIdentifier: String,
                               serviceUUID: String,
                               characteristicUUID: String)
-    case descriptorsForService(serviceNumericId: Int,
-                               characteristicUUID: String)
-    case descriptorsForCharacteristic(characteristicNumericId: Int)
     
     case logLevel
     case setLogLevel(String)
     
-    case rssi(deviceIdentifier: String,
-              transactionId: String?)
+    case rssi(deviceIdentifier: String)
     
     case requestMtu(deviceIdentifier: String,
-                    mtu: Int,
-                    transactionId: String?)
+                    mtu: Int)
     
     case getConnectedDevices(serviceUUIDs: [String])
     case getKnownDevices(deviceIdentifiers: [String])
     
-    case readCharacteristicForIdentifier(characteristicNumericId: Int,
-                                         transactionId: String?)
     case readCharacteristicForDevice(deviceIdentifier: String,
                                      serviceUUID: String,
-                                     characteristicUUID: String,
-                                     transactionId: String?)
-    case readCharacteristicForService(serviceNumericId: Int,
-                                      characteristicUUID: String,
-                                      transactionId: String?)
-    
-    case writeCharacteristicForIdentifier(characteristicNumericId: Int,
-                                          value: FlutterStandardTypedData,
-                                          withResponse: Bool,
-                                          transactionId: String?)
+                                     characteristicUUID: String)
+
     case writeCharacteristicForDevice(deviceIdentifier: String,
                                       serviceUUID: String,
                                       characteristicUUID: String,
                                       value: FlutterStandardTypedData,
-                                      withResponse: Bool,
-                                      transactionId: String?)
-    case writeCharacteristicForService(serviceNumericId: Int,
-                                       characteristicUUID: String,
-                                       value: FlutterStandardTypedData,
-                                       withResponse: Bool,
-                                       transactionId: String?)
+                                      withResponse: Bool)
     
-    case monitorCharacteristicForIdentifier(characteristicNumericId: Int,
-                                            transactionId: String?)
     case monitorCharacteristicForDevice(deviceIdentifier: String,
                                         serviceUUID: String,
-                                        characteristicUUID: String,
-                                        transactionId: String?)
-    case monitorCharacteristicForService(serviceNumericId: Int,
-                                         characteristicUUID: String,
-                                         transactionId: String?)
-    
-    case readDescriptorForIdentifier(descriptorNumericId: Int,
-                                     transactionId: String?)
-    case readDescriptorForCharacteristic(characteristicNumericId: Int,
-                                         descriptorUUID: String,
-                                         transactionId: String?)
-    case readDescriptorForService(serviceNumericId: Int,
-                                  characteristicUUID: String,
-                                  descriptorUUID: String,
-                                  transactionId: String?)
+                                        characteristicUUID: String)
+
     case readDescriptorForDevice(deviceIdentifier: String,
                                  serviceUUID: String,
                                  characteristicUUID: String,
-                                 descriptorUUID: String,
-                                 transactionId: String?)
+                                 descriptorUUID: String)
     
-    case writeDescriptorForIdentifier(descriptorNumericId: Int,
-                                      value: FlutterStandardTypedData,
-                                      transactionId: String?)
-    case writeDescriptorForCharacteristic(characteristicNumericId: Int,
-                                          descriptorUUID: String,
-                                          value: FlutterStandardTypedData,
-                                          transactionId: String?)
-    case writeDescriptorForService(serviceNumericId: Int,
-                                   characteristicUUID: String,
-                                   descriptorUUID: String,
-                                   value: FlutterStandardTypedData,
-                                   transactionId: String?)
     case writeDescriptorForDevice(deviceIdentifier: String,
                                   serviceUUID: String,
                                   characteristicUUID: String,
                                   descriptorUUID: String,
-                                  value: FlutterStandardTypedData,
-                                  transactionId: String?)
+                                  value: FlutterStandardTypedData)
   }
 }
 

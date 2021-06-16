@@ -111,8 +111,8 @@ class DevicesBloc {
   Future<void> _waitForBluetoothPoweredOn() async {
     Completer completer = Completer();
     StreamSubscription<BluetoothState>? subscription;
-    subscription = _bleManager
-      .observeBluetoothState(emitCurrentValue: true)
+    subscription = (await _bleManager
+      .observeBluetoothState(emitCurrentValue: true))
       .listen((bluetoothState) async {
         if (bluetoothState == BluetoothState.POWERED_ON && !completer.isCompleted) {
           await subscription?.cancel();
@@ -123,9 +123,9 @@ class DevicesBloc {
     return completer.future;
   }
 
-  void _startScan() {
+  void _startScan() async {
     Fimber.d("Ble start scan");
-    _scanSubscription = _bleManager.startPeripheralScan()
+    _scanSubscription = (await _bleManager.startPeripheralScan())
       .listen((scanResult) {
         var bleDevice = BleDevice(scanResult);
         if (!bleDevices.contains(bleDevice)) {
