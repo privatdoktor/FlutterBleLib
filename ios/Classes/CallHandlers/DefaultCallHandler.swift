@@ -139,11 +139,13 @@ extension Client : CallHandler {
         call.result(encodable: res)
       }
     case .discoverAllServicesAndCharacteristics(let deviceIdentifier):
-      discoverAllServicesAndCharacteristics(
-        deviceIdentifier: deviceIdentifier
-      ) { res in
-        call.result(res)
-      }
+//      discoverAllServicesAndCharacteristics(
+//        deviceIdentifier: deviceIdentifier
+//      ) { res in
+//        call.result(res)
+//      }
+      noop()
+      call.result()
     case .services(let deviceIdentifier):
       let serResps = services(for: deviceIdentifier)
       call.result(encodable: serResps)

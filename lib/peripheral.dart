@@ -206,20 +206,20 @@ class Peripheral {
 
   
 
-  /// Discovers all [Service]s, [Characteristic]s and [Descriptor]s of this peripheral.
-  /// Must be done prior to any other operation concerning those.
-  Future<void> discoverAllServicesAndCharacteristics() async {
-    try {
-      await BleManager._methodChannel.invokeMethod(
-        MethodName.discoverAllServicesAndCharacteristics,
-        <String, dynamic>{
-          ArgumentName.deviceIdentifier: identifier,
-        },
-      );
-    } on PlatformException catch (pe) {
-      throw BleError.fromJson(jsonDecode(pe.details));
-    }
-  }
+  // /// Discovers all [Service]s, [Characteristic]s and [Descriptor]s of this peripheral.
+  // /// Must be done prior to any other operation concerning those.
+  // Future<void> discoverAllServicesAndCharacteristics() async {
+  //   try {
+  //     await BleManager._methodChannel.invokeMethod(
+  //       MethodName.discoverAllServicesAndCharacteristics,
+  //       <String, dynamic>{
+  //         ArgumentName.deviceIdentifier: identifier,
+  //       },
+  //     );
+  //   } on PlatformException catch (pe) {
+  //     throw BleError.fromJson(jsonDecode(pe.details));
+  //   }
+  // }
 
   /// Returns a list of [Service]s of this peripheral.
   ///
