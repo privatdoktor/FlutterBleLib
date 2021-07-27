@@ -172,9 +172,19 @@ class BleManager {
     if (scanEvents == null) {
       scanEvents = 
         _scanningEventsEventChannel.receiveBroadcastStream().handleError(
-          (errorJson) => throw BleError.fromJson(
-            jsonDecode(errorJson.details)
-          ),
+          (error) {
+            if (error !is PlatformException) {
+              throw error;
+            }
+            final pe = error as PlatformException;
+            final details = pe.details as String?;
+            if (details == null) {
+              throw pe;
+            }
+            throw BleError.fromJson(
+              jsonDecode(details)
+            );
+          },
           test: (error) => error is PlatformException,
         ).map(
           (scanResultJson) =>
@@ -236,13 +246,22 @@ class BleManager {
   /// This sets log level for both Dart and native platform.
   Future<void> setLogLevel(LogLevel logLevel) async {
     print('set log level to ${describeEnum(logLevel)}');
-    return await BleManager._methodChannel.invokeMethod(
-      MethodName.setLogLevel,
-      <String, dynamic>{
-        ArgumentName.logLevel: describeEnum(logLevel),
-      },
-    ).catchError((errorJson) =>
-        Future.error(BleError.fromJson(jsonDecode(errorJson.details))));
+    try {
+      await BleManager._methodChannel.invokeMethod(
+        MethodName.setLogLevel,
+        <String, dynamic>{
+          ArgumentName.logLevel: describeEnum(logLevel),
+        },
+      );
+    } on PlatformException catch (pe) {
+      final details = pe.details as Object?;
+      if (details is String) {
+        throw BleError.fromJson(jsonDecode(details));
+      }
+      rethrow;
+    } catch (e) {
+      rethrow;
+    }
   }
 
   LogLevel _logLevelFromString(String logLevelName) {
@@ -263,13 +282,22 @@ class BleManager {
   /// Passing optional [transactionId] lets you discard the result of this
   /// operation before it is finished.
   Future<void> enableRadio({String? transactionId}) async {
-    await BleManager._methodChannel.invokeMethod(
-      MethodName.enableRadio,
-      <String, dynamic>{
-        ArgumentName.transactionId: transactionId,
-      },
-    ).catchError((errorJson) =>
-        Future.error(BleError.fromJson(jsonDecode(errorJson.details))));
+    try {
+      await BleManager._methodChannel.invokeMethod(
+        MethodName.enableRadio,
+        <String, dynamic>{
+          ArgumentName.transactionId: transactionId,
+        },
+      );
+    } on PlatformException catch (pe) {
+      final details = pe.details as Object?;
+      if (details is String) {
+        throw BleError.fromJson(jsonDecode(details));
+      }
+      rethrow;
+    } catch (e) {
+      rethrow;
+    }
   }
 
   /// Disables Bluetooth on Android; NOOP on iOS.
@@ -277,13 +305,22 @@ class BleManager {
   /// Passing optional [transactionId] lets you discard the result of this
   /// operation before it is finished.
   Future<void> disableRadio({String? transactionId}) async {
-    await BleManager._methodChannel.invokeMethod(
-      MethodName.disableRadio,
-      <String, dynamic>{
-        ArgumentName.transactionId: transactionId,
-      },
-    ).catchError((errorJson) =>
-        Future.error(BleError.fromJson(jsonDecode(errorJson.details))));
+    try {
+      await BleManager._methodChannel.invokeMethod(
+        MethodName.disableRadio,
+        <String, dynamic>{
+          ArgumentName.transactionId: transactionId,
+        },
+      );
+    } on PlatformException catch (pe) {
+      final details = pe.details as Object?;
+      if (details is String) {
+        throw BleError.fromJson(jsonDecode(details));
+      }
+      rethrow;
+    } catch (e) {
+      rethrow;
+    }
   }
 
   BluetoothState _mapToBluetoothState(String? rawValue) {

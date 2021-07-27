@@ -99,7 +99,7 @@ extension Client : CallHandler {
           ConnectionStateChangeEvents.self
         )
       let sinkerName = sinker.name
-      let stream = Stream<CBPeripheralState>(eventHandler: { payload in
+      let stream = Stream<ConnectionStateResponse>(eventHandler: { payload in
         switch payload {
         case .data(let state):
           sinker.sink(state)

@@ -17,7 +17,7 @@ class StateChanges : EventChannel, EventSinker {
     let stateStr: String
     if #available(iOS 10, *) {
       switch CBManagerState(rawValue: rawState) {
-      case .resetting?:
+      case .resetting:
         stateStr = "Resetting"
       case .unsupported:
         stateStr = "Unsupported"
@@ -71,23 +71,10 @@ class ScanningEvents : EventChannel, EventSinker {
 }
 
 class ConnectionStateChangeEvents : EventChannel, EventSinker {
-  typealias SinkableT = CBPeripheralState
+  typealias SinkableT = ConnectionStateResponse
   static let baseName = "\(base)/connectionStateChangeEvents"
-  func sink(_ state: CBPeripheralState) {
-    let stateStr: String
-    switch state {
-    case .connected:
-      stateStr = "connected"
-    case .connecting:
-      stateStr = "connecting"
-    case .disconnected:
-      stateStr = "disconnected"
-    case .disconnecting:
-      stateStr = "disconnecting"
-    @unknown default:
-      stateStr = "disconnected"
-    }
-    _sink(string: stateStr)
+  func sink(_ stateResp: ConnectionStateResponse) {
+    _sink(encodable: stateResp)
   }
 }
 

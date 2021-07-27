@@ -9,6 +9,33 @@ import Foundation
 import CoreBluetooth
 
 
+class ConnectionStateResponse : Encodable {
+  let peripheralIdentifier: String
+  let connectionState: String
+  
+  init(state: CBPeripheralState, peripheralId: UUID) {
+    switch state {
+    case .connected:
+      connectionState = "connected"
+    case .connecting:
+      connectionState = "connecting"
+    case .disconnected:
+      connectionState = "disconnected"
+    case .disconnecting:
+      connectionState = "disconnecting"
+    @unknown default:
+      connectionState = "disconnected"
+    }
+    
+    peripheralIdentifier = peripheralId.uuidString.lowercased()
+  }
+
+  private enum CodingKeys: String, CodingKey {
+    case peripheralIdentifier = "peripheralIdentifier"
+    case connectionState = "connectionState"
+  }
+}
+
 extension CBUUID {
   var fullUUIDString: String {
     let native = uuidString.lowercased()
@@ -279,7 +306,7 @@ extension Client {
   func observeConnectionState(
     deviceIdentifier: String,
     emitCurrentValue: Bool?,
-    eventStream: Stream<CBPeripheralState>
+    eventStream: Stream<ConnectionStateResponse>
   ) -> Result<(), ClientError> {
     guard
       let centralManager = centralManager
@@ -293,12 +320,15 @@ extension Client {
     }
     
     if emitCurrentValue == true {
+      
+      let state = peripheralFor(
+        uuid: uuid,
+        centralManager: centralManager
+      )?.state ?? .disconnected
+      
       eventStream.eventHandler(
         .data(
-          peripheralFor(
-            uuid: uuid,
-            centralManager: centralManager
-          )?.state ?? .disconnected
+          ConnectionStateResponse(state: state, peripheralId: uuid)
         )
       )
     }
@@ -320,7 +350,9 @@ extension Client {
         @unknown default:
           state = .disconnected
         }
-        eventStream.eventHandler(.data(state))
+        eventStream.eventHandler(
+          .data(ConnectionStateResponse(state: state, peripheralId: uuid))
+        )
       }
       
       centralManager.registerForConnectionEvents(
@@ -346,7 +378,9 @@ extension Client {
         @unknown default:
           state = .disconnected
         }
-        eventStream.eventHandler(.data(state))
+        eventStream.eventHandler(
+          .data(ConnectionStateResponse(state: state, peripheralId: uuid))
+        )
       }
     }
     

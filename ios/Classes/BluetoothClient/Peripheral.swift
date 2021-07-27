@@ -391,6 +391,7 @@ extension DiscoveredPeripheral : CBPeripheralDelegate {
       return
     }
     if let error = error {
+      print("GRRRRRRRRRRRRRRRGGGGGWWWWW \(error.localizedDescription)")
       dc.writeCompleted(
         .failure(.characteristicWrite(characteristic, internal: error))
       )

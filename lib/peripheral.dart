@@ -63,7 +63,11 @@ class Peripheral {
         },
       );
     } on PlatformException catch (pe) {
-      throw BleError.fromJson(jsonDecode(pe.details));
+      final details = pe.details as Object?;
+      if (details is String) {
+        throw BleError.fromJson(jsonDecode(details));
+      }
+      rethrow;
     }
   }
 
@@ -87,15 +91,24 @@ class Peripheral {
     bool emitCurrentValue = false,
     bool completeOnDisconnect = false
   }) async {
-    final channelName = await BleManager._methodChannel.invokeMethod<String>(
-      MethodName.observeConnectionState,
-      <String, dynamic>{
-        ArgumentName.deviceIdentifier: identifier,
-        ArgumentName.emitCurrentValue: emitCurrentValue,
-      },
-    ).catchError(
-      (errorJson) => throw BleError.fromJson(jsonDecode(errorJson.details)),
-    );
+    final String? channelName;
+    try {
+      channelName = await BleManager._methodChannel.invokeMethod<String>(
+        MethodName.observeConnectionState,
+        <String, dynamic>{
+          ArgumentName.deviceIdentifier: identifier,
+          ArgumentName.emitCurrentValue: emitCurrentValue,
+        },
+      );
+    } on PlatformException catch (pe) {
+      final details = pe.details as Object?;
+      if (details is String) {
+        throw BleError.fromJson(jsonDecode(details));
+      }
+      rethrow;
+    } catch (e) {
+      rethrow;
+    }
 
     final stream = _peripheralConnectionStateChanges(name: channelName)
         .map(
@@ -135,7 +148,11 @@ class Peripheral {
     } on MissingPluginException catch (_) {
       rethrow;
     } on PlatformException catch (pe) {
-      throw BleError.fromJson(jsonDecode(pe.details));
+      final details = pe.details as Object?;
+      if (details is String) {
+        throw BleError.fromJson(jsonDecode(details));
+      }
+      rethrow;
     }
   } 
 
@@ -149,8 +166,11 @@ class Peripheral {
           ArgumentName.deviceIdentifier: identifier,
       });
     } on PlatformException catch (pe) {
-      throw BleError.fromJson(jsonDecode(pe.details));
-    }
+      final details = pe.details as Object?;
+      if (details is String) {
+        throw BleError.fromJson(jsonDecode(details));
+      }
+      rethrow;    }
   }
 
   Future<List<Service>> discoverServices({List<String>? serviceUuids}) async {
@@ -164,7 +184,11 @@ class Peripheral {
         },
       );
     } on PlatformException catch (pe) {
-      throw BleError.fromJson(jsonDecode(pe.details));
+      final details = pe.details as Object?;
+      if (details is String) {
+        throw BleError.fromJson(jsonDecode(details));
+      }
+      rethrow;
     }
     final decodedJson =
         (jsonDecode(jsonString!) as List<dynamic>).cast<Map<String, dynamic>>();
@@ -190,7 +214,13 @@ class Peripheral {
         },
       );
     } on PlatformException catch (pe) {
-      throw BleError.fromJson(jsonDecode(pe.details));
+      final details = pe.details as Object?;
+      if (details is String) {
+        throw BleError.fromJson(jsonDecode(details));
+      }
+      rethrow;
+    } catch (ex) {
+      rethrow;
     }
 
     Map<String, dynamic> jsonObject = jsonDecode(jsonString!);
@@ -234,7 +264,11 @@ class Peripheral {
         },
       );
     } on PlatformException catch (pe) {
-      throw BleError.fromJson(jsonDecode(pe.details));
+      final details = pe.details as Object?;
+      if (details is String) {
+        throw BleError.fromJson(jsonDecode(details));
+      }
+      rethrow;
     }
 
     final decodedJson =
@@ -264,7 +298,11 @@ class Peripheral {
         },
       );
     } on PlatformException catch (pe) {
-      throw BleError.fromJson(jsonDecode(pe.details));
+      final details = pe.details as Object?;
+      if (details is String) {
+        throw BleError.fromJson(jsonDecode(details));
+      }
+      rethrow;
     }
 
     Map<String, dynamic> jsonObject = jsonDecode(jsonString!);
@@ -287,7 +325,11 @@ class Peripheral {
       });
       return raw!;
     } on PlatformException catch (pe) {
-      throw BleError.fromJson(jsonDecode(pe.details));
+      final details = pe.details as Object?;
+      if (details is String) {
+        throw BleError.fromJson(jsonDecode(details));
+      }
+      rethrow;
     }
   }
 
@@ -312,7 +354,11 @@ class Peripheral {
       );
       return raw!;
     } on PlatformException catch (pe) {
-      throw BleError.fromJson(jsonDecode(pe.details));
+      final details = pe.details as Object?;
+      if (details is String) {
+        throw BleError.fromJson(jsonDecode(details));
+      }
+      rethrow;
     }
   }
 
@@ -354,7 +400,11 @@ class Peripheral {
             },
           );
     } on PlatformException catch (pe) {
-      throw BleError.fromJson(jsonDecode(pe.details));
+      final details = pe.details as Object?;
+      if (details is String) {
+        throw BleError.fromJson(jsonDecode(details));
+      }
+      rethrow;
     }
     return _parseCharacteristicWithValue(rawValue!);
   }
@@ -385,8 +435,16 @@ class Peripheral {
         },
       );
     } on PlatformException catch (pe) {
-      throw BleError.fromJson(jsonDecode(pe.details));
+      final details = pe.details as Object?;
+      if (details is String) {
+        throw BleError.fromJson(jsonDecode(details));
+      }
+      rethrow;
     }
+    if (rawValue is String == false) {
+      print('$rawValue');
+    }
+
     return _parseCharacteristic(rawValue!);
   }
 
@@ -455,7 +513,11 @@ class Peripheral {
         }
       );
     } on PlatformException catch (pe) {
-      throw BleError.fromJson(jsonDecode(pe.details));
+      final details = pe.details as Object?;
+      if (details is String) {
+        throw BleError.fromJson(jsonDecode(details));
+      }
+      rethrow;
     }
 
     Map<String, dynamic> jsonObject = jsonDecode(jsonString!);
@@ -500,7 +562,11 @@ class Peripheral {
         },
       );
     } on PlatformException catch (pe) {
-      throw BleError.fromJson(jsonDecode(pe.details));
+      final details = pe.details as Object?;
+      if (details is String) {
+        throw BleError.fromJson(jsonDecode(details));
+      }
+      rethrow;
     }
 
     Map<String, dynamic> jsonObject = jsonDecode(jsonResponse!);
@@ -546,7 +612,11 @@ class Peripheral {
         },
       );
     } on PlatformException catch (pe) {
-      throw BleError.fromJson(jsonDecode(pe.details));
+      final details = pe.details as Object?;
+      if (details is String) {
+        throw BleError.fromJson(jsonDecode(details));
+      }
+      rethrow;
     }
 
     Map<String, dynamic> jsonObject = jsonDecode(jsonResponse!);

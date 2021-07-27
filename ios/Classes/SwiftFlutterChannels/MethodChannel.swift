@@ -115,12 +115,14 @@ class Call<SignatureEnumT: SignatureEnum> {
       return
     }
     switch objectOrError {
-    case .success(let objectOrError):
-      onResult(objectOrError)
+    case .success(let object):
+      onResult(object)
     case .failure(let error as BleError):
       onResult(FlutterError(bleError: error))
     case .failure(let error):
-      onResult(FlutterError(bleError: BleError(withError: error)))
+      let bleError = BleError(withError: error)
+      let flError = FlutterError(bleError: bleError)
+      onResult(flError)
     }
     isResulted = true
   }
@@ -146,8 +148,18 @@ class Call<SignatureEnumT: SignatureEnum> {
     case .success(let encodable):
       do {
         let data = try JSONEncoder().encode(encodable)
-        let jsonStr = String(data: data, encoding: .utf8)
-        _result(.success(jsonStr))
+        let jsonStr = String(data: data, encoding: .nonLossyASCII)
+//        let jsonStr: String? = data.withUnsafeBytes { rawBufferPointer in
+//          let ptr =
+//            rawBufferPointer.baseAddress?.assumingMemoryBound(to: UInt8.self)
+//          guard let ptr = ptr else { return nil }
+//          return
+//        }
+        print("HASZNOS STRING: \(jsonStr ?? "")")
+        if jsonStr == "" {
+          print("")
+        }
+        _result(.success(jsonStr ?? ""))
       } catch {
         _result(.failure(error))
       }

@@ -152,11 +152,17 @@ extension BleError {
 
 extension FlutterError {
   convenience init(bleError: BleError) {
-    let jsonString = try? JSONEncoder().encode(bleError)
+    let jsonData = try? JSONEncoder().encode(bleError)
+    let details: String
+    if let data = jsonData {
+      details = String(data: data, encoding: .utf8) ?? ""
+    } else {
+      details = ""
+    }
     self.init(
       code: "\(bleError.errorCode.rawValue)",
       message: bleError.reason,
-      details: jsonString ?? ""
+      details: details
     )
   }
   convenience init(withError error: Error) {
