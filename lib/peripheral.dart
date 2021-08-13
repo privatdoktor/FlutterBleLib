@@ -420,8 +420,8 @@ class Peripheral {
     String serviceUuid,
     String characteristicUuid,
     Uint8List value,
-    bool withResponse
-  ) async {
+    {required bool withResponse
+  }) async {
     String? rawValue;
     try {
       rawValue = await BleManager._methodChannel.invokeMethod<String>(

@@ -65,13 +65,13 @@ class Characteristic {
   /// set accordingly.
   Future<void> write(
     Uint8List value,
-    bool withResponse,
-  ) async {
+    {required bool withResponse,
+  }) async {
     await service.peripheral.writeCharacteristic(
       service.uuid, 
       uuid, 
       value, 
-      withResponse
+      withResponse: withResponse
     );
   }
 
