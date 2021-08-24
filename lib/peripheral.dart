@@ -23,6 +23,7 @@ class Peripheral {
       : name = json[_PeripheralMetadata.name],
         identifier = json[_PeripheralMetadata.identifier];
 
+// ++MH++
   /// Connects to the peripheral.
   ///
   /// Optional [isAutoConnect] controls whether to directly connect to the
@@ -49,7 +50,7 @@ class Peripheral {
     bool isAutoConnect = false,
     int requestMtu = NO_MTU_NEGOTIATION,
     bool refreshGatt = false,
-    Duration? timeout,
+    Duration? timeout, // can ignore
   }) async {
     try {
       return await BleManager._methodChannel.invokeMethod<void>(
@@ -83,6 +84,7 @@ class Peripheral {
         .receiveBroadcastStream();
   }
 
+// ++NTH++
   /// Returns a stream of [PeripheralConnectionState].
   ///
   /// By default this stream will never end, but this behaviour can be changed
@@ -136,6 +138,7 @@ class Peripheral {
     return stream;
   }
 
+// ++MH++
   /// Returns whether this peripheral is connected.
   Future<bool> isConnected() async {
     try {
@@ -156,6 +159,7 @@ class Peripheral {
     }
   } 
 
+// ++MH++
   /// Disconnects from this peripheral if it's connected or cancels pending
   /// connection.
   Future<void> disconnectOrCancelConnection() async {
@@ -173,6 +177,7 @@ class Peripheral {
       rethrow;    }
   }
 
+// ++MH++
   Future<List<Service>> discoverServices({List<String>? serviceUuids}) async {
     String? jsonString;
     try {
@@ -199,6 +204,7 @@ class Peripheral {
         .toList();
   }
 
+// ++MH++
   Future<List<Characteristic>> discoverCharacteristics(
     String serviceUuid,
     {List<String>? characteristicUuids
@@ -234,23 +240,8 @@ class Peripheral {
     }).toList();
   }
 
-  
 
-  // /// Discovers all [Service]s, [Characteristic]s and [Descriptor]s of this peripheral.
-  // /// Must be done prior to any other operation concerning those.
-  // Future<void> discoverAllServicesAndCharacteristics() async {
-  //   try {
-  //     await BleManager._methodChannel.invokeMethod(
-  //       MethodName.discoverAllServicesAndCharacteristics,
-  //       <String, dynamic>{
-  //         ArgumentName.deviceIdentifier: identifier,
-  //       },
-  //     );
-  //   } on PlatformException catch (pe) {
-  //     throw BleError.fromJson(jsonDecode(pe.details));
-  //   }
-  // }
-
+// ++MH++
   /// Returns a list of [Service]s of this peripheral.
   ///
   /// Will result in error if discovery was not done during this connection.
@@ -280,6 +271,7 @@ class Peripheral {
         .toList();
   }
 
+// ++MH++
   /// Returns a list of discovered [Characteristic]s of a [Service] identified
   /// by [servicedUuid].
   ///
@@ -315,9 +307,9 @@ class Peripheral {
     }).toList();
   }
 
+// ++MH++
   /// Reads RSSI for the peripheral.
   ///
-  /// Optional [transactionId] could be used to cancel operation.
   Future<int> rssi() async {
     try {
       final raw = await BleManager._methodChannel.invokeMethod<int>(MethodName.rssi, <String, dynamic>{
@@ -333,6 +325,7 @@ class Peripheral {
     }
   }
 
+// ++NTH++
   /// Requests new MTU value for current connection and return the negotiation
   /// result on Android, reads MTU on iOS.
   ///
@@ -378,6 +371,7 @@ class Peripheral {
             rootObject['characteristic'], service);
   }
 
+// ++MH++
   /// Reads value of [Characteristic] matching specified UUIDs.
   ///
   /// Returns value of characteristic with [characteristicUuid] for service with
@@ -409,7 +403,7 @@ class Peripheral {
     return _parseCharacteristicWithValue(rawValue!);
   }
 
-
+// ++MH++
   /// Writes value of [Characteristic] matching specified UUIDs.
   ///
   /// Writes [value] to characteristic with [characteristicUuid] for service with
@@ -458,6 +452,7 @@ class Peripheral {
           .cast();
   }
 
+// ++MH++
   /// Returns a stream of notifications/indications from [Characteristic]
   /// matching specified UUIDs.
   ///
@@ -492,6 +487,7 @@ class Peripheral {
     return 'Peripheral{\n\tname: $name, \n\tidentifier: $identifier\n}';
   }
 
+// ++NTH++
   /// Returns a list of [Descriptor]s for [Characteristic] matching specified UUIDs.
   ///
   /// Returns list of discovered Descriptors for given [serviceUuid] in specified
@@ -538,6 +534,7 @@ class Peripheral {
 
   }
 
+// ++NTH++
   /// Reads value of [Descriptor] matching specified UUIDs.
   ///
   /// Returns Descriptor object matching specified [serviceUuid],
@@ -584,6 +581,7 @@ class Peripheral {
     );
   }
 
+// ++NTH++
   /// Writes value of [Descriptor] matching specified UUIDs.
   ///
   /// Write [value] to Descriptor specified by [serviceUuid],

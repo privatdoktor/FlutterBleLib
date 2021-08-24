@@ -93,19 +93,9 @@ class BleManager {
       _adapterStateChangesEventChannel
           .receiveBroadcastStream().cast();
 
-  /// Cancels transaction's return, resulting in [BleError] with
-  /// [BleError.errorCode] set to [BleErrorCode.operationCancelled] being returned
-  /// from transaction's Future.
-  ///
-  /// The operation might be cancelled if it hadn't yet started or be run
-  /// normally, eg. writing to
-  /// characteristic, but you can dismiss awaiting for the result if,
-  /// for example, the result is no longer useful due to user's actions.
-  Future<void> cancelTransaction(String transactionId) async {
-    await BleManager._methodChannel.invokeMethod(MethodName.cancelTransaction,
-        <String, String>{ArgumentName.transactionId: transactionId});
-  }
 
+
+// ++NTH++
   Future<List<Peripheral>> restoredState() async { 
     final peripherals = await _restoreStateEvents
       .map(
@@ -129,6 +119,7 @@ class BleManager {
   }
 
 
+// ++MH++
   /// Checks whether the native client exists.
   Future<bool> isClientCreated() async {
     final raw = await BleManager._methodChannel.invokeMethod<bool>(
@@ -137,6 +128,7 @@ class BleManager {
     return raw!;
   }
 
+// ++MH++
   /// Allocates native resources.
   ///
   /// [restoreStateIdentifier] and [restoreStateAction] are iOS-specific.
@@ -159,6 +151,7 @@ class BleManager {
     });
   }
 
+// ++MH++
   /// Frees native resources.
   ///
   /// After calling this method you must call again [createClient()] before
@@ -167,6 +160,7 @@ class BleManager {
     await BleManager._methodChannel.invokeMethod(MethodName.destroyClient);
   }
   
+// ++MH++
   Stream<ScanResult> get _scanEvents {
     var scanEvents = _activeScanEvents;
     if (scanEvents == null) {
@@ -198,6 +192,7 @@ class BleManager {
     _activeScanEvents = null;
   }
 
+// ++MH++
   /// Starts scanning for peripherals.
   ///
   /// Arguments [scanMode] and [callbackType] are Android-only,
@@ -235,12 +230,14 @@ class BleManager {
     return _scanEvents;
   }
 
+// ++MH++
   /// Finishes the scan operation on the device.
   Future<void> stopPeripheralScan() async {
     await BleManager._methodChannel.invokeMethod<void>(MethodName.stopDeviceScan);
     // _resetScanEvents();  
   }
 
+// ----
   /// Sets specified [LogLevel].
   ///
   /// This sets log level for both Dart and native platform.
@@ -264,12 +261,14 @@ class BleManager {
     }
   }
 
+// ----
   LogLevel _logLevelFromString(String logLevelName) {
     print('try to get log level from: $logLevelName');
     return LogLevel.values.firstWhere(
         (e) => e.toString() == 'LogLevel.' + logLevelName.toLowerCase());
   }
 
+// ----
   /// Returns current [LogLevel].
   Future<LogLevel> logLevel() async {
     String logLevelName =
@@ -277,6 +276,7 @@ class BleManager {
     return _logLevelFromString(logLevelName);
   }
 
+// ++MH++
   /// Enables Bluetooth on Android; NOOP on iOS.
   ///
   /// Passing optional [transactionId] lets you discard the result of this
@@ -300,6 +300,7 @@ class BleManager {
     }
   }
 
+// ++MH++
   /// Disables Bluetooth on Android; NOOP on iOS.
   ///
   /// Passing optional [transactionId] lets you discard the result of this
@@ -342,6 +343,7 @@ class BleManager {
     }
   }
 
+// ++MH++
   /// Returns current state of the Bluetooth adapter.
   Future<BluetoothState> bluetoothState() async {
     final stateStr = await BleManager._methodChannel
@@ -349,6 +351,7 @@ class BleManager {
     return _mapToBluetoothState(stateStr);
   }
 
+// ++MH++
   /// Returns a stream of changes to the state of the Bluetooth adapter.
   ///
   /// By default starts the stream with the current state, but this can
@@ -369,6 +372,7 @@ class BleManager {
     return list.cast<Peripheral>();
   }
 
+// ++NTH++
   /// Returns a list of [Peripheral]: on iOS known to system, on Android
   /// known to the library.
   ///
@@ -382,6 +386,7 @@ class BleManager {
     return _parsePeripheralsJson(peripheralsJson!);
   }
 
+// ++NTH++
   /// Returns a list of [Peripheral]: on iOS connected and known to system,
   /// on Android connected and known to the library.
   ///
@@ -395,6 +400,7 @@ class BleManager {
     return _parsePeripheralsJson(peripheralsJson!);
   }
 
+// ++NTH++
   /// Creates a peripheral which may not exist or be available. Since the
   /// [peripheralId] might be a UUID or a MAC address,
   /// depending on the platform, its format is not validated.
