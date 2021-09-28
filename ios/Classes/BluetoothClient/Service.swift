@@ -17,7 +17,7 @@ struct ServiceResponse : Encodable {
     with service: CBService
   ) {
     uuid = service.uuid.fullUUIDString
-    deviceID = service.peripheral.identifier.uuidString
+    deviceID = service.peripheral?.identifier.uuidString ?? ""
     isPrimary = service.isPrimary
   }
   
@@ -53,8 +53,16 @@ extension DiscoveredService {
       _characteristicsDiscoveryCompleted = nil
       pending(.failure(.characteristicsDiscovery(service, internal: nil)))
     }
+    guard
+      let peripheral = service.peripheral
+    else {
+      completion(
+        .failure(.characteristicsDiscovery(service, internal: nil))
+      )
+      return
+    }
     _characteristicsDiscoveryCompleted = completion
-    service.peripheral.discoverCharacteristics(
+    peripheral.discoverCharacteristics(
       characteristicUUIDs,
       for: service
     )
@@ -68,8 +76,16 @@ extension DiscoveredService {
       _includedServicesDiscoveryCompleted = nil
       pending(.failure(.includedServicesDiscovery(service, internal: nil)))
     }
+    guard
+      let peripheral = service.peripheral
+    else {
+      completion(
+        .failure(.includedServicesDiscovery(service, internal: nil))
+      )
+      return
+    }
     _includedServicesDiscoveryCompleted = completion
-    service.peripheral.discoverIncludedServices(
+    peripheral.discoverIncludedServices(
       includedServiceUUIDs,
       for: service
     )

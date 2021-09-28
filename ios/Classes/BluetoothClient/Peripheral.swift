@@ -365,7 +365,8 @@ extension DiscoveredPeripheral : CBPeripheralDelegate {
     error: Error?
   ) {
     guard
-      let ds = flattenedDiscoveredServices[characteristic.service.uuid],
+      let serviceUuid = characteristic.service?.uuid,
+      let ds = flattenedDiscoveredServices[serviceUuid],
       let dc = ds.discoveredCharacteristics[characteristic.uuid]
     else {
       return
@@ -385,7 +386,8 @@ extension DiscoveredPeripheral : CBPeripheralDelegate {
     error: Error?
   ) {
     guard
-      let ds = flattenedDiscoveredServices[characteristic.service.uuid],
+      let serviceUuid = characteristic.service?.uuid,
+      let ds = flattenedDiscoveredServices[serviceUuid],
       let dc = ds.discoveredCharacteristics[characteristic.uuid]
     else {
       return
@@ -405,7 +407,8 @@ extension DiscoveredPeripheral : CBPeripheralDelegate {
     error: Error?
   ) {
     guard
-      let ds = flattenedDiscoveredServices[characteristic.service.uuid],
+      let serviceUuid = characteristic.service?.uuid,
+      let ds = flattenedDiscoveredServices[serviceUuid],
       let dc = ds.discoveredCharacteristics[characteristic.uuid]
     else {
       return
@@ -432,7 +435,8 @@ extension DiscoveredPeripheral : CBPeripheralDelegate {
     error: Error?
   ) {
     guard
-      let ser = discoveredServices[characteristic.service.uuid],
+      let serviceUuid = characteristic.service?.uuid,
+      let ser = discoveredServices[serviceUuid],
       let discoveredChar = ser.discoveredCharacteristics[characteristic.uuid]
     else {
       return
@@ -458,8 +462,10 @@ extension DiscoveredPeripheral : CBPeripheralDelegate {
     error: Error?
   ) {
     guard
-      let ser = discoveredServices[descriptor.characteristic.service.uuid],
-      let char = ser.discoveredCharacteristics[descriptor.characteristic.uuid],
+      let serviceUuid = descriptor.characteristic?.service?.uuid,
+      let ser = discoveredServices[serviceUuid],
+      let charUuid = descriptor.characteristic?.uuid,
+      let char = ser.discoveredCharacteristics[charUuid],
       let discoveredDesc = char.discoveredDescriptors[descriptor.uuid]
     else {
       return
@@ -478,8 +484,10 @@ extension DiscoveredPeripheral : CBPeripheralDelegate {
     error: Error?
   ) {
     guard
-      let ser = discoveredServices[descriptor.characteristic.service.uuid],
-      let char = ser.discoveredCharacteristics[descriptor.characteristic.uuid],
+      let serviceUuid = descriptor.characteristic?.service?.uuid,
+      let ser = discoveredServices[serviceUuid],
+      let charUuid = descriptor.characteristic?.uuid,
+      let char = ser.discoveredCharacteristics[charUuid],
       let discoveredDesc = char.discoveredDescriptors[descriptor.uuid]
     else {
       return

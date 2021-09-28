@@ -65,14 +65,13 @@ struct DescriptorResponse : Encodable {
     desc: CBDescriptor
   ) {
     let char = desc.characteristic
-    let service = char.service
-    serviceUuid = service.uuid.fullUUIDString
-    characteristicUuid = desc.characteristic.uuid.fullUUIDString
-    isCharacteristicReadable = char.properties.contains(.read)
-    isCharacteristicWritableWithResponse = char.properties.contains(.write)
-    isCharacteristicWritableWithoutResponse = char.properties.contains(.writeWithoutResponse)
-    isCharacteristicNotifiable = char.properties.contains(.notify)
-    isCharacteristicIndicatable = char.properties.contains(.indicate)
+    serviceUuid = char?.service?.uuid.fullUUIDString ?? ""
+    characteristicUuid = desc.characteristic?.uuid.fullUUIDString ?? ""
+    isCharacteristicReadable = char?.properties.contains(.read) ?? false
+    isCharacteristicWritableWithResponse = char?.properties.contains(.write) ?? false
+    isCharacteristicWritableWithoutResponse = char?.properties.contains(.writeWithoutResponse) ?? false
+    isCharacteristicNotifiable = char?.properties.contains(.notify) ?? false
+    isCharacteristicIndicatable = char?.properties.contains(.indicate) ?? false
     
     descriptorUuid = desc.uuid.fullUUIDString
     value = desc.valueAsData?.base64EncodedString()
@@ -211,8 +210,14 @@ extension DiscoveredDescriptor {
       _readCompleted = nil
       pending(.failure(.descriptorRead(descriptor, internal: nil)))
     }
+    guard
+      let peripheral = descriptor.characteristic?.service?.peripheral
+    else {
+      completion(.failure(.descriptorRead(descriptor, internal: nil)))
+      return
+    }
     _readCompleted = completion
-    descriptor.characteristic.service.peripheral.readValue(for: descriptor)
+    peripheral.readValue(for: descriptor)
   }
   func write(
     _ data: Data,
@@ -222,8 +227,14 @@ extension DiscoveredDescriptor {
       _writeCompleted = nil
       pending(.failure(.descriptorWrite(descriptor, internal: nil)))
     }
+    guard
+      let peripheral = descriptor.characteristic?.service?.peripheral
+    else {
+      completion(.failure(.descriptorWrite(descriptor, internal: nil)))
+      return
+    }
     _writeCompleted = completion
-    descriptor.characteristic.service.peripheral.writeValue(
+    peripheral.writeValue(
       data,
       for: descriptor
     )

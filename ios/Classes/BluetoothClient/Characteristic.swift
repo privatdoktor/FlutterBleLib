@@ -49,7 +49,7 @@ struct SingleCharacteristicResponse : Encodable {
   init(
     char: CBCharacteristic
   ) {
-    serviceUuid = char.service.uuid.fullUUIDString
+    serviceUuid = char.service?.uuid.fullUUIDString ?? ""
         
     characteristic =
       CharacteristicResponse(char: char)
@@ -106,7 +106,7 @@ struct SingleCharacteristicWithValueResponse : Encodable {
   init(
     char: CBCharacteristic
   ) {
-    serviceUuid = char.service.uuid.fullUUIDString
+    serviceUuid = char.service?.uuid.fullUUIDString ?? ""
         
     characteristic =
       CharacteristicWithValueResponse(char: char)
@@ -159,11 +159,12 @@ extension DiscoveredCharacteristic {
     _ data: Data
   ) -> Result<CBCharacteristic, PeripheralError> {
     guard
+      let periheral = characteristic.service?.peripheral,
       characteristic.properties.contains(.writeWithoutResponse)
     else {
       return .failure(.characteristicWrite(characteristic, internal: nil))
     }
-    characteristic.service.peripheral.writeValue(
+    periheral.writeValue(
       data,
       for: characteristic,
       type: .withoutResponse
@@ -186,8 +187,17 @@ extension DiscoveredCharacteristic {
       _writeCompleted = nil
       pending(.failure(.characteristicWrite(characteristic, internal: nil)))
     }
+      
+    guard
+      let peripheral = characteristic.service?.peripheral
+    else {
+      completion(
+        .failure(.characteristicWrite(characteristic, internal: nil))
+      )
+      return
+    }
     _writeCompleted = completion
-    characteristic.service.peripheral.writeValue(
+      peripheral.writeValue(
       data,
       for: characteristic,
       type: .withResponse
@@ -207,8 +217,17 @@ extension DiscoveredCharacteristic {
       _descriptorsDiscoveryCompleted = nil
       pending(.failure(.descriptorsDiscovery(characteristic, internal: nil)))
     }
+    
+    guard
+      let peripheral = characteristic.service?.peripheral
+    else {
+      completion(
+        .failure(.characteristicWrite(characteristic, internal: nil))
+      )
+      return
+    }
     _descriptorsDiscoveryCompleted = completion
-    characteristic.service.peripheral.discoverDescriptors(
+    peripheral.discoverDescriptors(
       for: characteristic
     )
   }
@@ -219,8 +238,16 @@ extension DiscoveredCharacteristic {
       _readCompleted = nil
       pending(.failure(.characteristicRead(characteristic, internal: nil)))
     }
+    guard
+      let peripheral = characteristic.service?.peripheral
+    else {
+      completion(
+        .failure(.characteristicRead(characteristic, internal: nil))
+      )
+      return
+    }
     _readCompleted = completion
-    characteristic.service.peripheral.readValue(for: characteristic)
+    peripheral.readValue(for: characteristic)
   }
   func write(
     _ data: Data,
@@ -248,8 +275,14 @@ extension DiscoveredCharacteristic {
       _setNorifyCompleted = nil
       pending(.failure(.characteristicSetNotify(characteristic, internal: nil)))
     }
+    guard
+      let peripheral = characteristic.service?.peripheral
+    else {
+      completion(.failure(.characteristicSetNotify(characteristic, internal: nil)))
+      return
+    }
     _setNorifyCompleted = completion
-    characteristic.service.peripheral.setNotifyValue(
+    peripheral.setNotifyValue(
       enabled,
       for: characteristic
     )

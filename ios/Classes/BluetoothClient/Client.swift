@@ -54,7 +54,7 @@ enum ClientError : LocalizedError {
   case notCreated
   case invalidState(CBManagerState?)
   case invalidUUIDString(String)
-  case noPeripheralFoundFor(UUID, expectedState: CBPeripheralState? = nil)
+  case noPeripheralFoundFor(UUID?, expectedState: CBPeripheralState? = nil)
   case peripheralConnection(internal: Swift.Error?)
   case peripheralDisconnection(internal: Swift.Error?)
   case peripheral(PeripheralError)
@@ -641,7 +641,7 @@ extension Client {
       DescriptorsForPeripheralResponse(
         with: char.descriptors ?? [],
         char: char,
-        service: char.service
+        service: ds.service
       )
     )
   }
@@ -839,7 +839,16 @@ extension Client {
     eventSteam: Stream<SingleCharacteristicWithValueResponse>,
     completion: @escaping (Result<(), ClientError>) -> ()
   ) {
-    let puuid = dc.characteristic.service.peripheral.identifier
+    guard
+      let peripheral = dc.characteristic.service?.peripheral
+    else {
+      completion(
+        .failure(.noPeripheralFoundFor(nil, expectedState: nil))
+      )
+      return
+    }
+    let puuid = peripheral.identifier
+    
     guard
       let dp =
         discoveredPeripherals[puuid]
@@ -852,7 +861,7 @@ extension Client {
     eventSteam.afterCancelDo = {
       let char = dc.characteristic
       if char.isNotifying {
-        char.service.peripheral.setNotifyValue(false, for: char)
+        peripheral.setNotifyValue(false, for: char)
       }
       dc.onValueUpdate(handler: nil)
     }
