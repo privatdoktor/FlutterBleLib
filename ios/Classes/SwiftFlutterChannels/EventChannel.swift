@@ -89,7 +89,6 @@ extension EventChannel : FlutterStreamHandler {
     flutterEventSink = nil
     cleanUpClosure?()
     cleanUpClosure = nil
-//    flutterEventChannel.setStreamHandler(nil)
     return nil
   }
 }

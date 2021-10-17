@@ -10,7 +10,11 @@ class PeripheralTestOperations {
   final BleManager bleManager;
 
   PeripheralTestOperations(
-      this.bleManager, this.peripheral, this.log, this.logError);
+    this.bleManager, 
+    this.peripheral, 
+    this.log, 
+    this.logError
+  );
 
   Future<void> connect() async {
     await _runWithErrorHandling(() async {
@@ -20,42 +24,21 @@ class PeripheralTestOperations {
     });
   }
 
-  Future<void> cancelTransaction() async {
-    await _runWithErrorHandling(() async {
-      log("Starting operation to cancel...");
-      peripheral
-          .discoverAllServicesAndCharacteristics()
-          .catchError((error) {
-        BleError bleError = error as BleError;
-        return logError("Cancelled operation caught an error: "
-            "\nerror code ${bleError.errorCode.value},"
-            "\nreason: ${bleError.reason}");
-      });
-      log("Operation to cancel started: discover all"
-          " services and characteristics");
-
-      log("Cancelling operation...");
-      await bleManager.cancelTransaction("test");
-      log("Operation cancelled!");
-    });
-  }
-
   Future<void> discovery() async => await _runWithErrorHandling(() async {
-        await peripheral.discoverAllServicesAndCharacteristics();
-        List<Service> services = await peripheral.services();
+        List<Service> services = await peripheral.discoverServices();
         log("PRINTING SERVICES for \n${peripheral.name}");
         services.forEach((service) => log("Found service \n${service.uuid}"));
         Service service = services.first;
         log("PRINTING CHARACTERISTICS FOR SERVICE \n${service.uuid}");
 
-        List<Characteristic> characteristics = await service.characteristics();
+        List<Characteristic> characteristics = await service.discoverCharacteristics();
         characteristics.forEach((characteristic) {
           log("${characteristic.uuid}");
         });
 
         log("PRINTING CHARACTERISTICS FROM \nPERIPHERAL for the same service");
         List<Characteristic> characteristicFromPeripheral =
-            await peripheral.characteristics(service.uuid);
+            await peripheral.discoverCharacteristics(service.uuid);
         characteristicFromPeripheral.forEach((characteristic) =>
             log("Found characteristic \n ${characteristic.uuid}"));
 
@@ -175,10 +158,11 @@ class PeripheralTestOperations {
       }
 
       await peripheral.writeCharacteristic(
-          SensorTagTemperatureUuids.temperatureService,
-          SensorTagTemperatureUuids.temperatureConfigCharacteristic,
-          Uint8List.fromList([valueToSave]),
-          false);
+        SensorTagTemperatureUuids.temperatureService,
+        SensorTagTemperatureUuids.temperatureConfigCharacteristic,
+        Uint8List.fromList([valueToSave]),
+        withResponse: false
+      );
 
       log("Written \"$valueToSave\" to temperature config");
     });
@@ -207,10 +191,11 @@ class PeripheralTestOperations {
       }
 
       await service.peripheral.writeCharacteristic(
-          service.uuid,
-          SensorTagTemperatureUuids.temperatureConfigCharacteristic,
-          Uint8List.fromList([valueToSave]),
-          false);
+        service.uuid,
+        SensorTagTemperatureUuids.temperatureConfigCharacteristic,
+        Uint8List.fromList([valueToSave]),
+        withResponse: false
+      );
 
       log("Written \"$valueToSave\" to temperature config");
     });
@@ -238,7 +223,10 @@ class PeripheralTestOperations {
         log("Turning off temperature update via characteristic");
         valueToSave = 0;
       }
-      await characteristic.write(Uint8List.fromList([valueToSave]), false);
+      await characteristic.write(
+        Uint8List.fromList([valueToSave]),
+        withResponse:false
+      );
       log("Written \"$valueToSave\" to temperature config");
     });
   }
@@ -308,10 +296,11 @@ class PeripheralTestOperations {
       );
       log("Turning off temperature update");
       await peripheral.writeCharacteristic(
-          SensorTagTemperatureUuids.temperatureService,
-          SensorTagTemperatureUuids.temperatureConfigCharacteristic,
-          Uint8List.fromList([0]),
-          false);
+        SensorTagTemperatureUuids.temperatureService,
+        SensorTagTemperatureUuids.temperatureConfigCharacteristic,
+        Uint8List.fromList([0]),
+        withResponse:false
+      );
       log("Turned off temperature update");
 
       log("Waiting one second for the reading");
@@ -325,10 +314,11 @@ class PeripheralTestOperations {
 
       log("Turning on temperature update");
       await peripheral.writeCharacteristic(
-          SensorTagTemperatureUuids.temperatureService,
-          SensorTagTemperatureUuids.temperatureConfigCharacteristic,
-          Uint8List.fromList([1]),
-          false);
+        SensorTagTemperatureUuids.temperatureService,
+        SensorTagTemperatureUuids.temperatureConfigCharacteristic,
+        Uint8List.fromList([1]),
+        withResponse: false
+      );
 
       log("Turned on temperature update");
 
@@ -336,12 +326,12 @@ class PeripheralTestOperations {
       await Future.delayed(Duration(seconds: 1));
       log("Reading temperature");
       readValue = await peripheral.readCharacteristic(
-          SensorTagTemperatureUuids.temperatureService,
-          SensorTagTemperatureUuids.temperatureDataCharacteristic);
+        SensorTagTemperatureUuids.temperatureService,
+        SensorTagTemperatureUuids.temperatureDataCharacteristic
+      );
       log("Read temperature value ${_convertToTemperature(readValue.value)}C");
 
       log("Canceling temperature monitoring");
-      await bleManager.cancelTransaction("1");
     });
   }
 
@@ -370,7 +360,7 @@ class PeripheralTestOperations {
         service.uuid,
         SensorTagTemperatureUuids.temperatureConfigCharacteristic,
         Uint8List.fromList([0]),
-        false,
+        withResponse: false,
       );
       log("Turned off temperature update");
 
@@ -386,10 +376,11 @@ class PeripheralTestOperations {
 
       log("Turning on temperature update");
       await service.peripheral.writeCharacteristic(
-          service.uuid,
-          SensorTagTemperatureUuids.temperatureConfigCharacteristic,
-          Uint8List.fromList([1]),
-          false);
+        service.uuid,
+        SensorTagTemperatureUuids.temperatureConfigCharacteristic,
+        Uint8List.fromList([1]),
+        withResponse: false
+      );
       log("Turned on temperature update");
 
       log("Waiting one second for the reading");
@@ -400,8 +391,7 @@ class PeripheralTestOperations {
           service.uuid,
           SensorTagTemperatureUuids.temperatureDataCharacteristic);
       log("Read temperature value ${_convertToTemperature(dataCharacteristic.value)}C");
-      log("Canceling temperature monitoring");
-      await bleManager.cancelTransaction("2");
+
     });
   }
 
@@ -436,7 +426,10 @@ class PeripheralTestOperations {
       );
 
       log("Turning off temperature update");
-      await configCharacteristic.write(Uint8List.fromList([0]), false);
+      await configCharacteristic.write(
+        Uint8List.fromList([0]), 
+        withResponse: false
+      );
       log("Turned off temperature update");
 
       log("Waiting one second for the reading");
@@ -447,7 +440,10 @@ class PeripheralTestOperations {
       log("Read temperature config value \n$value");
 
       log("Turning on temperature update");
-      await configCharacteristic.write(Uint8List.fromList([1]), false);
+      await configCharacteristic.write(
+        Uint8List.fromList([1]), 
+        withResponse: false
+      );
       log("Turned on temperature update");
 
       log("Waiting one second for the reading");
@@ -457,8 +453,6 @@ class PeripheralTestOperations {
       value = await configCharacteristic.read();
       log("Read temperature config value \n$value");
 
-      log("Canceling temperature monitoring");
-      await bleManager.cancelTransaction("3");
     });
   }
 

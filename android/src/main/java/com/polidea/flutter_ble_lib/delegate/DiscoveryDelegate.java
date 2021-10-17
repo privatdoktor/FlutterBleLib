@@ -38,12 +38,10 @@ public class DiscoveryDelegate extends CallDelegate {
 
     private static List<String> supportedMethods = Arrays.asList(
             MethodName.DISCOVER_ALL_SERVICES_AND_CHARACTERISTICS,
+            MethodName.DISCOVER_SERVICES,
+            MethodName.DISCOVER_CHARACTERISTICS,
             MethodName.GET_CHARACTERISTICS,
             MethodName.GET_SERVICES,
-            MethodName.GET_CHARACTERISTICS_FOR_SERVICE,
-
-            MethodName.GET_DESCRIPTORS_FOR_CHARACTERISTIC,
-            MethodName.GET_DESCRIPTORS_FOR_SERVICE,
             MethodName.GET_DESCRIPTORS_FOR_DEVICE
     );
 
@@ -58,7 +56,19 @@ public class DiscoveryDelegate extends CallDelegate {
             case MethodName.DISCOVER_ALL_SERVICES_AND_CHARACTERISTICS:
                 discoverAllServicesAndCharacteristics(
                         call.<String>argument(ArgumentKey.DEVICE_IDENTIFIER),
-                        call.<String>argument(ArgumentKey.TRANSACTION_ID),
+                        result);
+                return;
+            case MethodName.DISCOVER_SERVICES:
+                discoverServices(
+                        call.<String>argument(ArgumentKey.DEVICE_IDENTIFIER),
+                        call.argument(ArgumentKey.SERVICE_UUIDS),
+                        result);
+                return;
+            case MethodName.DISCOVER_CHARACTERISTICS:
+                discoverCharacteristics(
+                        call.<String>argument(ArgumentKey.DEVICE_IDENTIFIER),
+                        call.<String>argument(ArgumentKey.SERVICE_UUID),
+                        call.argument(ArgumentKey.CHARACTERISTIC_UUIDS),
                         result);
                 return;
             case MethodName.GET_CHARACTERISTICS:
@@ -71,22 +81,6 @@ public class DiscoveryDelegate extends CallDelegate {
             case MethodName.GET_SERVICES:
                 getServices(
                         call.<String>argument(ArgumentKey.DEVICE_IDENTIFIER),
-                        result
-                );
-                return;
-            case MethodName.GET_CHARACTERISTICS_FOR_SERVICE:
-                getCharacteristicsForService(call.<Integer>argument(ArgumentKey.SERVICE_IDENTIFIER), result);
-                return;
-            case MethodName.GET_DESCRIPTORS_FOR_CHARACTERISTIC:
-                getDescriptorsForCharacteristic(
-                        call.<Integer>argument(ArgumentKey.CHARACTERISTIC_IDENTIFIER),
-                        result
-                );
-                return;
-            case MethodName.GET_DESCRIPTORS_FOR_SERVICE:
-                getDescriptorsForService(
-                        call.<Integer>argument(ArgumentKey.SERVICE_IDENTIFIER),
-                        call.<String>argument(ArgumentKey.CHARACTERISTIC_UUID),
                         result
                 );
                 return;
@@ -103,8 +97,44 @@ public class DiscoveryDelegate extends CallDelegate {
         }
     }
 
-    private void discoverAllServicesAndCharacteristics(String deviceId, String transactionId, final MethodChannel.Result result) {
-        final SafeMainThreadResolver resolver = new SafeMainThreadResolver<>(
+    private void discoverServices(String deviceId, List<String> serviceUuids, final MethodChannel.Result result) {
+        _discoverAllServicesAndCharacteristics(
+                deviceId,
+                new OnSuccessCallback<Object>() {
+                    @Override
+                    public void onSuccess(Object data) {
+                        getServices(deviceId, result);
+                    }
+                },
+                new OnErrorCallback() {
+                    @Override
+                    public void onError(BleError error) {
+                        failWithError(result, error);
+                    }
+                });
+    }
+
+    private void discoverCharacteristics(String deviceId,String serviceUuid, List<String> characteristicsUuids, final MethodChannel.Result result) {
+        _discoverAllServicesAndCharacteristics(
+                deviceId,
+                new OnSuccessCallback<Object>() {
+                    @Override
+                    public void onSuccess(Object data) {
+                        getCharacteristics(deviceId, serviceUuid, result);
+                    }
+                },
+                new OnErrorCallback() {
+                    @Override
+                    public void onError(BleError error) {
+                        failWithError(result, error);
+                    }
+                });
+    }
+
+
+    private void discoverAllServicesAndCharacteristics(String deviceId, final MethodChannel.Result result) {
+        _discoverAllServicesAndCharacteristics(
+                deviceId,
                 new OnSuccessCallback<Object>() {
                     @Override
                     public void onSuccess(Object data) {
@@ -117,8 +147,19 @@ public class DiscoveryDelegate extends CallDelegate {
                         failWithError(result, error);
                     }
                 });
+    }
 
-        adapter.discoverAllServicesAndCharacteristicsForDevice(deviceId, transactionId,
+    private void _discoverAllServicesAndCharacteristics(
+            String deviceId,
+            OnSuccessCallback<Object> onSuccessCallback,
+            OnErrorCallback onErrorCallback
+            ) {
+        final SafeMainThreadResolver resolver = new SafeMainThreadResolver<>(
+                onSuccessCallback,
+                onErrorCallback
+        );
+
+        adapter.discoverAllServicesAndCharacteristicsForDevice(deviceId, UUID.randomUUID().toString(),
                 new OnSuccessCallback<Device>() {
                     @Override
                     public void onSuccess(Device data) {
@@ -169,48 +210,6 @@ public class DiscoveryDelegate extends CallDelegate {
             result.success(serviceJsonConverter.toJson(services));
         } catch (BleError error) {
             error.printStackTrace();
-            failWithError(result, error);
-        } catch (JSONException e) {
-            e.printStackTrace();
-            result.error(null, e.getMessage(), null);
-        }
-    }
-
-    private void getCharacteristicsForService(Integer serviceId, final MethodChannel.Result result) {
-        try {
-            List<Characteristic> characteristics = adapter.getCharacteristicsForService(serviceId);
-            result.success(characteristicJsonConverter.toJson(characteristics));
-        } catch (BleError error) {
-            error.printStackTrace();
-            failWithError(result, error);
-        } catch (JSONException e) {
-            e.printStackTrace();
-            result.error(null, e.getMessage(), null);
-        }
-    }
-
-    private void getDescriptorsForCharacteristic(
-            final int characteristicId,
-            final MethodChannel.Result result) {
-        try {
-            List<Descriptor> descriptors = adapter.descriptorsForCharacteristic(characteristicId);
-            result.success(multiDescriptorsResponseJsonConverter.toJson(descriptors));
-        } catch (BleError error) {
-            failWithError(result, error);
-        } catch (JSONException e) {
-            e.printStackTrace();
-            result.error(null, e.getMessage(), null);
-        }
-    }
-
-    private void getDescriptorsForService(
-            final int serviceId,
-            final String characteristicUuid,
-            final MethodChannel.Result result) {
-        try {
-            List<Descriptor> descriptors = adapter.descriptorsForService(serviceId, characteristicUuid);
-            result.success(multiDescriptorsResponseJsonConverter.toJson(descriptors));
-        } catch (BleError error) {
             failWithError(result, error);
         } catch (JSONException e) {
             e.printStackTrace();

@@ -6,8 +6,6 @@ public interface ArgumentKey {
     String CALLBACK_TYPE = "callbackType";
     String UUIDS = "uuids";
 
-    String TRANSACTION_ID = "transactionId";
-
     String DEVICE_IDENTIFIER = "deviceIdentifier";
     String IS_AUTO_CONNECT = "isAutoConnect";
     String REQUEST_MTU = "requestMtu";
@@ -18,11 +16,10 @@ public interface ArgumentKey {
     String LOG_LEVEL = "logLevel";
 
     String SERVICE_UUID = "serviceUuid";
-    String SERVICE_IDENTIFIER = "serviceId";
+    String SERVICE_UUIDS = "serviceUuids";
     String CHARACTERISTIC_UUID = "characteristicUuid";
-    String CHARACTERISTIC_IDENTIFIER = "characteristicIdentifier";
+    String CHARACTERISTIC_UUIDS = "characteristicUuids";
     String DESCRIPTOR_UUID = "descriptorUuid";
-    String DESCRIPTOR_IDENTIFIER = "descriptorIdentifier";
     String VALUE = "value";
     String WITH_RESPONSE = "withResponse";
 

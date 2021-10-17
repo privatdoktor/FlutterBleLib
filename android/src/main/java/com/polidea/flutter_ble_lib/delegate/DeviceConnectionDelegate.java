@@ -5,6 +5,7 @@ import com.polidea.flutter_ble_lib.SafeMainThreadResolver;
 import com.polidea.flutter_ble_lib.constant.ArgumentKey;
 import com.polidea.flutter_ble_lib.constant.MethodName;
 import com.polidea.flutter_ble_lib.converter.BleErrorJsonConverter;
+import com.polidea.flutter_ble_lib.event.CharacteristicsMonitorStreamHandler;
 import com.polidea.flutter_ble_lib.event.ConnectionStateStreamHandler;
 import com.polidea.multiplatformbleadapter.BleAdapter;
 import com.polidea.multiplatformbleadapter.ConnectionOptions;
@@ -17,9 +18,13 @@ import com.polidea.multiplatformbleadapter.RefreshGattMoment;
 import com.polidea.multiplatformbleadapter.errors.BleError;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import androidx.annotation.NonNull;
+
+import io.flutter.plugin.common.BinaryMessenger;
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 
@@ -33,13 +38,15 @@ public class DeviceConnectionDelegate extends CallDelegate {
     );
 
     private BleAdapter bleAdapter;
-    private ConnectionStateStreamHandler streamHandler;
-    private BleErrorJsonConverter bleErrorJsonConverter = new BleErrorJsonConverter();
+    private final Map<String, ConnectionStateStreamHandler> streamHandlers = new HashMap<>();
 
-    public DeviceConnectionDelegate(BleAdapter bleAdapter, ConnectionStateStreamHandler streamHandler) {
+    private BleErrorJsonConverter bleErrorJsonConverter = new BleErrorJsonConverter();
+    @NonNull private final BinaryMessenger binaryMessenger;
+
+    public DeviceConnectionDelegate(BleAdapter bleAdapter, BinaryMessenger binaryMessenger) {
         super(supportedMethods);
         this.bleAdapter = bleAdapter;
-        this.streamHandler = streamHandler;
+        this.binaryMessenger = binaryMessenger;
     }
 
     @Override
@@ -88,6 +95,10 @@ public class DeviceConnectionDelegate extends CallDelegate {
         RefreshGattMoment refreshGattMoment = null;
         if (refreshGatt) refreshGattMoment = RefreshGattMoment.ON_CONNECTED;
 
+        final ConnectionStateStreamHandler streamHandler =
+                new ConnectionStateStreamHandler(binaryMessenger, deviceId);
+        streamHandlers.put(deviceId, streamHandler);
+
         final SafeMainThreadResolver safeMainThreadResolver = new SafeMainThreadResolver<>(
                 new OnSuccessCallback<Object>() {
                     @Override
@@ -99,6 +110,7 @@ public class DeviceConnectionDelegate extends CallDelegate {
                     @Override
                     public void onError(BleError error) {
                         result.error(String.valueOf(error.errorCode.code), error.reason, bleErrorJsonConverter.toJson(error));
+                        streamHandler.end();
                     }
                 });
 
@@ -126,7 +138,7 @@ public class DeviceConnectionDelegate extends CallDelegate {
 
     private void observeConnectionState(final String deviceId, boolean emitCurrentValue, @NonNull final MethodChannel.Result result) {
         //emit current value if needed; rest is published automatically through connectToDevice()
-
+        final ConnectionStateStreamHandler streamHandler = streamHandlers.get(deviceId);
         final SafeMainThreadResolver safeMainThreadResolver = new SafeMainThreadResolver<>(
                 new OnSuccessCallback<Boolean>() {
                     @Override
@@ -138,7 +150,7 @@ public class DeviceConnectionDelegate extends CallDelegate {
                             state = ConnectionState.DISCONNECTED;
 
                         streamHandler.onNewConnectionState(new ConnectionStateChange(deviceId, state));
-                        result.success(null);
+                        result.success(streamHandler.name);
                     }
                 },
                 new OnErrorCallback() {
@@ -162,7 +174,7 @@ public class DeviceConnectionDelegate extends CallDelegate {
                         }
                     });
         } else {
-            result.success(null);
+            result.success(streamHandler.name);
         }
     }
 

@@ -3,6 +3,8 @@ package com.polidea.flutter_ble_lib.delegate;
 import android.os.Handler;
 import android.os.Looper;
 
+import androidx.annotation.NonNull;
+
 import com.polidea.flutter_ble_lib.BleErrorFactory;
 import com.polidea.flutter_ble_lib.SafeMainThreadResolver;
 import com.polidea.flutter_ble_lib.SingleCharacteristicResponse;
@@ -13,160 +15,77 @@ import com.polidea.flutter_ble_lib.converter.SingleCharacteristicResponseJsonCon
 import com.polidea.flutter_ble_lib.event.CharacteristicsMonitorStreamHandler;
 import com.polidea.multiplatformbleadapter.BleAdapter;
 import com.polidea.multiplatformbleadapter.Characteristic;
-import com.polidea.multiplatformbleadapter.OnErrorCallback;
-import com.polidea.multiplatformbleadapter.OnEventCallback;
-import com.polidea.multiplatformbleadapter.OnSuccessCallback;
-import com.polidea.multiplatformbleadapter.errors.BleError;
 import com.polidea.multiplatformbleadapter.utils.Base64Converter;
 
 import org.json.JSONException;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
-import androidx.annotation.NonNull;
+import io.flutter.plugin.common.BinaryMessenger;
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 
 public class CharacteristicsDelegate extends CallDelegate {
 
-    private static List<String> supportedMethods = Arrays.asList(
-            MethodName.READ_CHARACTERISTIC_FOR_IDENTIFIER,
+    private static final List<String> supportedMethods = Arrays.asList(
             MethodName.READ_CHARACTERISTIC_FOR_DEVICE,
-            MethodName.READ_CHARACTERISTIC_FOR_SERVICE,
-            MethodName.WRITE_CHARACTERISTIC_FOR_IDENTIFIER,
             MethodName.WRITE_CHARACTERISTIC_FOR_DEVICE,
-            MethodName.WRITE_CHARACTERISTIC_FOR_SERVICE,
-            MethodName.MONITOR_CHARACTERISTIC_FOR_IDENTIFIER,
-            MethodName.MONITOR_CHARACTERISTIC_FOR_DEVICE,
-            MethodName.MONITOR_CHARACTERISTIC_FOR_SERVICE
+            MethodName.MONITOR_CHARACTERISTIC_FOR_DEVICE
     );
 
-    private BleAdapter bleAdapter;
-    private SingleCharacteristicResponseJsonConverter characteristicsResponseJsonConverter =
+    private final BleAdapter bleAdapter;
+    private final SingleCharacteristicResponseJsonConverter characteristicsResponseJsonConverter =
             new SingleCharacteristicResponseJsonConverter();
-    private CharacteristicsMonitorStreamHandler characteristicsMonitorStreamHandler;
-    private BleErrorJsonConverter bleErrorJsonConverter = new BleErrorJsonConverter();
-    private Handler mainThreadHandler = new Handler(Looper.getMainLooper());
+    @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
+    private final Map<String, CharacteristicsMonitorStreamHandler> characteristicsMonitorStreamHandlers = new HashMap<>();
+    private final BleErrorJsonConverter bleErrorJsonConverter = new BleErrorJsonConverter();
+    private final Handler mainThreadHandler = new Handler(Looper.getMainLooper());
+    @NonNull private final BinaryMessenger binaryMessenger;
 
-    public CharacteristicsDelegate(BleAdapter bleAdapter, CharacteristicsMonitorStreamHandler characteristicsMonitorStreamHandler) {
+    public CharacteristicsDelegate(BleAdapter bleAdapter, @NonNull BinaryMessenger binaryMessenger) {
         super(supportedMethods);
         this.bleAdapter = bleAdapter;
-        this.characteristicsMonitorStreamHandler = characteristicsMonitorStreamHandler;
+        this.binaryMessenger = binaryMessenger;
     }
 
     @Override
     public void onMethodCall(@NonNull MethodCall call, @NonNull MethodChannel.Result result) {
         switch (call.method) {
-            case MethodName.READ_CHARACTERISTIC_FOR_IDENTIFIER:
-                readCharacteristicForIdentifier(
-                        call.<Integer>argument(ArgumentKey.CHARACTERISTIC_IDENTIFIER),
-                        call.<String>argument(ArgumentKey.TRANSACTION_ID),
-                        result);
-                return;
             case MethodName.READ_CHARACTERISTIC_FOR_DEVICE:
                 readCharacteristicForDevice(
-                        call.<String>argument(ArgumentKey.DEVICE_IDENTIFIER),
-                        call.<String>argument(ArgumentKey.SERVICE_UUID),
-                        call.<String>argument(ArgumentKey.CHARACTERISTIC_UUID),
-                        call.<String>argument(ArgumentKey.TRANSACTION_ID),
-                        result);
-                return;
-            case MethodName.READ_CHARACTERISTIC_FOR_SERVICE:
-                readCharacteristicForService(
-                        call.<Integer>argument(ArgumentKey.SERVICE_IDENTIFIER),
-                        call.<String>argument(ArgumentKey.CHARACTERISTIC_UUID),
-                        call.<String>argument(ArgumentKey.TRANSACTION_ID),
-                        result);
-                return;
-            case MethodName.WRITE_CHARACTERISTIC_FOR_IDENTIFIER:
-                writeCharacteristicForIdentifier(
-                        call.<Integer>argument(ArgumentKey.CHARACTERISTIC_IDENTIFIER),
-                        call.<byte[]>argument(ArgumentKey.VALUE),
-                        call.<Boolean>argument(ArgumentKey.WITH_RESPONSE),
-                        call.<String>argument(ArgumentKey.TRANSACTION_ID),
+                        call.argument(ArgumentKey.DEVICE_IDENTIFIER),
+                        call.argument(ArgumentKey.SERVICE_UUID),
+                        call.argument(ArgumentKey.CHARACTERISTIC_UUID),
+                        UUID.randomUUID().toString(),
                         result);
                 return;
             case MethodName.WRITE_CHARACTERISTIC_FOR_DEVICE:
+                final Boolean withResponseObj = call.<Boolean>argument(ArgumentKey.WITH_RESPONSE);
+                final boolean withResponse = withResponseObj != null && withResponseObj;
                 writeCharacteristicForDevice(
-                        call.<String>argument(ArgumentKey.DEVICE_IDENTIFIER),
-                        call.<String>argument(ArgumentKey.SERVICE_UUID),
-                        call.<String>argument(ArgumentKey.CHARACTERISTIC_UUID),
-                        call.<byte[]>argument(ArgumentKey.VALUE),
-                        call.<Boolean>argument(ArgumentKey.WITH_RESPONSE),
-                        call.<String>argument(ArgumentKey.TRANSACTION_ID),
-                        result);
-                return;
-            case MethodName.WRITE_CHARACTERISTIC_FOR_SERVICE:
-                writeCharacteristicForService(
-                        call.<Integer>argument(ArgumentKey.SERVICE_IDENTIFIER),
-                        call.<String>argument(ArgumentKey.CHARACTERISTIC_UUID),
-                        call.<byte[]>argument(ArgumentKey.VALUE),
-                        call.<Boolean>argument(ArgumentKey.WITH_RESPONSE),
-                        call.<String>argument(ArgumentKey.TRANSACTION_ID),
-                        result);
-                return;
-            case MethodName.MONITOR_CHARACTERISTIC_FOR_IDENTIFIER:
-                monitorCharacteristicForIdentifier(
-                        call.<Integer>argument(ArgumentKey.CHARACTERISTIC_IDENTIFIER),
-                        call.<String>argument(ArgumentKey.TRANSACTION_ID),
+                        call.argument(ArgumentKey.DEVICE_IDENTIFIER),
+                        call.argument(ArgumentKey.SERVICE_UUID),
+                        call.argument(ArgumentKey.CHARACTERISTIC_UUID),
+                        call.argument(ArgumentKey.VALUE),
+                        withResponse,
+                        UUID.randomUUID().toString(),
                         result);
                 return;
             case MethodName.MONITOR_CHARACTERISTIC_FOR_DEVICE:
                 monitorCharacteristicForDevice(
-                        call.<String>argument(ArgumentKey.DEVICE_IDENTIFIER),
-                        call.<String>argument(ArgumentKey.SERVICE_UUID),
-                        call.<String>argument(ArgumentKey.CHARACTERISTIC_UUID),
-                        call.<String>argument(ArgumentKey.TRANSACTION_ID),
-                        result);
-                return;
-            case MethodName.MONITOR_CHARACTERISTIC_FOR_SERVICE:
-                monitorCharacteristicForService(
-                        call.<Integer>argument(ArgumentKey.SERVICE_IDENTIFIER),
-                        call.<String>argument(ArgumentKey.CHARACTERISTIC_UUID),
-                        call.<String>argument(ArgumentKey.TRANSACTION_ID),
+                        call.argument(ArgumentKey.DEVICE_IDENTIFIER),
+                        call.argument(ArgumentKey.SERVICE_UUID),
+                        call.argument(ArgumentKey.CHARACTERISTIC_UUID),
+                        UUID.randomUUID().toString(),
                         result);
                 return;
             default:
                 throw new IllegalArgumentException(call.method + " cannot be handled by this delegate");
         }
-    }
-
-    private void readCharacteristicForIdentifier(
-            int characteristicIdentifier,
-            final String transactionId,
-            final MethodChannel.Result result) {
-        final SafeMainThreadResolver<Characteristic> safeMainThreadResolver = new SafeMainThreadResolver<>(
-                new OnSuccessCallback<Characteristic>() {
-                    @Override
-                    public void onSuccess(Characteristic data) {
-                        try {
-                            result.success(characteristicsResponseJsonConverter.toJson(createCharacteristicResponse(data, transactionId)));
-                        } catch (JSONException e) {
-                            e.printStackTrace();
-                            result.error(null, e.getMessage(), null);
-                        }
-                    }
-                },
-                new OnErrorCallback() {
-                    @Override
-                    public void onError(BleError error) {
-                        result.error(String.valueOf(error.errorCode.code), error.reason, bleErrorJsonConverter.toJson(error));
-                    }
-                }
-        );
-        bleAdapter.readCharacteristic(characteristicIdentifier, transactionId,
-                new OnSuccessCallback<Characteristic>() {
-                    @Override
-                    public void onSuccess(Characteristic data) {
-                        safeMainThreadResolver.onSuccess(data);
-                    }
-                }, new OnErrorCallback() {
-                    @Override
-                    public void onError(BleError error) {
-                        safeMainThreadResolver.onError(error);
-                    }
-                });
     }
 
     private void readCharacteristicForDevice(
@@ -177,116 +96,18 @@ public class CharacteristicsDelegate extends CallDelegate {
             final MethodChannel.Result result) {
 
         final SafeMainThreadResolver<Characteristic> safeMainThreadResolver = new SafeMainThreadResolver<>(
-                new OnSuccessCallback<Characteristic>() {
-                    @Override
-                    public void onSuccess(Characteristic data) {
-                        try {
-                            result.success(characteristicsResponseJsonConverter.toJson(createCharacteristicResponse(data)));
-                        } catch (JSONException e) {
-                            e.printStackTrace();
-                            result.error(null, e.getMessage(), null);
-                        }
+                data -> {
+                    try {
+                        result.success(characteristicsResponseJsonConverter.toJson(createCharacteristicResponse(data)));
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                        result.error(null, e.getMessage(), null);
                     }
                 },
-                new OnErrorCallback() {
-                    @Override
-                    public void onError(BleError error) {
-                        result.error(String.valueOf(error.errorCode.code), error.reason, bleErrorJsonConverter.toJson(error));
-                    }
-                }
+                error -> result.error(String.valueOf(error.errorCode.code), error.reason, bleErrorJsonConverter.toJson(error))
         );
         bleAdapter.readCharacteristicForDevice(deviceIdentifier, serviceUuid, characteristicUuid, transactionId,
-                new OnSuccessCallback<Characteristic>() {
-                    @Override
-                    public void onSuccess(Characteristic data) {
-                        safeMainThreadResolver.onSuccess(data);
-                    }
-                }, new OnErrorCallback() {
-                    @Override
-                    public void onError(BleError error) {
-                        safeMainThreadResolver.onError(error);
-                    }
-                });
-    }
-
-    private void readCharacteristicForService(int serviceIdentifier, String characteristicUuid, final String transactionId, final MethodChannel.Result result) {
-        final SafeMainThreadResolver<Characteristic> safeMainThreadResolver = new SafeMainThreadResolver<>(
-                new OnSuccessCallback<Characteristic>() {
-                    @Override
-                    public void onSuccess(Characteristic data) {
-                        try {
-                            result.success(characteristicsResponseJsonConverter.toJson(createCharacteristicResponse(data, transactionId)));
-                        } catch (JSONException e) {
-                            e.printStackTrace();
-                            result.error(null, e.getMessage(), null);
-                        }
-                    }
-                },
-                new OnErrorCallback() {
-                    @Override
-                    public void onError(BleError error) {
-                        result.error(String.valueOf(error.errorCode.code), error.reason, bleErrorJsonConverter.toJson(error));
-                    }
-                }
-        );
-
-        bleAdapter.readCharacteristicForService(
-                serviceIdentifier,
-                characteristicUuid,
-                transactionId,
-                new OnSuccessCallback<Characteristic>() {
-                    @Override
-                    public void onSuccess(Characteristic data) {
-                        safeMainThreadResolver.onSuccess(data);
-                    }
-                }, new OnErrorCallback() {
-                    @Override
-                    public void onError(BleError error) {
-                        safeMainThreadResolver.onError(error);
-                    }
-                });
-    }
-
-    private void writeCharacteristicForIdentifier(int characteristicIdentifier,
-                                                  byte[] bytesToWrite,
-                                                  boolean withResponse,
-                                                  final String transactionId,
-                                                  final MethodChannel.Result result) {
-        final SafeMainThreadResolver<Characteristic> safeMainThreadResolver = new SafeMainThreadResolver<>(
-                new OnSuccessCallback<Characteristic>() {
-                    @Override
-                    public void onSuccess(Characteristic data) {
-                        try {
-                            result.success(characteristicsResponseJsonConverter.toJson(createCharacteristicResponse(data, transactionId)));
-                        } catch (JSONException e) {
-                            e.printStackTrace();
-                            result.error(null, e.getMessage(), null);
-                        }
-                    }
-                },
-                new OnErrorCallback() {
-                    @Override
-                    public void onError(BleError error) {
-                        result.error(String.valueOf(error.errorCode.code), error.reason, bleErrorJsonConverter.toJson(error));
-                    }
-                }
-        );
-        bleAdapter.writeCharacteristic(
-                characteristicIdentifier,
-                Base64Converter.encode(bytesToWrite),
-                withResponse,
-                transactionId,
-                new OnSuccessCallback<Characteristic>() {
-                    @Override
-                    public void onSuccess(Characteristic data) {
-                        safeMainThreadResolver.onSuccess(data);
-                    }
-                }, new OnErrorCallback() {
-                    @Override
-                    public void onError(BleError error) {
-                        safeMainThreadResolver.onError(error);
-                    }
-                });
+                safeMainThreadResolver, safeMainThreadResolver);
     }
 
     private void writeCharacteristicForDevice(String deviceIdentifier,
@@ -297,23 +118,15 @@ public class CharacteristicsDelegate extends CallDelegate {
                                               final String transactionId,
                                               final MethodChannel.Result result) {
         final SafeMainThreadResolver<Characteristic> safeMainThreadResolver = new SafeMainThreadResolver<>(
-                new OnSuccessCallback<Characteristic>() {
-                    @Override
-                    public void onSuccess(Characteristic data) {
-                        try {
-                            result.success(characteristicsResponseJsonConverter.toJson(createCharacteristicResponse(data, transactionId)));
-                        } catch (JSONException e) {
-                            e.printStackTrace();
-                            result.error(null, e.getMessage(), null);
-                        }
+                data -> {
+                    try {
+                        result.success(characteristicsResponseJsonConverter.toJson(createCharacteristicResponse(data, transactionId)));
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                        result.error(null, e.getMessage(), null);
                     }
                 },
-                new OnErrorCallback() {
-                    @Override
-                    public void onError(BleError error) {
-                        result.error(String.valueOf(error.errorCode.code), error.reason, bleErrorJsonConverter.toJson(error));
-                    }
-                }
+                error -> result.error(String.valueOf(error.errorCode.code), error.reason, bleErrorJsonConverter.toJson(error))
         );
 
         bleAdapter.writeCharacteristicForDevice(
@@ -322,97 +135,7 @@ public class CharacteristicsDelegate extends CallDelegate {
                 Base64Converter.encode(bytesToWrite),
                 withResponse,
                 transactionId,
-                new OnSuccessCallback<Characteristic>() {
-                    @Override
-                    public void onSuccess(Characteristic data) {
-                        safeMainThreadResolver.onSuccess(data);
-                    }
-                }, new OnErrorCallback() {
-                    @Override
-                    public void onError(BleError error) {
-                        safeMainThreadResolver.onError(error);
-                    }
-                });
-    }
-
-    private void writeCharacteristicForService(int serviceIdentifier,
-                                               String characteristicUuid,
-                                               byte[] bytesToWrite,
-                                               boolean withResponse,
-                                               final String transactionId,
-                                               final MethodChannel.Result result) {
-        final SafeMainThreadResolver<Characteristic> safeMainThreadResolver = new SafeMainThreadResolver<>(
-                new OnSuccessCallback<Characteristic>() {
-                    @Override
-                    public void onSuccess(Characteristic data) {
-                        try {
-                            result.success(characteristicsResponseJsonConverter.toJson(createCharacteristicResponse(data, transactionId)));
-                        } catch (JSONException e) {
-                            e.printStackTrace();
-                            result.error(null, e.getMessage(), null);
-                        }
-                    }
-                },
-                new OnErrorCallback() {
-                    @Override
-                    public void onError(BleError error) {
-                        result.error(String.valueOf(error.errorCode.code), error.reason, bleErrorJsonConverter.toJson(error));
-                    }
-                }
-        );
-        bleAdapter.writeCharacteristicForService(
-                serviceIdentifier,
-                characteristicUuid,
-                Base64Converter.encode(bytesToWrite),
-                withResponse,
-                transactionId,
-                new OnSuccessCallback<Characteristic>() {
-                    @Override
-                    public void onSuccess(Characteristic data) {
-                        safeMainThreadResolver.onSuccess(data);
-                    }
-                }, new OnErrorCallback() {
-                    @Override
-                    public void onError(BleError error) {
-                        safeMainThreadResolver.onError(error);
-                    }
-                });
-    }
-
-    private void monitorCharacteristicForIdentifier(final int characteristicIdentifier,
-                                                    final String transactionId,
-                                                    final MethodChannel.Result result) {
-        bleAdapter.monitorCharacteristic(
-                characteristicIdentifier,
-                transactionId, new OnEventCallback<Characteristic>() {
-                    @Override
-                    public void onEvent(final Characteristic data) {
-                        mainThreadHandler.post(new Runnable() {
-                            @Override
-                            public void run() {
-                                try {
-                                    characteristicsMonitorStreamHandler.onCharacteristicsUpdate(
-                                            createCharacteristicResponse(data, transactionId)
-                                    );
-                                } catch (JSONException e) {
-                                    e.printStackTrace();
-                                    characteristicsMonitorStreamHandler.onError(BleErrorFactory.fromThrowable(e), transactionId);
-                                }
-                            }
-                        });
-                    }
-                }, new OnErrorCallback() {
-                    @Override
-                    public void onError(final BleError error) {
-                        mainThreadHandler.post(new Runnable() {
-                            @Override
-                            public void run() {
-                                characteristicsMonitorStreamHandler.onError(error, transactionId);
-                            }
-                        });
-                    }
-                });
-        result.success(null);
+                safeMainThreadResolver, safeMainThreadResolver);
     }
 
     private void monitorCharacteristicForDevice(String deviceIdentifier,
@@ -420,79 +143,29 @@ public class CharacteristicsDelegate extends CallDelegate {
                                                 String characteristicUuid,
                                                 final String transactionId,
                                                 final MethodChannel.Result result) {
+        final CharacteristicsMonitorStreamHandler streamHandler =
+                new CharacteristicsMonitorStreamHandler(binaryMessenger);
+        characteristicsMonitorStreamHandlers.put(streamHandler.name, streamHandler);
         bleAdapter.monitorCharacteristicForDevice(
                 deviceIdentifier,
                 serviceUuid,
                 characteristicUuid,
                 transactionId,
-                new OnEventCallback<Characteristic>() {
-                    @Override
-                    public void onEvent(final Characteristic data) {
-                        mainThreadHandler.post(new Runnable() {
-                            @Override
-                            public void run() {
-                                try {
-                                    characteristicsMonitorStreamHandler.onCharacteristicsUpdate(
-                                            createCharacteristicResponse(data, transactionId)
-                                    );
-                                } catch (JSONException e) {
-                                    e.printStackTrace();
-                                    characteristicsMonitorStreamHandler.onError(BleErrorFactory.fromThrowable(e), transactionId);
-                                }
-                            }
-                        });
+                data -> mainThreadHandler.post(() -> {
+                    try {
+                        streamHandler.onCharacteristicsUpdate(
+                                createCharacteristicResponse(data, transactionId)
+                        );
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                        streamHandler.onError(BleErrorFactory.fromThrowable(e), transactionId);
+                        streamHandler.end();
                     }
-                }, new OnErrorCallback() {
-                    @Override
-                    public void onError(final BleError error) {
-                        mainThreadHandler.post(new Runnable() {
-                            @Override
-                            public void run() {
-                                characteristicsMonitorStreamHandler.onError(error, transactionId);
-                            }
-                        });
-                    }
-                });
-        result.success(null);
-    }
-
-    private void monitorCharacteristicForService(int serviceIdentifier,
-                                                 String characteristicUuid,
-                                                 final String transactionId,
-                                                 final MethodChannel.Result result) {
-        bleAdapter.monitorCharacteristicForService(
-                serviceIdentifier,
-                characteristicUuid,
-                transactionId,
-                new OnEventCallback<Characteristic>() {
-                    @Override
-                    public void onEvent(final Characteristic data) {
-                        mainThreadHandler.post(new Runnable() {
-                            @Override
-                            public void run() {
-                                try {
-                                    characteristicsMonitorStreamHandler.onCharacteristicsUpdate(
-                                            createCharacteristicResponse(data, transactionId)
-                                    );
-                                } catch (JSONException e) {
-                                    e.printStackTrace();
-                                    characteristicsMonitorStreamHandler.onError(BleErrorFactory.fromThrowable(e), transactionId);
-                                }
-                            }
-                        });
-                    }
-                }, new OnErrorCallback() {
-                    @Override
-                    public void onError(final BleError error) {
-                        mainThreadHandler.post(new Runnable() {
-                            @Override
-                            public void run() {
-                                characteristicsMonitorStreamHandler.onError(error, transactionId);
-                            }
-                        });
-                    }
-                });
-        result.success(null);
+                }), error -> mainThreadHandler.post(() -> {
+                    streamHandler.onError(error, transactionId);
+                    streamHandler.end();
+                }));
+        result.success(streamHandler.name);
     }
 
     private SingleCharacteristicResponse createCharacteristicResponse(Characteristic characteristic) {

@@ -17,6 +17,7 @@ import org.json.JSONException;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 
 import androidx.annotation.NonNull;
 import io.flutter.plugin.common.MethodCall;
@@ -25,14 +26,7 @@ import io.flutter.plugin.common.MethodChannel;
 public class DescriptorsDelegate extends CallDelegate {
 
     private static List<String> supportedMethods = Arrays.asList(
-            MethodName.READ_DESCRIPTOR_FOR_IDENTIFIER,
-            MethodName.READ_DESCRIPTOR_FOR_CHARACTERISTIC,
-            MethodName.READ_DESCRIPTOR_FOR_SERVICE,
             MethodName.READ_DESCRIPTOR_FOR_DEVICE,
-
-            MethodName.WRITE_DESCRIPTOR_FOR_IDENTIFIER,
-            MethodName.WRITE_DESCRIPTOR_FOR_CHARACTERISTIC,
-            MethodName.WRITE_DESCRIPTOR_FOR_SERVICE,
             MethodName.WRITE_DESCRIPTOR_FOR_DEVICE
     );
 
@@ -48,64 +42,13 @@ public class DescriptorsDelegate extends CallDelegate {
     @Override
     public void onMethodCall(@NonNull MethodCall call, @NonNull MethodChannel.Result result) {
         switch (call.method) {
-            case MethodName.READ_DESCRIPTOR_FOR_IDENTIFIER:
-                readDescriptorForIdentifier(
-                        call.<Integer>argument(ArgumentKey.DESCRIPTOR_IDENTIFIER),
-                        call.<String>argument(ArgumentKey.TRANSACTION_ID),
-                        result
-                );
-                return;
-            case MethodName.READ_DESCRIPTOR_FOR_CHARACTERISTIC:
-                readDescriptorForCharacteristic(
-                        call.<Integer>argument(ArgumentKey.CHARACTERISTIC_IDENTIFIER),
-                        call.<String>argument(ArgumentKey.DESCRIPTOR_UUID),
-                        call.<String>argument(ArgumentKey.TRANSACTION_ID),
-                        result
-                );
-                return;
-            case MethodName.READ_DESCRIPTOR_FOR_SERVICE:
-                readDescriptorForService(
-                        call.<Integer>argument(ArgumentKey.SERVICE_IDENTIFIER),
-                        call.<String>argument(ArgumentKey.CHARACTERISTIC_UUID),
-                        call.<String>argument(ArgumentKey.DESCRIPTOR_UUID),
-                        call.<String>argument(ArgumentKey.TRANSACTION_ID),
-                        result
-                );
-                return;
             case MethodName.READ_DESCRIPTOR_FOR_DEVICE:
                 readDescriptorForDevice(
                         call.<String>argument(ArgumentKey.DEVICE_IDENTIFIER),
                         call.<String>argument(ArgumentKey.SERVICE_UUID),
                         call.<String>argument(ArgumentKey.CHARACTERISTIC_UUID),
                         call.<String>argument(ArgumentKey.DESCRIPTOR_UUID),
-                        call.<String>argument(ArgumentKey.TRANSACTION_ID),
-                        result
-                );
-                return;
-            case MethodName.WRITE_DESCRIPTOR_FOR_IDENTIFIER:
-                writeDescriptorForIdentifier(
-                        call.<Integer>argument(ArgumentKey.DESCRIPTOR_IDENTIFIER),
-                        call.<byte[]>argument(ArgumentKey.VALUE),
-                        call.<String>argument(ArgumentKey.TRANSACTION_ID),
-                        result
-                );
-                return;
-            case MethodName.WRITE_DESCRIPTOR_FOR_CHARACTERISTIC:
-                writeDescriptorForCharacteristic(
-                        call.<Integer>argument(ArgumentKey.CHARACTERISTIC_IDENTIFIER),
-                        call.<String>argument(ArgumentKey.DESCRIPTOR_UUID),
-                        call.<byte[]>argument(ArgumentKey.VALUE),
-                        call.<String>argument(ArgumentKey.TRANSACTION_ID),
-                        result
-                );
-                return;
-            case MethodName.WRITE_DESCRIPTOR_FOR_SERVICE:
-                writeDescriptorForService(
-                        call.<Integer>argument(ArgumentKey.SERVICE_IDENTIFIER),
-                        call.<String>argument(ArgumentKey.CHARACTERISTIC_UUID),
-                        call.<String>argument(ArgumentKey.DESCRIPTOR_UUID),
-                        call.<byte[]>argument(ArgumentKey.VALUE),
-                        call.<String>argument(ArgumentKey.TRANSACTION_ID),
+                        UUID.randomUUID().toString(),
                         result
                 );
                 return;
@@ -116,7 +59,7 @@ public class DescriptorsDelegate extends CallDelegate {
                         call.<String>argument(ArgumentKey.CHARACTERISTIC_UUID),
                         call.<String>argument(ArgumentKey.DESCRIPTOR_UUID),
                         call.<byte[]>argument(ArgumentKey.VALUE),
-                        call.<String>argument(ArgumentKey.TRANSACTION_ID),
+                        UUID.randomUUID().toString(),
                         result
                 );
                 return;
@@ -151,54 +94,6 @@ public class DescriptorsDelegate extends CallDelegate {
         );
     }
 
-    private void readDescriptorForIdentifier(
-            final int descriptorId,
-            final String transactionId,
-            final MethodChannel.Result result) {
-        final SafeMainThreadResolver<Descriptor> safeMainThreadResolver = createMainThreadResolverForResult(result, transactionId);
-
-        bleAdapter.readDescriptor(
-                descriptorId,
-                transactionId,
-                safeMainThreadResolver, //onSuccess
-                safeMainThreadResolver //onError
-        );
-    }
-
-    private void readDescriptorForCharacteristic(
-            final int characteristicId,
-            final String descriptorUuid,
-            final String transactionId,
-            final MethodChannel.Result result) {
-        final SafeMainThreadResolver<Descriptor> safeMainThreadResolver = createMainThreadResolverForResult(result, transactionId);
-
-        bleAdapter.readDescriptorForCharacteristic(
-                characteristicId,
-                descriptorUuid,
-                transactionId,
-                safeMainThreadResolver, //success
-                safeMainThreadResolver //error
-        );
-    }
-
-    private void readDescriptorForService(
-            final int serviceId,
-            final String characteristicUuid,
-            final String descriptorUuid,
-            final String transactionId,
-            final MethodChannel.Result result) {
-        final SafeMainThreadResolver<Descriptor> safeMainThreadResolver = createMainThreadResolverForResult(result, transactionId);
-
-        bleAdapter.readDescriptorForService(
-                serviceId,
-                characteristicUuid,
-                descriptorUuid,
-                transactionId,
-                safeMainThreadResolver, //success
-                safeMainThreadResolver //error
-        );
-    }
-
     private void readDescriptorForDevice(
             final String deviceId,
             final String serviceUuid,
@@ -213,60 +108,6 @@ public class DescriptorsDelegate extends CallDelegate {
                 serviceUuid,
                 characteristicUuid,
                 descriptorUuid,
-                transactionId,
-                safeMainThreadResolver, //success
-                safeMainThreadResolver //error
-        );
-    }
-
-    private void writeDescriptorForIdentifier(
-            final int descriptorId,
-            final byte[] value,
-            final String transactionId,
-            final MethodChannel.Result result) {
-        final SafeMainThreadResolver<Descriptor> safeMainThreadResolver = createMainThreadResolverForResult(result, transactionId);
-
-        bleAdapter.writeDescriptor(
-                descriptorId,
-                Base64Converter.encode(value),
-                transactionId,
-                safeMainThreadResolver, //success
-                safeMainThreadResolver //error
-        );
-    }
-
-    private void writeDescriptorForCharacteristic(
-            final int characteristicId,
-            final String descriptorUuid,
-            final byte[] value,
-            final String transactionId,
-            final MethodChannel.Result result) {
-        final SafeMainThreadResolver<Descriptor> safeMainThreadResolver = createMainThreadResolverForResult(result, transactionId);
-
-        bleAdapter.writeDescriptorForCharacteristic(
-                characteristicId,
-                descriptorUuid,
-                Base64Converter.encode(value),
-                transactionId,
-                safeMainThreadResolver, //success
-                safeMainThreadResolver //error
-        );
-    }
-
-    private void writeDescriptorForService(
-            final int serviceId,
-            final String characteristicUuid,
-            final String descriptorUuid,
-            final byte[] value,
-            final String transactionId,
-            final MethodChannel.Result result) {
-        final SafeMainThreadResolver<Descriptor> safeMainThreadResolver = createMainThreadResolverForResult(result, transactionId);
-
-        bleAdapter.writeDescriptorForService(
-                serviceId,
-                characteristicUuid,
-                descriptorUuid,
-                Base64Converter.encode(value),
                 transactionId,
                 safeMainThreadResolver, //success
                 safeMainThreadResolver //error

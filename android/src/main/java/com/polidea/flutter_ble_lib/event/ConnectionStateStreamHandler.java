@@ -3,17 +3,34 @@ package com.polidea.flutter_ble_lib.event;
 import android.os.Handler;
 import android.os.Looper;
 
+import androidx.annotation.NonNull;
+
 import com.polidea.flutter_ble_lib.ConnectionStateChange;
+import com.polidea.flutter_ble_lib.constant.ChannelName;
 import com.polidea.flutter_ble_lib.converter.BleErrorJsonConverter;
 import com.polidea.flutter_ble_lib.converter.ConnectionStateChangeJsonConverter;
 
 import org.json.JSONException;
 
+import java.util.UUID;
+
+import io.flutter.plugin.common.BinaryMessenger;
 import io.flutter.plugin.common.EventChannel;
 
 public class ConnectionStateStreamHandler implements EventChannel.StreamHandler {
+
+    @NonNull private EventChannel eventChannel;
+    @NonNull public String name;
+
     private EventChannel.EventSink eventSink;
-    private ConnectionStateChangeJsonConverter connectionStateChangeJsonConverter = new ConnectionStateChangeJsonConverter();
+    private ConnectionStateChangeJsonConverter connectionStateChangeJsonConverter =
+            new ConnectionStateChangeJsonConverter();
+
+    public ConnectionStateStreamHandler(BinaryMessenger binaryMessenger, String deviceId) {
+        name = ChannelName.CONNECTION_STATE_CHANGE_EVENTS + "/" + deviceId.toUpperCase();
+        eventChannel = new EventChannel(binaryMessenger, name);
+        eventChannel.setStreamHandler(this);
+    }
 
     @Override
     synchronized public void onListen(Object o, EventChannel.EventSink eventSink) {
@@ -47,7 +64,13 @@ public class ConnectionStateStreamHandler implements EventChannel.StreamHandler 
         }
     }
 
+    public void end() {
+        onComplete();
+    }
+
     synchronized public void onComplete() {
-        if (eventSink != null) eventSink.endOfStream();
+        if (eventSink != null) {
+            eventSink.endOfStream();
+        }
     }
 }

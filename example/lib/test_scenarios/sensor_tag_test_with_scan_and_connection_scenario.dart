@@ -55,8 +55,7 @@ class SensorTagTestWithScanAndConnectionScenario implements TestScenario {
     deviceConnectionAttempted = false;
 
     await peripheral
-        .discoverAllServicesAndCharacteristics()
-        .then((_) => peripheral.services())
+        .discoverServices()
         .then((services) {
           log("PRINTING SERVICES for ${peripheral.name}");
           services.forEach((service) => log("Found service ${service.uuid}"));
@@ -65,13 +64,13 @@ class SensorTagTestWithScanAndConnectionScenario implements TestScenario {
         .then((service) async {
           log("PRINTING CHARACTERISTICS FOR SERVICE \n${service.uuid}");
           List<Characteristic> characteristics =
-              await service.characteristics();
+              await service.discoverCharacteristics();
           characteristics.forEach((characteristic) {
             log("${characteristic.uuid}");
           });
 
           log("PRINTING CHARACTERISTICS FROM \nPERIPHERAL for the same service");
-          return peripheral.characteristics(service.uuid);
+          return peripheral.discoverCharacteristics(service.uuid);
         })
         .then((characteristics) => characteristics.forEach((characteristic) =>
             log("Found characteristic \n ${characteristic.uuid}")))

@@ -10,6 +10,7 @@ import com.polidea.multiplatformbleadapter.errors.BleError;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 
 import androidx.annotation.NonNull;
 import io.flutter.plugin.common.MethodCall;
@@ -34,10 +35,10 @@ public class BluetoothStateDelegate extends CallDelegate {
     public void onMethodCall(@NonNull MethodCall methodCall, @NonNull MethodChannel.Result result) {
         switch (methodCall.method) {
             case MethodName.ENABLE_RADIO:
-                enableRadio(methodCall.<String>argument(ArgumentKey.TRANSACTION_ID), result);
+                enableRadio(UUID.randomUUID().toString(), result);
                 return;
             case MethodName.DISABLE_RADIO:
-                disableRadio(methodCall.<String>argument(ArgumentKey.TRANSACTION_ID), result);
+                disableRadio(UUID.randomUUID().toString(), result);
                 return;
             case MethodName.GET_STATE:
                 getState(result);

@@ -25,11 +25,7 @@ abstract class MethodName {
       'discoverAllServicesAndCharacteristics';
   static const String services = 'services';
   static const String characteristics = 'characteristics';
-  static const String characteristicsForService = 'characteristicsForService';
   static const String descriptorsForDevice = 'descriptorsForDevice';
-  // static const String descriptorsForService = 'descriptorsForService';
-  // static const String descriptorsForCharacteristic =
-  //     'descriptorsForCharacteristic';
 
   static const String setLogLevel = 'setLogLevel';
   static const String logLevel = 'logLevel';
@@ -37,40 +33,20 @@ abstract class MethodName {
   static const String rssi = 'rssi';
   static const String requestMtu = 'requestMtu';
 
-  // static const String readCharacteristicForIdentifier =
-  //     'readCharacteristicForIdentifier';
   static const String readCharacteristicForDevice =
       'readCharacteristicForDevice';
-  // static const String readCharacteristicForService =
-  //     'readCharacteristicForService';
 
-  // static const String writeCharacteristicForIdentifier =
-  //     'writeCharacteristicForIdentifier';
   static const String writeCharacteristicForDevice =
       'writeCharacteristicForDevice';
-  // static const String writeCharacteristicForService =
-  //     'writeCharacteristicForService';
 
-  // static const String monitorCharacteristicForIdentifier =
-  //     'monitorCharacteristicForIdentifier';
+
   static const String monitorCharacteristicForDevice =
       'monitorCharacteristicForDevice';
-  // static const String monitorCharacteristicForService =
-  //     'monitorCharacteristicForService';
 
   static const String readDescriptorForDevice = 'readDescriptorForDevice';
-  // static const String readDescriptorForService = 'readDescriptorForService';
-  // static const String readDescriptorForCharacteristic =
-  //     'readDescriptorForCharacteristic';
-  // static const String readDescriptorForIdentifier =
-  //     'readDescriptorForIdentifier';
+
 
   static const String writeDescriptorForDevice = 'writeDescriptorForDevice';
-  // static const String writeDescriptorForService = 'writeDescriptorForService';
-  // static const String writeDescriptorForCharacteristic =
-      // 'writeDescriptorForCharacteristic';
-  // static const String writeDescriptorForIdentifier =
-      // 'writeDescriptorForIdentifier';
 
   static const String connectedDevices = 'getConnectedDevices';
   static const String knownDevices = 'getKnownDevices';

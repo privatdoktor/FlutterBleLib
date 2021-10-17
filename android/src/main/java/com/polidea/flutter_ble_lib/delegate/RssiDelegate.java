@@ -14,6 +14,7 @@ import com.polidea.multiplatformbleadapter.errors.BleError;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 
 import androidx.annotation.NonNull;
 import io.flutter.plugin.common.MethodCall;
@@ -37,7 +38,7 @@ public class RssiDelegate extends CallDelegate {
         switch (methodCall.method) {
             case MethodName.RSSI:
                 rssi(methodCall.<String>argument(ArgumentKey.DEVICE_IDENTIFIER),
-                    methodCall.<String>argument(ArgumentKey.TRANSACTION_ID),
+                    UUID.randomUUID().toString(),
                     result);
                 return;
             default:

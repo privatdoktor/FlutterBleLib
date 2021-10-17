@@ -14,6 +14,7 @@ import com.polidea.multiplatformbleadapter.errors.BleError;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 
 import androidx.annotation.NonNull;
 import io.flutter.plugin.common.MethodCall;
@@ -39,7 +40,7 @@ public class MtuDelegate extends CallDelegate {
                 requestMtu(
                     methodCall.<String>argument(ArgumentKey.DEVICE_IDENTIFIER),
                     methodCall.<Integer>argument(ArgumentKey.MTU),
-                    methodCall.<String>argument(ArgumentKey.TRANSACTION_ID),
+                    UUID.randomUUID().toString(),
                     result);
                 return;
             default:

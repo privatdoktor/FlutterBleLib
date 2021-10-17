@@ -17,7 +17,6 @@ import com.polidea.flutter_ble_lib.delegate.DiscoveryDelegate;
 import com.polidea.flutter_ble_lib.delegate.MtuDelegate;
 import com.polidea.flutter_ble_lib.delegate.RssiDelegate;
 import com.polidea.flutter_ble_lib.event.AdapterStateStreamHandler;
-import com.polidea.flutter_ble_lib.event.CharacteristicsMonitorStreamHandler;
 import com.polidea.flutter_ble_lib.event.ConnectionStateStreamHandler;
 import com.polidea.flutter_ble_lib.event.RestoreStateStreamHandler;
 import com.polidea.flutter_ble_lib.event.ScanningStreamHandler;
@@ -32,6 +31,10 @@ import java.util.LinkedList;
 import java.util.List;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
+import io.flutter.embedding.engine.plugins.FlutterPlugin;
+import io.flutter.plugin.common.BinaryMessenger;
 import io.flutter.plugin.common.EventChannel;
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
@@ -39,53 +42,87 @@ import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
 import io.flutter.plugin.common.MethodChannel.Result;
 import io.flutter.plugin.common.PluginRegistry.Registrar;
 
-public class FlutterBleLibPlugin implements MethodCallHandler {
+public class FlutterBleLibPlugin implements FlutterPlugin, MethodCallHandler {
 
     static final String TAG = FlutterBleLibPlugin.class.getName();
 
-    private BleAdapter bleAdapter;
-    private Context context;
     private AdapterStateStreamHandler adapterStateStreamHandler = new AdapterStateStreamHandler();
     private RestoreStateStreamHandler restoreStateStreamHandler = new RestoreStateStreamHandler();
     private ScanningStreamHandler scanningStreamHandler = new ScanningStreamHandler();
-    private ConnectionStateStreamHandler connectionStateStreamHandler = new ConnectionStateStreamHandler();
-    private CharacteristicsMonitorStreamHandler characteristicsMonitorStreamHandler = new CharacteristicsMonitorStreamHandler();
+//    private ConnectionStateStreamHandler connectionStateStreamHandler = new ConnectionStateStreamHandler();
+//    private CharacteristicsMonitorStreamHandler characteristicsMonitorStreamHandler = new CharacteristicsMonitorStreamHandler();
 
     private List<CallDelegate> delegates = new LinkedList<>();
 
+    @Nullable
+    private BleAdapter bleAdapter;
+    @Nullable
+    private Context context;
+    @Nullable
+    private MethodChannel methodChannel;
+    @Nullable
+    private BinaryMessenger binaryMessenger;
+    @Nullable
+    static private FlutterBleLibPlugin plugin;
+
+    @SuppressWarnings("deprecation")
     public static void registerWith(Registrar registrar) {
-        final MethodChannel channel = new MethodChannel(registrar.messenger(), ChannelName.FLUTTER_BLE_LIB);
-
-        final EventChannel bluetoothStateChannel = new EventChannel(registrar.messenger(), ChannelName.ADAPTER_STATE_CHANGES);
-        final EventChannel restoreStateChannel = new EventChannel(registrar.messenger(), ChannelName.STATE_RESTORE_EVENTS);
-        final EventChannel scanningChannel = new EventChannel(registrar.messenger(), ChannelName.SCANNING_EVENTS);
-        final EventChannel connectionStateChannel = new EventChannel(registrar.messenger(), ChannelName.CONNECTION_STATE_CHANGE_EVENTS);
-        final EventChannel characteristicMonitorChannel = new EventChannel(registrar.messenger(), ChannelName.MONITOR_CHARACTERISTIC);
-
-        final FlutterBleLibPlugin plugin = new FlutterBleLibPlugin(registrar.context());
-
-        channel.setMethodCallHandler(plugin);
-
-        scanningChannel.setStreamHandler(plugin.scanningStreamHandler);
-        bluetoothStateChannel.setStreamHandler(plugin.adapterStateStreamHandler);
-        restoreStateChannel.setStreamHandler(plugin.restoreStateStreamHandler);
-        connectionStateChannel.setStreamHandler(plugin.connectionStateStreamHandler);
-        characteristicMonitorChannel.setStreamHandler(plugin.characteristicsMonitorStreamHandler);
+        FlutterBleLibPlugin p = new FlutterBleLibPlugin();
+        p.context = registrar.context();
+        plugin = p;
+        plugin.startListening(registrar.messenger());
     }
 
-    private FlutterBleLibPlugin(Context context) {
-        this.context = context;
+    @Override
+    public void onAttachedToEngine(@NonNull FlutterPluginBinding binding) {
+        context = binding.getApplicationContext();
+        startListening(
+            binding.getBinaryMessenger()
+        );
+    }
+
+    @Override
+    public void onDetachedFromEngine(@NonNull FlutterPluginBinding binding) {
+        stopListening();
+    }
+
+    private void startListening(BinaryMessenger messenger) {
+        binaryMessenger = messenger;
+        methodChannel = new MethodChannel(messenger, ChannelName.FLUTTER_BLE_LIB);
+
+        final EventChannel bluetoothStateChannel = new EventChannel(messenger, ChannelName.ADAPTER_STATE_CHANGES);
+        final EventChannel restoreStateChannel = new EventChannel(messenger, ChannelName.STATE_RESTORE_EVENTS);
+        final EventChannel scanningChannel = new EventChannel(messenger, ChannelName.SCANNING_EVENTS);
+//        final EventChannel connectionStateChannel = new EventChannel(messenger, ChannelName.CONNECTION_STATE_CHANGE_EVENTS);
+//        final EventChannel characteristicMonitorChannel = new EventChannel(messenger, ChannelName.MONITOR_CHARACTERISTIC);
+
+
+        methodChannel.setMethodCallHandler(this);
+
+        scanningChannel.setStreamHandler(scanningStreamHandler);
+        bluetoothStateChannel.setStreamHandler(plugin.adapterStateStreamHandler);
+        restoreStateChannel.setStreamHandler(plugin.restoreStateStreamHandler);
+//        connectionStateChannel.setStreamHandler(plugin.connectionStateStreamHandler);
+//        characteristicMonitorChannel.setStreamHandler(plugin.characteristicsMonitorStreamHandler);
+    }
+
+    private void stopListening() {
+        methodChannel.setMethodCallHandler(null);
+        methodChannel = null;
+    }
+
+    public FlutterBleLibPlugin() {
     }
 
     private void setupAdapter(Context context) {
         bleAdapter = BleAdapterFactory.getNewAdapter(context);
-        delegates.add(new DeviceConnectionDelegate(bleAdapter, connectionStateStreamHandler));
+        delegates.add(new DeviceConnectionDelegate(bleAdapter, binaryMessenger));
         delegates.add(new LogLevelDelegate(bleAdapter));
         delegates.add(new DiscoveryDelegate(bleAdapter));
         delegates.add(new BluetoothStateDelegate(bleAdapter));
         delegates.add(new RssiDelegate(bleAdapter));
         delegates.add(new MtuDelegate(bleAdapter));
-        delegates.add(new CharacteristicsDelegate(bleAdapter, characteristicsMonitorStreamHandler));
+        delegates.add(new CharacteristicsDelegate(bleAdapter, binaryMessenger));
         delegates.add(new DevicesDelegate(bleAdapter));
         delegates.add(new DescriptorsDelegate(bleAdapter));
     }
@@ -112,9 +149,6 @@ public class FlutterBleLibPlugin implements MethodCallHandler {
                 break;
             case MethodName.STOP_DEVICE_SCAN:
                 stopDeviceScan(result);
-                break;
-            case MethodName.CANCEL_TRANSACTION:
-                cancelTransaction(call, result);
                 break;
             case MethodName.IS_CLIENT_CREATED:
                 isClientCreated(result);
@@ -153,13 +187,16 @@ public class FlutterBleLibPlugin implements MethodCallHandler {
             bleAdapter.destroyClient();
         }
         scanningStreamHandler.onComplete();
-        connectionStateStreamHandler.onComplete();
         bleAdapter = null;
         delegates.clear();
         result.success(null);
     }
 
     private void startDeviceScan(@NonNull MethodCall call, Result result) {
+        if (bleAdapter == null) {
+            result.success(null);
+            return;
+        }
         List<String> uuids = call.<List<String>>argument(ArgumentKey.UUIDS);
         bleAdapter.startDeviceScan(uuids.toArray(new String[uuids.size()]),
                 call.<Integer>argument(ArgumentKey.SCAN_MODE),
@@ -186,10 +223,5 @@ public class FlutterBleLibPlugin implements MethodCallHandler {
         result.success(null);
     }
 
-    private void cancelTransaction(MethodCall call, Result result) {
-        if (bleAdapter != null) {
-            bleAdapter.cancelTransaction(call.<String>argument(ArgumentKey.TRANSACTION_ID));
-        }
-        result.success(null);
-    }
+
 }
