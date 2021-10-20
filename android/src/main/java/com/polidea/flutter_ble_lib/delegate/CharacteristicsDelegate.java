@@ -41,7 +41,7 @@ public class CharacteristicsDelegate extends CallDelegate {
     private final SingleCharacteristicResponseJsonConverter characteristicsResponseJsonConverter =
             new SingleCharacteristicResponseJsonConverter();
     @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
-    private final Map<String, CharacteristicsMonitorStreamHandler> characteristicsMonitorStreamHandlers = new HashMap<>();
+    static public final Map<String, CharacteristicsMonitorStreamHandler> characteristicsMonitorStreamHandlers = new HashMap<>();
     private final BleErrorJsonConverter bleErrorJsonConverter = new BleErrorJsonConverter();
     private final Handler mainThreadHandler = new Handler(Looper.getMainLooper());
     @NonNull private final BinaryMessenger binaryMessenger;
@@ -144,7 +144,7 @@ public class CharacteristicsDelegate extends CallDelegate {
                                                 final String transactionId,
                                                 final MethodChannel.Result result) {
         final CharacteristicsMonitorStreamHandler streamHandler =
-                new CharacteristicsMonitorStreamHandler(binaryMessenger);
+                new CharacteristicsMonitorStreamHandler(binaryMessenger, deviceIdentifier);
         characteristicsMonitorStreamHandlers.put(streamHandler.name, streamHandler);
         bleAdapter.monitorCharacteristicForDevice(
                 deviceIdentifier,

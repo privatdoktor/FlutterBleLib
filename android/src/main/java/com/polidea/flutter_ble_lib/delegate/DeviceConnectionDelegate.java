@@ -126,6 +126,13 @@ public class DeviceConnectionDelegate extends CallDelegate {
                 new OnEventCallback<ConnectionState>() {
                     @Override
                     public void onEvent(final ConnectionState data) {
+                        if (data == ConnectionState.DISCONNECTED) {
+                            for (CharacteristicsMonitorStreamHandler cmsh : CharacteristicsDelegate.characteristicsMonitorStreamHandlers.values()) {
+                                if (cmsh.deviceId == deviceId) {
+                                    cmsh.end();
+                                }
+                            }
+                        }
                         streamHandler.onNewConnectionState(new ConnectionStateChange(deviceId, data));
                     }
                 }, new OnErrorCallback() {

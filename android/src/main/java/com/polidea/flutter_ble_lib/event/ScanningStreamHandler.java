@@ -35,13 +35,6 @@ public class ScanningStreamHandler implements EventChannel.StreamHandler {
                     String.valueOf(error.errorCode.code),
                     error.reason,
                     bleErrorJsonConverter.toJson(error));
-            scanResultsSink.endOfStream();
-        }
-    }
-
-    synchronized public void onComplete() {
-        if (scanResultsSink != null) {
-            scanResultsSink.endOfStream();
         }
     }
 }

@@ -19,14 +19,16 @@ public class CharacteristicsMonitorStreamHandler implements EventChannel.StreamH
 
     @NonNull private EventChannel eventChannel;
     @NonNull public String name;
+    @NonNull public String deviceId;
 
     private EventChannel.EventSink eventSink;
     private SingleCharacteristicResponseJsonConverter characteristicResponseJsonConverter
             = new SingleCharacteristicResponseJsonConverter();
     private BleErrorJsonConverter bleErrorJsonConverter = new BleErrorJsonConverter();
 
-    public CharacteristicsMonitorStreamHandler(BinaryMessenger binaryMessenger) {
+    public CharacteristicsMonitorStreamHandler(BinaryMessenger binaryMessenger, String deviceIdentifier) {
         name = ChannelName.MONITOR_CHARACTERISTIC + "/" + UUID.randomUUID().toString().toUpperCase();
+        deviceId = deviceIdentifier;
         eventChannel = new EventChannel(binaryMessenger, name);
         eventChannel.setStreamHandler(this);
     }

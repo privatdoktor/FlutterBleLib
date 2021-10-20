@@ -100,8 +100,8 @@ public class FlutterBleLibPlugin implements FlutterPlugin, MethodCallHandler {
         methodChannel.setMethodCallHandler(this);
 
         scanningChannel.setStreamHandler(scanningStreamHandler);
-        bluetoothStateChannel.setStreamHandler(plugin.adapterStateStreamHandler);
-        restoreStateChannel.setStreamHandler(plugin.restoreStateStreamHandler);
+        bluetoothStateChannel.setStreamHandler(adapterStateStreamHandler);
+        restoreStateChannel.setStreamHandler(restoreStateStreamHandler);
 //        connectionStateChannel.setStreamHandler(plugin.connectionStateStreamHandler);
 //        characteristicMonitorChannel.setStreamHandler(plugin.characteristicsMonitorStreamHandler);
     }
@@ -186,7 +186,7 @@ public class FlutterBleLibPlugin implements FlutterPlugin, MethodCallHandler {
         if (bleAdapter != null) {
             bleAdapter.destroyClient();
         }
-        scanningStreamHandler.onComplete();
+//        scanningStreamHandler.onComplete();
         bleAdapter = null;
         delegates.clear();
         result.success(null);
@@ -219,7 +219,7 @@ public class FlutterBleLibPlugin implements FlutterPlugin, MethodCallHandler {
         if (bleAdapter != null) {
             bleAdapter.stopDeviceScan();
         }
-        scanningStreamHandler.onComplete();
+//        scanningStreamHandler.onComplete();
         result.success(null);
     }
 

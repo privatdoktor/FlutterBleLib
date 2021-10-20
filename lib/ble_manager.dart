@@ -281,13 +281,10 @@ class BleManager {
   ///
   /// Passing optional [transactionId] lets you discard the result of this
   /// operation before it is finished.
-  Future<void> enableRadio({String? transactionId}) async {
+  Future<void> enableRadio() async {
     try {
       await BleManager._methodChannel.invokeMethod(
         MethodName.enableRadio,
-        <String, dynamic>{
-          ArgumentName.transactionId: transactionId,
-        },
       );
     } on PlatformException catch (pe) {
       final details = pe.details as Object?;
@@ -305,13 +302,10 @@ class BleManager {
   ///
   /// Passing optional [transactionId] lets you discard the result of this
   /// operation before it is finished.
-  Future<void> disableRadio({String? transactionId}) async {
+  Future<void> disableRadio() async {
     try {
       await BleManager._methodChannel.invokeMethod(
         MethodName.disableRadio,
-        <String, dynamic>{
-          ArgumentName.transactionId: transactionId,
-        },
       );
     } on PlatformException catch (pe) {
       final details = pe.details as Object?;
