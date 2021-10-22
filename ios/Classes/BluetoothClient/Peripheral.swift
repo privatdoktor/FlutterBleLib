@@ -229,16 +229,22 @@ extension DiscoveredPeripheral {
 // MARK: - For Publishers
 extension DiscoveredPeripheral {
   func connected(_ res: Result<(), ClientError>) {
-    _connectionEventOccured?(.peerConnected)
+    if case .success = res {
+      _connectionEventOccured?(.peerConnected)
+    }
     _connectCompleted?(res)
     _connectCompleted = nil
   }
   func disconnected(_ res: Result<(), ClientError>) {
-    _connectionEventOccured?(.peerDisconnected)
+    if case .success = res {
+      _connectionEventOccured?(.peerDisconnected)
+    }
     _disconnectCompleted?(res)
     _disconnectCompleted = nil
-    while _onDisconnectedListeners.isEmpty == false {
-      _onDisconnectedListeners.dequeue()?()
+    if case .success = res {
+      while _onDisconnectedListeners.isEmpty == false {
+        _onDisconnectedListeners.dequeue()?()
+      }
     }
   }
   private func servicesDiscovered(_ res: Result<[CBUUID : DiscoveredService], PeripheralError>) {
