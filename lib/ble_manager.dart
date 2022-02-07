@@ -141,14 +141,19 @@ class BleManager {
   Future<void> createClient({
     String? restoreStateIdentifier,
     RestoreStateAction? restoreStateAction,
+    bool showPowerAlertOnIOS = false
   }) async {
     if (restoreStateAction != null) {
       final devices = await restoredState();
       restoreStateAction(devices);
     }
-    await BleManager._methodChannel.invokeMethod(MethodName.createClient, <String, String?>{
-      ArgumentName.restoreStateIdentifier: restoreStateIdentifier
-    });
+    await BleManager._methodChannel.invokeMethod(
+      MethodName.createClient, 
+      <String, dynamic>{
+        ArgumentName.restoreStateIdentifier: restoreStateIdentifier,
+        ArgumentName.showPowerAlertOnIOS: showPowerAlertOnIOS 
+      }
+    );
   }
 
 // ++MH++
