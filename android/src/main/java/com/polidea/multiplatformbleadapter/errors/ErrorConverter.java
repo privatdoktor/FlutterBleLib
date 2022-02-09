@@ -66,7 +66,7 @@ public class ErrorConverter {
 
 
         if (throwable instanceof BleCharacteristicNotFoundException) {
-            UUID uuid = ((BleCharacteristicNotFoundException) throwable).getCharacteristicUUID();
+            UUID uuid = ((BleCharacteristicNotFoundException) throwable).getCharactersisticUUID();
             BleError bleError = new BleError(BleErrorCode.CharacteristicNotFound, throwable.getMessage(), null);
             bleError.characteristicUUID = UUIDConverter.fromUUID(uuid);
             return bleError;
