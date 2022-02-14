@@ -209,9 +209,19 @@ extension Client {
   }
   
   func destroy() {
-    centralManager?.stopScan()
-    centralManager?.delegate = nil
-    centralManager = nil
+    guard
+      let centralManager = self.centralManager
+    else {
+      return
+    }
+    
+    if centralManager.state == .poweredOn &&
+       centralManager.isScanning {
+      centralManager.stopScan()
+    }
+    
+    centralManager.delegate = nil
+    self.centralManager = nil
   }
     
   var state : String {
