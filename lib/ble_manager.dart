@@ -19,6 +19,46 @@ enum BluetoothState {
   RESETTING,
 }
 
+BluetoothState _mapToBluetoothState(String? rawValue) {
+  switch (rawValue) {
+    case 'Unknown':
+      return BluetoothState.UNKNOWN;
+    case 'Unsupported':
+      return BluetoothState.UNSUPPORTED;
+    case 'Unauthorized':
+      return BluetoothState.UNAUTHORIZED;
+    case 'Resetting':
+      return BluetoothState.RESETTING;
+    case 'PoweredOn':
+      return BluetoothState.POWERED_ON;
+    case 'PoweredOff':
+      return BluetoothState.POWERED_OFF;
+    default:
+      throw 'Cannot map $rawValue to known bluetooth state';
+  }
+}
+
+enum AuthorizationIOS {
+  notDetermined,
+  restricted,
+  denied,
+  allowedAlways,
+}
+
+AuthorizationIOS _mapToAuthorizationIOS(String rawValue) {
+  switch (rawValue) {
+    case 'restricted':
+      return AuthorizationIOS.restricted;
+    case 'denied':
+      return AuthorizationIOS.denied;
+    case 'allowedAlways':
+      return AuthorizationIOS.allowedAlways;
+    case 'notDetermined':
+    default:
+      return AuthorizationIOS.notDetermined;
+  }
+}
+
 /// Mode of scan for peripherals - Android only.
 ///
 /// See [Android documentation](https://developer.android.com/reference/android/bluetooth/le/ScanSettings) for more information.
@@ -323,23 +363,15 @@ class BleManager {
     }
   }
 
-  BluetoothState _mapToBluetoothState(String? rawValue) {
-    switch (rawValue) {
-      case 'Unknown':
-        return BluetoothState.UNKNOWN;
-      case 'Unsupported':
-        return BluetoothState.UNSUPPORTED;
-      case 'Unauthorized':
-        return BluetoothState.UNAUTHORIZED;
-      case 'Resetting':
-        return BluetoothState.RESETTING;
-      case 'PoweredOn':
-        return BluetoothState.POWERED_ON;
-      case 'PoweredOff':
-        return BluetoothState.POWERED_OFF;
-      default:
-        throw 'Cannot map $rawValue to known bluetooth state';
+  static Future<AuthorizationIOS> authorizationIOS() async {
+    if (Platform.isIOS == false) {
+      return AuthorizationIOS.allowedAlways;
     }
+    final authorizationStr = 
+      await BleManager._methodChannel.invokeMethod<String>(
+        MethodName.getAuthorization
+      );
+    return _mapToAuthorizationIOS(authorizationStr!);
   }
 
 // ++MH++

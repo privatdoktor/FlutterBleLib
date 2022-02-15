@@ -6,6 +6,7 @@ abstract class MethodName {
   static const String cancelTransaction = 'cancelTransaction';
 
   static const String getState = 'getState';
+  static const String getAuthorization = 'getAuthorization';
 
   static const String enableRadio = 'enableRadio';
   static const String disableRadio = 'disableRadio';

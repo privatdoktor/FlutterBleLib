@@ -43,9 +43,7 @@ import 'package:flutter/services.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
-
-// import 'package:flutter_ble_lib/types.dart';
-// export 'package:flutter_ble_lib/types.dart';
+import 'dart:io';
 
 part 'ble_error.dart';
 

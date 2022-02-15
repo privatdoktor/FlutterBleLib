@@ -161,6 +161,8 @@ final class DefaultMethodChannel : NSObject, MethodChannel {
         self = .cancelTransaction(transactionId: transactionId)
       case "getState":
         self = .getState
+      case "getAuthorization":
+        self = .getAuthorization
       case "enableRadio":
         self = .enableRadio
       case "disableRadio":
@@ -403,6 +405,7 @@ final class DefaultMethodChannel : NSObject, MethodChannel {
     case cancelTransaction(transactionId: Any?)
     
     case getState
+    case getAuthorization
     
     case enableRadio
     case disableRadio

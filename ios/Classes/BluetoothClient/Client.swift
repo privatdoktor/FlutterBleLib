@@ -241,6 +241,31 @@ extension Client {
     }
   }
   
+  var authorization : String {
+    var authorizationStr = "allowedAlways"
+    if #available(iOS 13.0, *) {
+      let authorization: CBManagerAuthorization
+      if #available(iOS 13.1, *) {
+        authorization = CBManager.authorization
+      } else {
+        authorization = CBCentralManager().authorization
+      }
+      switch authorization {
+      case .restricted:
+        authorizationStr = "restricted"
+      case .denied:
+        authorizationStr = "denied"
+      case .allowedAlways:
+        authorizationStr = "allowedAlways"
+      case .notDetermined:
+        fallthrough
+      @unknown default:
+        authorizationStr = "notDetermined"
+      }
+    }
+    return authorizationStr
+  }
+  
   func startDeviceScan(
     withServices services: [String]?,
     allowDuplicates: Bool?

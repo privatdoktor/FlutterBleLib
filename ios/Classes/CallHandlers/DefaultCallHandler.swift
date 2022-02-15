@@ -63,6 +63,8 @@ extension Client : CallHandler {
       call.result()
     case .getState:
       call.result(state)
+    case .getAuthorization:
+      call.result(authorization)
     case .enableRadio:
       noop()
       call.result()
