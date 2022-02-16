@@ -13,7 +13,6 @@ import com.polidea.flutter_ble_lib.constant.MethodName;
 import com.polidea.flutter_ble_lib.converter.BleErrorJsonConverter;
 import com.polidea.flutter_ble_lib.converter.SingleCharacteristicResponseJsonConverter;
 import com.polidea.flutter_ble_lib.event.CharacteristicsMonitorStreamHandler;
-import com.polidea.multiplatformbleadapter.BleAdapter;
 import com.polidea.multiplatformbleadapter.Characteristic;
 import com.polidea.multiplatformbleadapter.utils.Base64Converter;
 

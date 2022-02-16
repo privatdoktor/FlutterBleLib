@@ -20,6 +20,7 @@ extension Client : CallHandler {
          .destroyClient,
          .cancelTransaction,
          .getState,
+         .getAuthorization,
          .enableRadio,
          .disableRadio,
          .startDeviceScan,
