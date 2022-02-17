@@ -9,6 +9,7 @@ import com.polidea.flutter_ble_lib.converter.CharacteristicJsonConverter;
 import com.polidea.flutter_ble_lib.converter.MultiCharacteristicsResponseJsonConverter;
 import com.polidea.flutter_ble_lib.converter.MultiDescriptorsResponseJsonConverter;
 import com.polidea.flutter_ble_lib.converter.ServiceJsonConverter;
+import com.polidea.multiplatformbleadapter.BleAdapter;
 import com.polidea.multiplatformbleadapter.Characteristic;
 import com.polidea.multiplatformbleadapter.Descriptor;
 import com.polidea.multiplatformbleadapter.Device;

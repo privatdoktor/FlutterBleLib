@@ -2,6 +2,7 @@ package com.polidea.flutter_ble_lib.delegate;
 
 import com.polidea.flutter_ble_lib.constant.MethodName;
 import com.polidea.flutter_ble_lib.converter.BleErrorJsonConverter;
+import com.polidea.multiplatformbleadapter.BleAdapter;
 import com.polidea.multiplatformbleadapter.OnErrorCallback;
 import com.polidea.multiplatformbleadapter.OnSuccessCallback;
 import com.polidea.multiplatformbleadapter.errors.BleError;

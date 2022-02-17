@@ -7,6 +7,7 @@ import com.polidea.flutter_ble_lib.constant.MethodName;
 import com.polidea.flutter_ble_lib.converter.BleErrorJsonConverter;
 import com.polidea.flutter_ble_lib.event.CharacteristicsMonitorStreamHandler;
 import com.polidea.flutter_ble_lib.event.ConnectionStateStreamHandler;
+import com.polidea.multiplatformbleadapter.BleAdapter;
 import com.polidea.multiplatformbleadapter.ConnectionOptions;
 import com.polidea.multiplatformbleadapter.ConnectionState;
 import com.polidea.multiplatformbleadapter.Device;
@@ -99,47 +100,51 @@ public class DeviceConnectionDelegate extends CallDelegate {
         streamHandlers.put(deviceId, streamHandler);
 
         final SafeMainThreadResolver safeMainThreadResolver = new SafeMainThreadResolver<>(
-                new OnSuccessCallback<Object>() {
-                    @Override
-                    public void onSuccess(Object data) {
-                        result.success(null);
-                    }
-                },
-                new OnErrorCallback() {
-                    @Override
-                    public void onError(BleError error) {
-                        result.error(String.valueOf(error.errorCode.code), error.reason, bleErrorJsonConverter.toJson(error));
-                        streamHandler.end();
-                    }
-                });
+            new OnSuccessCallback<Object>() {
+                @Override
+                public void onSuccess(Object data) {
+                    result.success(null);
+                }
+            },
+            new OnErrorCallback() {
+                @Override
+                public void onError(BleError error) {
+                    result.error(String.valueOf(error.errorCode.code), error.reason, bleErrorJsonConverter.toJson(error));
+                    streamHandler.end();
+                }
+            }
+        );
 
         int connectionPriorityBalanced = 0; //BluetoothGatt.CONNECTION_PRIORITY_BALANCED
-        bleAdapter.connectToDevice(deviceId,
-                new ConnectionOptions(isAutoConnect, requestMtu, refreshGattMoment, timeoutMillis, connectionPriorityBalanced),
-                new OnSuccessCallback<Device>() {
-                    @Override
-                    public void onSuccess(Device data) {
-                        safeMainThreadResolver.onSuccess(null);
-                    }
-                },
-                new OnEventCallback<ConnectionState>() {
-                    @Override
-                    public void onEvent(final ConnectionState data) {
-                        if (data == ConnectionState.DISCONNECTED) {
-                            for (CharacteristicsMonitorStreamHandler cmsh : CharacteristicsDelegate.characteristicsMonitorStreamHandlers.values()) {
-                                if (cmsh.deviceId == deviceId) {
-                                    cmsh.end();
-                                }
+        bleAdapter.connectToDevice(
+            deviceId,
+            new ConnectionOptions(isAutoConnect, requestMtu, refreshGattMoment, timeoutMillis, connectionPriorityBalanced),
+            new OnSuccessCallback<Device>() {
+                @Override
+                public void onSuccess(Device data) {
+                    safeMainThreadResolver.onSuccess(null);
+                }
+            },
+            new OnEventCallback<ConnectionState>() {
+                @Override
+                public void onEvent(final ConnectionState data) {
+                    if (data == ConnectionState.DISCONNECTED) {
+                        for (CharacteristicsMonitorStreamHandler cmsh : CharacteristicsDelegate.characteristicsMonitorStreamHandlers.values()) {
+                            if (cmsh.deviceId == deviceId) {
+                                cmsh.end();
                             }
                         }
-                        streamHandler.onNewConnectionState(new ConnectionStateChange(deviceId, data));
                     }
-                }, new OnErrorCallback() {
-                    @Override
-                    public void onError(final BleError error) {
-                        safeMainThreadResolver.onError(error);
-                    }
-                });
+                    streamHandler.onNewConnectionState(new ConnectionStateChange(deviceId, data));
+                }
+            },
+            new OnErrorCallback() {
+                @Override
+                public void onError(final BleError error) {
+                    safeMainThreadResolver.onError(error);
+                }
+            }
+        );
     }
 
     private void observeConnectionState(final String deviceId, boolean emitCurrentValue, @NonNull final MethodChannel.Result result) {

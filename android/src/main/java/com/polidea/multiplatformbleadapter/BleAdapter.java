@@ -38,6 +38,7 @@ import com.polidea.rxandroidble2.RxBleClient;
 import com.polidea.rxandroidble2.RxBleConnection;
 import com.polidea.rxandroidble2.RxBleDevice;
 import com.polidea.rxandroidble2.RxBleDeviceServices;
+import com.polidea.rxandroidble2.Timeout;
 import com.polidea.rxandroidble2.internal.RxBleLog;
 import com.polidea.rxandroidble2.scan.ScanFilter;
 import com.polidea.rxandroidble2.scan.ScanSettings;
@@ -76,6 +77,8 @@ public class BleAdapter {
     private HashMap<String, Device> connectedDevices = new HashMap<>();
 
     private HashMap<String, RxBleConnection> activeConnections = new HashMap<>();
+    private HashMap<String, Observable<RxBleConnection>> activeConnectionsObservables = new HashMap<>();
+
 
     private SparseArray<Service> discoveredServices = new SparseArray<>();
 
@@ -141,6 +144,7 @@ public class BleAdapter {
         discoveredCharacteristics.clear();
         discoveredDescriptors.clear();
         connectedDevices.clear();
+        activeConnectionsObservables.clear();
         activeConnections.clear();
         discoveredDevices.clear();
 
@@ -1236,8 +1240,115 @@ public class BleAdapter {
         }
         return connection;
     }
-
     private void safeConnectToDevice(final RxBleDevice device,
+                                      final boolean autoConnect,
+                                      final int requestMtu,
+                                      final RefreshGattMoment refreshGattMoment,
+                                      final Long timeout,
+                                      final int connectionPriority,
+                                      final OnSuccessCallback<Device> onSuccessCallback,
+                                      final OnEventCallback<ConnectionState> onConnectionStateChangedCallback,
+                                      final OnErrorCallback onErrorCallback) {
+        final SafeExecutor<Device> safeExecutor = new SafeExecutor<>(onSuccessCallback, onErrorCallback);
+        Observable<RxBleConnection> connectionObservable;
+        if (timeout != null) {
+            connectionObservable =
+                    device.establishConnection(
+                            autoConnect,
+                            new Timeout(timeout, TimeUnit.SECONDS)
+                    );
+        } else {
+            connectionObservable =
+                    device.establishConnection(
+                            autoConnect
+                    );
+        }
+
+        final String deviceMacAddress = device.getMacAddress();
+        activeConnectionsObservables.put(deviceMacAddress, connectionObservable);
+        onConnectionStateChangedCallback.onEvent(ConnectionState.CONNECTING);
+
+        if (refreshGattMoment == RefreshGattMoment.ON_CONNECTED) {
+            connectionObservable = connectionObservable.flatMap(new Function<RxBleConnection, Observable<RxBleConnection>>() {
+                @Override
+                public Observable<RxBleConnection> apply(final RxBleConnection rxBleConnection) {
+                    return rxBleConnection
+                            .queue(new RefreshGattCustomOperation())
+                            .map(new Function<Boolean, RxBleConnection>() {
+                                @Override
+                                public RxBleConnection apply(Boolean refreshGattSuccess) {
+                                    return rxBleConnection;
+                                }
+                            });
+                }
+            });
+        }
+
+        if (connectionPriority > 0) {
+            connectionObservable = connectionObservable.flatMap(new Function<RxBleConnection, Observable<RxBleConnection>>() {
+                @Override
+                public Observable<RxBleConnection> apply(final RxBleConnection rxBleConnection) {
+                    return rxBleConnection
+                            .requestConnectionPriority(connectionPriority, 1, TimeUnit.MILLISECONDS)
+                            .andThen(Observable.just(rxBleConnection));
+                }
+            });
+        }
+
+        if (requestMtu > 0) {
+            connectionObservable = connectionObservable.flatMap(new Function<RxBleConnection, Observable<RxBleConnection>>() {
+                @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
+                @Override
+                public Observable<RxBleConnection> apply(final RxBleConnection rxBleConnection) {
+                    return rxBleConnection
+                            .requestMtu(requestMtu)
+                            .map(new Function<Integer, RxBleConnection>() {
+                                @Override
+                                public RxBleConnection apply(Integer integer) {
+                                    return rxBleConnection;
+                                }
+                            })
+                            .toObservable();
+                }
+            });
+        }
+
+        final Disposable disposable = connectionObservable.subscribe(
+            new Consumer<RxBleConnection>() {
+                @Override
+                public void accept(RxBleConnection rxBleConnection) throws Exception {
+                    Device localDevice = rxBleDeviceToDeviceMapper.map(device);
+                    onConnectionStateChangedCallback.onEvent(ConnectionState.CONNECTED);
+                    cleanServicesAndCharacteristicsForDevice(localDevice);
+                    activeConnections.put(device.getMacAddress(), rxBleConnection);
+                    safeExecutor.success(localDevice);
+                }
+            },
+            new Consumer<Throwable>() {
+                @Override
+                public void accept(Throwable e) throws Exception {
+                    e.printStackTrace();
+                }
+            },
+            new Action() {
+                @Override
+                public void run() throws Exception {
+                    onDeviceDisconnected(device);
+                    onConnectionStateChangedCallback.onEvent(ConnectionState.DISCONNECTED);
+                }
+            }, new Consumer<Disposable>() {
+                @Override
+                public void accept(Disposable disposable) {
+                    onConnectionStateChangedCallback.onEvent(ConnectionState.CONNECTING);
+                }
+            }
+        );
+
+        connectingDevices.replaceDisposable(device.getMacAddress(), disposable);
+
+    }
+
+    private void safeConnectToDevice2(final RxBleDevice device,
                                      final boolean autoConnect,
                                      final int requestMtu,
                                      final RefreshGattMoment refreshGattMoment,
@@ -1263,7 +1374,6 @@ public class BleAdapter {
                         Device localDevice = rxBleDeviceToDeviceMapper.map(device);
                         onConnectionStateChangedCallback.onEvent(ConnectionState.CONNECTED);
                         cleanServicesAndCharacteristicsForDevice(localDevice);
-                        connectedDevices.put(device.getMacAddress(), localDevice);
                         activeConnections.put(device.getMacAddress(), connection);
                         safeExecutor.success(localDevice);
                     }
@@ -1284,6 +1394,7 @@ public class BleAdapter {
                         onConnectionStateChangedCallback.onEvent(ConnectionState.DISCONNECTED);
                     }
                 });
+        activeConnectionsObservables.put(device.getMacAddress(), connect);
 
         if (refreshGattMoment == RefreshGattMoment.ON_CONNECTED) {
             connect = connect.flatMap(new Function<RxBleConnection, Observable<RxBleConnection>>() {
@@ -1363,6 +1474,7 @@ public class BleAdapter {
     }
 
     private void onDeviceDisconnected(RxBleDevice rxDevice) {
+        activeConnectionsObservables.remove(rxDevice.getMacAddress());
         activeConnections.remove(rxDevice.getMacAddress());
         Device device = connectedDevices.remove(rxDevice.getMacAddress());
         if (device == null) {

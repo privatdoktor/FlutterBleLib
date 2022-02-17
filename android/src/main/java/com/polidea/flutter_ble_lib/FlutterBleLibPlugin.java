@@ -19,7 +19,7 @@ import com.polidea.flutter_ble_lib.delegate.RssiDelegate;
 import com.polidea.flutter_ble_lib.event.AdapterStateStreamHandler;
 import com.polidea.flutter_ble_lib.event.RestoreStateStreamHandler;
 import com.polidea.flutter_ble_lib.event.ScanningStreamHandler;
-import com.polidea.multiplatformbleadapter.BleAdapterFactory;
+import com.polidea.multiplatformbleadapter.BleAdapter;
 import com.polidea.multiplatformbleadapter.OnErrorCallback;
 import com.polidea.multiplatformbleadapter.OnEventCallback;
 import com.polidea.multiplatformbleadapter.ScanResult;
@@ -113,7 +113,7 @@ public class FlutterBleLibPlugin implements FlutterPlugin, MethodCallHandler {
     }
 
     private void setupAdapter(Context context) {
-        bleAdapter = BleAdapterFactory.getNewAdapter(context);
+        bleAdapter = new BleAdapter(context);
         delegates.add(new DeviceConnectionDelegate(bleAdapter, binaryMessenger));
         delegates.add(new LogLevelDelegate(bleAdapter));
         delegates.add(new DiscoveryDelegate(bleAdapter));
