@@ -5,10 +5,6 @@ part of flutter_ble_lib;
 /// iOS-specific.
 typedef RestoreStateAction = Function(List<Peripheral> peripherals);
 
-
-/// Level of details library is to output in logs.
-enum LogLevel { none, verbose, debug, info, warning, error }
-
 /// State of the Bluetooth Adapter.
 enum BluetoothState {
   UNKNOWN,
@@ -280,45 +276,6 @@ class BleManager {
   Future<void> stopPeripheralScan() async {
     await BleManager._methodChannel.invokeMethod<void>(MethodName.stopDeviceScan);
     // _resetScanEvents();  
-  }
-
-// ----
-  /// Sets specified [LogLevel].
-  ///
-  /// This sets log level for both Dart and native platform.
-  Future<void> setLogLevel(LogLevel logLevel) async {
-    print('set log level to ${describeEnum(logLevel)}');
-    try {
-      await BleManager._methodChannel.invokeMethod(
-        MethodName.setLogLevel,
-        <String, dynamic>{
-          ArgumentName.logLevel: describeEnum(logLevel),
-        },
-      );
-    } on PlatformException catch (pe) {
-      final details = pe.details as Object?;
-      if (details is String) {
-        throw BleError.fromJson(jsonDecode(details));
-      }
-      rethrow;
-    } catch (e) {
-      rethrow;
-    }
-  }
-
-// ----
-  LogLevel _logLevelFromString(String logLevelName) {
-    print('try to get log level from: $logLevelName');
-    return LogLevel.values.firstWhere(
-        (e) => e.toString() == 'LogLevel.' + logLevelName.toLowerCase());
-  }
-
-// ----
-  /// Returns current [LogLevel].
-  Future<LogLevel> logLevel() async {
-    String logLevelName =
-        await BleManager._methodChannel.invokeMethod(MethodName.logLevel);
-    return _logLevelFromString(logLevelName);
   }
 
 // ++MH++

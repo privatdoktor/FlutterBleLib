@@ -87,11 +87,8 @@ class Peripheral {
 // ++NTH++
   /// Returns a stream of [PeripheralConnectionState].
   ///
-  /// By default this stream will never end, but this behaviour can be changed
-  /// by setting [completeOnDisconnect] to `true`.
   Future<Stream<PeripheralConnectionState>> observeConnectionState({
-    bool emitCurrentValue = false,
-    bool completeOnDisconnect = false
+    bool emitCurrentValue = false
   }) async {
     final String? channelName;
     try {
@@ -332,9 +329,6 @@ class Peripheral {
   /// This function currently is not doing anything on iOS platform as
   /// MTU is requested automatically around 186.
   ///
-  /// Peripheral will negotiate requested [mtu], meaning it might be actually
-  /// lower than the requested size.
-  /// Optional [transactionId] could be used to cancel operation.
   ///
   /// If MTU has been requested in [connect()] this method will end with [BleError].
   Future<int> requestMtu(int mtu) async {

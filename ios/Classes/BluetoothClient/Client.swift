@@ -506,89 +506,6 @@ extension Client {
     }
   }
   
-//  func discoverAllServicesAndCharacteristics(
-//    deviceIdentifier: String,
-//    completion: @escaping (Result<(), ClientError>) -> ()
-//  ) {
-//    let discoPeri: DiscoveredPeripheral
-//    switch discoveredPeripheral(for: deviceIdentifier) {
-//    case .failure(let error):
-//      completion(.failure(error))
-//      return
-//    case .success(let dp):
-//      discoPeri = dp
-//    }
-//
-//    discoPeri.discoverServices() { res in
-//      switch res {
-//      case .success(let services):
-//        var services = Array(services.values)
-//        let ds = services.removeLast();
-//        populateCharacteristics(for: ds, nextServices: services) {
-//
-//        }
-//      case .failure(let error):
-//        completion(.failure(ClientError.peripheral(error)))
-//      }
-//    }
-//
-//    func populateCharacteristics(
-//      for ds: DiscoveredService,
-//      nextServices: [DiscoveredService],
-//      completion: () -> ()
-//    ) {
-//      ds.discoverCharacteristics { res in
-//        switch res {
-//        case .success(let chars):
-//          var chars = Array(chars.values)
-//          let dc = chars.removeLast()
-//          populateDescriptors(
-//            for: dc,
-//            nextChars: chars
-//          ) {
-//
-//
-//          }
-//        case .failure(let error):
-//          break
-//        }
-//
-//      }
-//
-//
-////      var allDiscoveredChars =
-////        [DiscoveredCharacteristic]()
-////      var allErrors =
-////        [PeripheralError]()
-////
-////      for ds in services {
-////
-////      }
-////
-////      populateDescriptors(
-////        for: allDiscoveredChars,
-////        allErrors: allErrors
-////      )
-//
-//    }
-//
-//    func populateDescriptors(
-//      for dc: DiscoveredCharacteristic,
-//      nextChars: [DiscoveredCharacteristic],
-//      completion: () -> ()
-//    ) {
-//      dc.discoverDescriptors { _ in
-//        guard nextChars.isEmpty == false else {
-//          completion()
-//          return
-//        }
-//        var chars = nextChars
-//        let dc = chars.removeLast()
-//        populateDescriptors(for: dc, nextChars: chars, completion: completion)
-//      }
-//
-//    }
-//  }
   func services(
     for deviceIdentifier: String
   ) -> Result<[ServiceResponse], ClientError> {
@@ -681,14 +598,6 @@ extension Client {
     )
   }
   
-  var logLevel: String {
-    get {
-      return "verbose"
-    }
-    set {
-      // zero fax given now about loggin levels really
-    }
-  }
   
   func readRssi(
     for deviceIdentifier: String,

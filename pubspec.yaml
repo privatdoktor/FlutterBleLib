@@ -34,7 +34,7 @@ flutter:
   plugin:
     platforms:
       android:
-        package: com.polidea.flutter_ble_lib
+        package: hu.privatdoktor.flutter_ble_lib
         pluginClass: FlutterBleLibPlugin
       ios:
         pluginClass: FlutterBleLibPlugin

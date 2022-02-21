@@ -224,13 +224,6 @@ final class DefaultMethodChannel : NSObject, MethodChannel {
           serviceUuid: serviceUuid,
           characteristicsUuidStrs: characteristicUuidStrs
         )
-      case "discoverAllServicesAndCharacteristics":
-        let deviceId =
-          try argsHelper.requiredValueFor(.deviceUuid,
-                                          type: String.self)
-        self = .discoverAllServicesAndCharacteristics(
-          deviceIdentifier: deviceId
-        )
       case "services":
         let deviceId =
           try argsHelper.requiredValueFor(.deviceUuid,
@@ -263,13 +256,6 @@ final class DefaultMethodChannel : NSObject, MethodChannel {
           serviceUUID: serviceUUID,
           characteristicUUID: characteristicUUID
         )
-      case "logLevel":
-        self = .logLevel
-      case "setLogLevel":
-        let logLevel =
-          try argsHelper.requiredValueFor(.logLevel,
-                                          type: String.self)
-        self = .setLogLevel(logLevel)
       case "rssi":
         let deviceId =
           try argsHelper.requiredValueFor(.deviceUuid,
@@ -424,7 +410,6 @@ final class DefaultMethodChannel : NSObject, MethodChannel {
     case discoverCharacteristics(deviceIdentifier: String,
                                  serviceUuid: String,
                                  characteristicsUuidStrs: [String]?)
-    case discoverAllServicesAndCharacteristics(deviceIdentifier: String)
     case services(deviceIdentifier: String)
     
     case characteristics(deviceIdentifier: String, serviceUUID: String)
@@ -432,9 +417,6 @@ final class DefaultMethodChannel : NSObject, MethodChannel {
     case descriptorsForDevice(deviceIdentifier: String,
                               serviceUUID: String,
                               characteristicUUID: String)
-    
-    case logLevel
-    case setLogLevel(String)
     
     case rssi(deviceIdentifier: String)
     

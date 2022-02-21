@@ -22,8 +22,7 @@ abstract class MethodName {
 
   static const String discoverServices = 'discoverServices';
   static const String discoverCharacteristics = 'discoverCharacteristics';
-  static const String discoverAllServicesAndCharacteristics =
-      'discoverAllServicesAndCharacteristics';
+
   static const String services = 'services';
   static const String characteristics = 'characteristics';
   static const String descriptorsForDevice = 'descriptorsForDevice';

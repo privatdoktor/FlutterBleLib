@@ -141,9 +141,6 @@ extension Client : CallHandler {
       ) { res in
         call.result(encodable: res)
       }
-    case .discoverAllServicesAndCharacteristics(let deviceIdentifier):
-      noop()
-      call.result()
     case .services(let deviceIdentifier):
       let serResps = services(for: deviceIdentifier)
       call.result(encodable: serResps)
@@ -164,11 +161,6 @@ extension Client : CallHandler {
           characteristicUUID: characteristicUUID
         )
       call.result(encodable: res)
-    case .logLevel:
-      call.result(logLevel)
-    case .setLogLevel(let level):
-      logLevel = level
-      call.result()
     case .rssi(let deviceIdentifier):
       readRssi(for: deviceIdentifier) { res in
         call.result(res)
