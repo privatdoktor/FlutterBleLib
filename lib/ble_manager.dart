@@ -133,24 +133,20 @@ class BleManager {
 
 // ++NTH++
   Future<List<Peripheral>> restoredState() async { 
-    final peripherals = await _restoreStateEvents
-      .map(
-        (jsonString) {
+    final peripherals = 
+      await _restoreStateEvents.map((jsonString) {
           if (jsonString == null || 
               jsonString is String == false) {
             return null;
           }
-          final restoredPeripheralsJson =
-              (jsonDecode(jsonString) as List<dynamic>)
-              .cast<Map<String, dynamic>>();
-          return restoredPeripheralsJson
-              .map((peripheralJson) =>
-                  Peripheral.fromJson(peripheralJson, this))
-              .toList();
-        },
-      )
-      .take(1)
-      .single;
+          final restoredPeripheralsJson = 
+            (jsonDecode(jsonString) as List<dynamic>).cast<Map<String, dynamic>>();
+          return restoredPeripheralsJson.map(
+            (peripheralJson) => Peripheral.fromJson(peripheralJson, this)
+          ).toList();
+      }).take(
+        1
+      ).single;
     return peripherals ?? <Peripheral>[];
   }
 

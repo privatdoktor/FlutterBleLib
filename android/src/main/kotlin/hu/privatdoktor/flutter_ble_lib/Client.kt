@@ -1,88 +1,96 @@
 package hu.privatdoktor.flutter_ble_lib
 
-import hu.privatdoktor.flutter_ble_lib.delegate.*
-import hu.privatdoktor.multiplatformbleadapter.*
-import hu.privatdoktor.multiplatformbleadapter.errors.BleError
-import hu.privatdoktor.multiplatformbleadapter.utils.Base64Converter
+import android.bluetooth.le.ScanResult
+import android.os.Handler
+import android.os.Looper
+import com.welie.blessed.*
+import hu.privatdoktor.flutter_ble_lib.event.AdapterStateStreamHandler
+import hu.privatdoktor.flutter_ble_lib.event.RestoreStateStreamHandler
+import hu.privatdoktor.flutter_ble_lib.event.ScanningStreamHandler
 import io.flutter.embedding.engine.plugins.FlutterPlugin.FlutterPluginBinding
+import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
-import org.json.JSONException
+import java.util.*
 
-class Client(val binding: FlutterPluginBinding) {
+class Client(val binding: FlutterPluginBinding) : BluetoothCentralManagerCallback() {
+    private val adapterStateStreamHandler = AdapterStateStreamHandler()
+    private val restoreStateStreamHandler = RestoreStateStreamHandler()
+    private val scanningStreamHandler = ScanningStreamHandler()
 
-    fun isClientCreated(result: MethodChannel.Result) {
-        result.success(false)
+    private var centralManager: BluetoothCentralManager? = null
+
+    init {
+        val bluetoothStateChannel = EventChannel(binding.binaryMessenger, ChannelName.ADAPTER_STATE_CHANGES)
+        bluetoothStateChannel.setStreamHandler(adapterStateStreamHandler)
+
+        val restoreStateChannel = EventChannel(binding.binaryMessenger, ChannelName.STATE_RESTORE_EVENTS)
+        restoreStateChannel.setStreamHandler(restoreStateStreamHandler)
+
+        val scanningChannel = EventChannel(binding.binaryMessenger, ChannelName.SCANNING_EVENTS)
+        scanningChannel.setStreamHandler(scanningStreamHandler)
     }
 
-    fun createClient(restoreStateIdentifier: String?, result: MethodChannel.Result) {
-//        if (this.bleAdapter != null) {
-//            Log.w(
-//                FlutterBleLibPlugin.TAG,
-//                "Overwriting existing native client. Use BleManager#isClientCreated to check whether a client already exists."
-//            )
-//        }
-//        val bleAdapter = BleAdapter(context)
-//        this.bleAdapter = bleAdapter
-//        delegates.add(DeviceConnectionDelegate(bleAdapter, binaryMessenger))
-//        delegates.add(LogLevelDelegate(bleAdapter))
-//        delegates.add(DiscoveryDelegate(bleAdapter))
-//        delegates.add(BluetoothStateDelegate(bleAdapter))
-//        delegates.add(RssiDelegate(bleAdapter))
-//        delegates.add(MtuDelegate(bleAdapter))
-//        delegates.add(CharacteristicsDelegate(bleAdapter, binaryMessenger!!))
-//        delegates.add(DevicesDelegate(bleAdapter))
-//        delegates.add(DescriptorsDelegate(bleAdapter))
-//        bleAdapter.createClient(call.argument(ArgumentKey.RESTORE_STATE_IDENTIFIER), {
-//            adapterStateStreamHandler.onNewAdapterState(it)
-//        }, {
-//            restoreStateStreamHandler.onRestoreEvent(it)
-//        })
+    fun isClientCreated(result: MethodChannel.Result) {
+        result.success(centralManager != null)
+    }
+
+    fun createClient(result: MethodChannel.Result) {
+        centralManager = BluetoothCentralManager(
+            binding.applicationContext,
+            this,
+            Handler(Looper.getMainLooper())
+        )
+        restoreStateStreamHandler.sendDummyRestoreEvent()
 
         result.success(null)
     }
 
     fun destroyClient(result: MethodChannel.Result) {
-//        if (bleAdapter != null) {
-//            bleAdapter!!.destroyClient()
-//        }
-//        //        scanningStreamHandler.onComplete();
-//        bleAdapter = null
-//        delegates.clear()
+        val centralManager = this.centralManager
+        if (centralManager == null) {
+            result.success(null)
+            return
+        }
+
+        if (centralManager.isBluetoothEnabled && centralManager.isScanning) {
+            centralManager.stopScan()
+        }
+        centralManager.close()
+        this.centralManager = null
+
         result.success(null)
     }
-
-
 
     fun startDeviceScan(
         scanMode: Int,
         callbackType: Int,
-        filteredUUIDs: Array<String>,
+        filteredUUIDStrings: List<String>,
         result: MethodChannel.Result
     ) {
-//        val bleAdapter = this.bleAdapter
-//        if (bleAdapter == null) {
-//            result.success(null)
-//            return
-//        }
-//        val uuids = call.argument<List<String>>(ArgumentKey.UUIDS)!!.toTypedArray()
-//        bleAdapter.startDeviceScan(
-//            uuids,
-//            call.argument(ArgumentKey.SCAN_MODE)!!,
-//            call.argument(ArgumentKey.CALLBACK_TYPE)!!, {
-//                scanningStreamHandler.onScanResult(it)
-//            }, { error ->
-//                scanningStreamHandler.onError(error)
-//            })
+        val centralManager = this.centralManager
+        if (centralManager == null) {
+            throw BleError(errorCode = BleErrorCode.BluetoothManagerDestroyed)
+        }
+
+        val filteredUUIDs = filteredUUIDStrings.map { UUID.fromString(it) }
+
+        centralManager.scanForPeripheralsWithServices(filteredUUIDs.toTypedArray())
+
         result.success(null)
     }
 
     fun stopDeviceScan(result: MethodChannel.Result) {
-//        bleAdapter?.stopDeviceScan()
-//        //        scanningStreamHandler.onComplete();
+        val centralManager = this.centralManager
+        if (centralManager == null) {
+            throw BleError(errorCode = BleErrorCode.BluetoothManagerDestroyed)
+        }
+
+        centralManager.stopScan()
         result.success(null)
     }
 
     fun enableRadio(result: MethodChannel.Result) {
+         centralManager
 //        bleAdapter.enable(transactionId,
 //            object : OnSuccessCallback<Void?> {
 //                fun onSuccess(data: Void) {
@@ -579,4 +587,112 @@ class Client(val binding: FlutterPluginBinding) {
 //        )
     }
 
+    fun monitorCharacteristicForDevice(
+        deviceIdentifier: String,
+        serviceUuid: String,
+        characteristicUuid: String,
+        result: MethodChannel.Result
+    ) {
+//        val streamHandler = CharacteristicsMonitorStreamHandler(binaryMessenger, deviceIdentifier)
+//        CharacteristicsDelegate.characteristicsMonitorStreamHandlers[streamHandler.name] =
+//            streamHandler
+//        bleAdapter.monitorCharacteristicForDevice(
+//            deviceIdentifier,
+//            serviceUuid,
+//            characteristicUuid,
+//            transactionId,
+//            OnEventCallback { data: Characteristic? ->
+//                mainThreadHandler.post(Runnable {
+//                    try {
+//                        streamHandler.onCharacteristicsUpdate(
+//                            createCharacteristicResponse(data, transactionId)
+//                        )
+//                    } catch (e: JSONException) {
+//                        e.printStackTrace()
+//                        streamHandler.onError(BleErrorFactory.fromThrowable(e), transactionId)
+//                        streamHandler.end()
+//                    }
+//                })
+//            }, OnErrorCallback { error: BleError? ->
+//                mainThreadHandler.post(Runnable {
+//                    streamHandler.onError(error, transactionId)
+//                    streamHandler.end()
+//                })
+//            })
+//        result.success(streamHandler.name)
+    }
+
+    fun readDescriptorForDevice(
+        deviceIdentifier: String,
+        serviceUuid: String,
+        characteristicUuid: String,
+        descriptorUuid: String,
+        result: MethodChannel.Result
+    ) {
+//        val safeMainThreadResolver: SafeMainThreadResolver<Descriptor> =
+//            createMainThreadResolverForResult(result, transactionId)
+//        bleAdapter.readDescriptorForDevice(
+//            deviceId,
+//            serviceUuid,
+//            characteristicUuid,
+//            descriptorUuid,
+//            transactionId,
+//            safeMainThreadResolver,  //success
+//            safeMainThreadResolver //error
+//        )
+    }
+
+    fun writeDescriptorForDevice(
+        deviceIdentifier: String,
+        serviceUuid: String,
+        characteristicUuid: String,
+        descriptorUuid: String,
+        value: ByteArray,
+        result: MethodChannel.Result
+    ) {
+//        val safeMainThreadResolver: SafeMainThreadResolver<Descriptor> =
+//            createMainThreadResolverForResult(result, transactionId)
+//        bleAdapter.writeDescriptorForDevice(
+//            deviceId,
+//            serviceUuid,
+//            characteristicUuid,
+//            descriptorUuid,
+//            Base64Converter.encode(value),
+//            transactionId,
+//            safeMainThreadResolver,  //success
+//            safeMainThreadResolver //error
+//        )
+    }
+
+    override fun onConnectingPeripheral(peripheral: BluetoothPeripheral) {
+
+    }
+
+    override fun onConnectedPeripheral(peripheral: BluetoothPeripheral) {
+
+    }
+
+    override fun onConnectionFailed(peripheral: BluetoothPeripheral, status: HciStatus) {
+
+    }
+
+    override fun onDisconnectingPeripheral(peripheral: BluetoothPeripheral) {
+
+    }
+
+    override fun onDisconnectedPeripheral(peripheral: BluetoothPeripheral, status: HciStatus) {
+
+    }
+
+    override fun onDiscoveredPeripheral(peripheral: BluetoothPeripheral, scanResult: ScanResult) {
+
+    }
+
+    override fun onScanFailed(scanFailure: ScanFailure) {
+
+    }
+
+    override fun onBluetoothAdapterStateChanged(state: Int) {
+
+    }
 }

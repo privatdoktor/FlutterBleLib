@@ -24,9 +24,7 @@ extension Client : CallHandler {
          .enableRadio,
          .disableRadio,
          .startDeviceScan,
-         .stopDeviceScan,
-         .setLogLevel,
-         .logLevel:
+         .stopDeviceScan:
       return .success(())
     default:
       guard centralManager?.state == .poweredOn else {
