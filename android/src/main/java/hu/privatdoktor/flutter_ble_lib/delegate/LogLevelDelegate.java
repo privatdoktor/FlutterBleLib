@@ -17,7 +17,7 @@ import io.flutter.plugin.common.MethodChannel;
 public class LogLevelDelegate extends CallDelegate {
 
     private static final String TAG = LogLevelDelegate.class.getName();
-    private static List<String> supportedMethods =  Arrays.asList(MethodName.LOG_LEVEL, MethodName.SET_LOG_LEVEL);
+    private static List<String> supportedMethods =  Arrays.asList();//MethodName.LOG_LEVEL, MethodName.SET_LOG_LEVEL);
 
     private BleAdapter bleAdapter;
 
@@ -28,16 +28,16 @@ public class LogLevelDelegate extends CallDelegate {
 
     @Override
     public void onMethodCall(@NonNull MethodCall methodCall, @NonNull MethodChannel.Result result) {
-        switch (methodCall.method) {
-            case MethodName.SET_LOG_LEVEL:
-                setLogLevel(methodCall.<String>argument(ArgumentKey.LOG_LEVEL), result);
-                return;
-            case MethodName.LOG_LEVEL:
-                logLevel(result);
-                return;
-            default:
-                throw new IllegalArgumentException(methodCall.method + " cannot be handled by this delegate");
-        }
+//        switch (methodCall.method) {
+//            case MethodName.SET_LOG_LEVEL:
+//                setLogLevel(methodCall.<String>argument(ArgumentKey.LOG_LEVEL), result);
+//                return;
+//            case MethodName.LOG_LEVEL:
+//                logLevel(result);
+//                return;
+//            default:
+//                throw new IllegalArgumentException(methodCall.method + " cannot be handled by this delegate");
+//        }
     }
 
     private void logLevel(@NonNull final MethodChannel.Result result) {
