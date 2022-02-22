@@ -35,6 +35,7 @@ flutter:
     platforms:
       android:
         package: hu.privatdoktor.flutter_ble_lib
+        mainClass: FlutterBleLibPlugin
         pluginClass: FlutterBleLibPlugin
       ios:
         pluginClass: FlutterBleLibPlugin

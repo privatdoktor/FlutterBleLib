@@ -216,11 +216,11 @@ class FlutterBleLibPlugin : FlutterPlugin, MethodCallHandler {
                 )
             }
             MethodName.WRITE_CHARACTERISTIC_FOR_DEVICE -> {
-                client.writeCharacteristicForDevice(
-                    deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
-                    serviceUuid = call.argument<String>(ArgumentKey.SERVICE_UUID)!!,
-                    characteristicUuid = call.argument<String>(ArgumentKey.CHARACTERISTIC_UUID)!!,
-                )
+//                client.writeCharacteristicForDevice(
+//                    deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
+//                    serviceUuid = call.argument<String>(ArgumentKey.SERVICE_UUID)!!,
+//                    characteristicUuid = call.argument<String>(ArgumentKey.CHARACTERISTIC_UUID)!!,
+//                )
 
             }
             MethodName.MONITOR_CHARACTERISTIC_FOR_DEVICE -> {
