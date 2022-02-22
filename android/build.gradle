@@ -1,9 +1,10 @@
-group 'com.polidea.flutter_ble_lib'
+group 'hu.privatdoktor.flutter_ble_lib'
 version '2.3.2'
 
 //apply from: './dependencies.gradle'
 
 buildscript {
+    ext.kotlin_version = '1.5.31'
     repositories {
         google()
         jcenter()
@@ -23,6 +24,7 @@ rootProject.allprojects {
 }
 
 apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
 
 android {
     compileSdkVersion 31
@@ -38,6 +40,10 @@ android {
     buildToolsVersion '31.0.0'
     ndkVersion '23.0.7599858'
 
+    sourceSets {
+        main.java.srcDirs += 'src/main/kotlin'
+    }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
@@ -46,8 +52,8 @@ android {
 
 ext {
     rxJavaVersion = '2.2.17'
-    sourceCompatibilityVersion = JavaVersion.VERSION_1_7
-    targetCompatibilityVersion = JavaVersion.VERSION_1_7
+    sourceCompatibilityVersion = JavaVersion.VERSION_1_8
+    targetCompatibilityVersion = JavaVersion.VERSION_1_8
     shadowPluginVersion = '5.0.0'
     daggerVersion = '2.15'
     libs = [
