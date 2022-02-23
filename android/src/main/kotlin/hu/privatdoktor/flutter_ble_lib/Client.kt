@@ -1,8 +1,14 @@
 package hu.privatdoktor.flutter_ble_lib
 
+import android.Manifest
+import android.annotation.SuppressLint
+import android.bluetooth.BluetoothManager
 import android.bluetooth.le.ScanResult
+import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Handler
 import android.os.Looper
+import androidx.core.app.ActivityCompat
 import com.welie.blessed.*
 import hu.privatdoktor.flutter_ble_lib.event.AdapterStateStreamHandler
 import hu.privatdoktor.flutter_ble_lib.event.RestoreStateStreamHandler
@@ -12,7 +18,7 @@ import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 import java.util.*
 
-class Client(val binding: FlutterPluginBinding) : BluetoothCentralManagerCallback() {
+class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManagerCallback() {
     private val adapterStateStreamHandler = AdapterStateStreamHandler()
     private val restoreStateStreamHandler = RestoreStateStreamHandler()
     private val scanningStreamHandler = ScanningStreamHandler()
@@ -89,21 +95,18 @@ class Client(val binding: FlutterPluginBinding) : BluetoothCentralManagerCallbac
         result.success(null)
     }
 
+    @SuppressLint("MissingPermission")
     fun enableRadio(result: MethodChannel.Result) {
-         centralManager
-//        bleAdapter.enable(transactionId,
-//            object : OnSuccessCallback<Void?> {
-//                fun onSuccess(data: Void) {
-//                    result.success(null)
-//                }
-//            },
-//            OnErrorCallback { error ->
-//                result.error(
-//                    error.errorCode.code.toString(),
-//                    error.reason,
-//                    bleErrorJsonConverter.toJson(error)
-//                )
-//            })
+        val context = binding.applicationContext
+        val bluetoothService =
+            context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
+        val bluetoothAdapter = bluetoothService?.adapter
+        if (bluetoothAdapter == null) {
+            result.success(null)
+            return
+        }
+
+        bluetoothAdapter.enable()
         result.success(null)
     }
 
