@@ -2,27 +2,26 @@ package hu.privatdoktor.flutter_ble_lib.event
 
 import android.os.Handler
 import android.os.Looper
+import com.welie.blessed.ConnectionState
 import hu.privatdoktor.flutter_ble_lib.ChannelName
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.EventChannel.EventSink
 
 import io.flutter.plugin.common.BinaryMessenger
 import hu.privatdoktor.flutter_ble_lib.event.ConnectionStateStreamHandler
-
 import org.json.JSONException
+import org.json.JSONObject
 import java.util.*
 
-class ConnectionStateStreamHandler(binaryMessenger: BinaryMessenger?, deviceId: String) :
-    EventChannel.StreamHandler {
-    private val eventChannel: EventChannel
-    @JvmField
-    val name: String
+class ConnectionStateStreamHandler(
+    binaryMessenger: BinaryMessenger?,
+    val deviceId: String
+) : EventChannel.StreamHandler {
+    val name: String =  ChannelName.CONNECTION_STATE_CHANGE_EVENTS + "/" + deviceId.uppercase(Locale.getDefault())
+    private val eventChannel: EventChannel = EventChannel(binaryMessenger, name)
     private var eventSink: EventSink? = null
-//    private val connectionStateChangeJsonConverter = ConnectionStateChangeJsonConverter()
 
     init {
-        name = ChannelName.CONNECTION_STATE_CHANGE_EVENTS + "/" + deviceId.uppercase(Locale.getDefault())
-        eventChannel = EventChannel(binaryMessenger, name)
         eventChannel.setStreamHandler(this)
     }
 
@@ -34,18 +33,29 @@ class ConnectionStateStreamHandler(binaryMessenger: BinaryMessenger?, deviceId: 
         eventSink = null
     }
 
-//    fun onNewConnectionState(connectionState: ConnectionStateChange?) {
-//        assert(Looper.getMainLooper().isCurrentThread())
-//        try {
-//            eventSink?.success(
-//                connectionStateChangeJsonConverter.toJson(
-//                    connectionState
-//                )
-//            )
-//        } catch (e: JSONException) {
-//            eventSink?.error("-1", e.message, e.stackTrace)
-//        }
-//    }
+    fun onNewConnectionState(connectionState: ConnectionState) {
+        assert(Looper.getMainLooper().isCurrentThread())
+
+        val connectionStateStr =
+        when (connectionState) {
+            ConnectionState.CONNECTING -> "connecting"
+            ConnectionState.CONNECTED -> "connected"
+            ConnectionState.DISCONNECTING -> "disconnecting"
+            ConnectionState.DISCONNECTED -> "disconnected"
+        }
+
+        val payload = mapOf<String, String>(
+            "peripheralIdentifier" to deviceId,
+            "connectionState" to connectionStateStr
+        )
+
+        try {
+            val jsonStr = JSONObject(payload).toString()
+            eventSink?.success(jsonStr)
+        } catch (e: JSONException) {
+            eventSink?.error("-1", e.message, e.stackTrace)
+        }
+    }
 
     fun end() {
         onComplete()

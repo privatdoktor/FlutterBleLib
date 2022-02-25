@@ -10,7 +10,9 @@ import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
+import kotlinx.coroutines.*
 import java.util.*
+import kotlin.coroutines.suspendCoroutine
 
 class FlutterBleLibPlugin : FlutterPlugin, MethodCallHandler {
     private var client: Client? = null
@@ -64,10 +66,18 @@ class FlutterBleLibPlugin : FlutterPlugin, MethodCallHandler {
                     client.stopDeviceScan(result = result)
                 }
                 MethodName.ENABLE_RADIO -> {
-                    client.enableRadio(result = result)
+                    runBlocking {
+                        launch(Dispatchers.Main.immediate) {
+                            client.enableRadio(result = result)
+                        }
+                    }
                 }
                 MethodName.DISABLE_RADIO -> {
-                    client.disableRadio(result = result)
+                    runBlocking {
+                        launch(Dispatchers.Main.immediate) {
+                            client.disableRadio(result = result)
+                        }
+                    }
                 }
                 MethodName.GET_STATE -> {
                     client.getState(result = result)
@@ -220,12 +230,21 @@ class FlutterBleLibPlugin : FlutterPlugin, MethodCallHandler {
                 }
                 else -> throw NotImplementedError()
             }
-        } catch (e: BleError) {
-            result.error(e.errorCode.code.toString(), e.message, null)
         } catch (e: NotImplementedError) {
             result.notImplemented()
         } catch (e: Throwable) {
-            result.error(BleErrorCode.UnknownError.code.toString(), e.localizedMessage, e.cause)
+            result.error(throwable = e)
         }
     }
+}
+
+fun MethodChannel.Result.error(throwable: Throwable) {
+    if (throwable is BleError) {
+        error(bleError = throwable)
+    }
+    error(BleErrorCode.UnknownError.code.toString(), throwable.localizedMessage, throwable.cause)
+}
+
+fun MethodChannel.Result.error(bleError: BleError) {
+    error(bleError.errorCode.code.toString(), bleError.message, bleError.cause)
 }

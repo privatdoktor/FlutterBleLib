@@ -111,8 +111,7 @@ class Peripheral {
 
     final stream = _peripheralConnectionStateChanges(name: channelName)
         .map(
-          (jsonString) 
-          => ConnectionStateContainer.fromJson(
+          (jsonString) => ConnectionStateContainer.fromJson(
             jsonDecode(jsonString)
           ).connectionState
         )

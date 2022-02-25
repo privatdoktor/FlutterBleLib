@@ -130,7 +130,7 @@ extension Client {
     discoveredPeripherals[uuid] = dp
     return dp
   }
-  
+
   private func discoveredPeripheral(
     for deviceIdentifier: String,
     expectedState: CBPeripheralState? = nil
@@ -151,6 +151,7 @@ extension Client {
         centralManager: centralManager
       )
     else {
+      
       return .failure(
         ClientError.noPeripheralFoundFor(uuid, expectedState: expectedState)
       )
@@ -161,10 +162,10 @@ extension Client {
         ClientError.noPeripheralFoundFor(uuid, expectedState: state)
       )
     }
-    
+
     return .success(dp)
   }
-  
+
   private func peripheralFor(
     uuid: UUID,
     centralManager: CBCentralManager

@@ -20,7 +20,7 @@ final class DefaultMethodChannel : NSObject, MethodChannel {
       eventChannelFactory.makeEventChannel(StateChanges.self, idScheme: .justBaseName)
     let stateRestoreSinker =
       eventChannelFactory.makeEventChannel(StateRestoreEvents.self, idScheme: .justBaseName)
-    handler.stateChanges = Client.Stream<Int>(eventHandler: { payload in
+    handler.stateChanges = Client.Stream(eventHandler: { payload in
       switch payload {
       case .data(let state):
         stateChangesSinker.sink(state)
@@ -28,6 +28,9 @@ final class DefaultMethodChannel : NSObject, MethodChannel {
         stateChangesSinker.end()
       }
     })
+    stateChangesSinker.afterCancelDo { [weak self] in
+      self?.handler.stateChanges?.afterCancelDo?()
+    }
     handler.stateRestoreEvents = Client.Stream(eventHandler: { payload in
       switch payload {
       case .data(let states):
@@ -36,6 +39,9 @@ final class DefaultMethodChannel : NSObject, MethodChannel {
         stateRestoreSinker.end()
       }
     })
+    stateRestoreSinker.afterCancelDo { [weak self] in
+      self?.handler.stateRestoreEvents?.afterCancelDo?()
+    }
   }
   
   init(handler: Client, messenger: FlutterBinaryMessenger) {

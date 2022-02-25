@@ -215,6 +215,7 @@ extension Client : CallHandler {
         )
       sinker.afterCancelDo {
         eventChannelFactory.removeEventChannel(name: sinkerName)
+        stream.afterCancelDo?()
       }
       monitorCharacteristicForDevice(
         deviceIdentifier: deviceIdentifier,

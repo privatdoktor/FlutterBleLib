@@ -19,7 +19,7 @@ class AdapterStateStreamHandler : EventChannel.StreamHandler {
         adapterStateSink = null
     }
 
-    fun onNewAdapterState(bluetoothAdapterState: String?) {
+    fun onNewAdapterState(bluetoothAdapterState: String) {
         adapterStateSink?.success(bluetoothAdapterState)
     }
 }

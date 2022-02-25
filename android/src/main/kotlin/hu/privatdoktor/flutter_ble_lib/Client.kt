@@ -1,22 +1,33 @@
 package hu.privatdoktor.flutter_ble_lib
 
-import android.Manifest
 import android.annotation.SuppressLint
+import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.bluetooth.le.ScanResult
 import android.content.Context
-import android.content.pm.PackageManager
 import android.os.Handler
 import android.os.Looper
-import androidx.core.app.ActivityCompat
 import com.welie.blessed.*
 import hu.privatdoktor.flutter_ble_lib.event.AdapterStateStreamHandler
+import hu.privatdoktor.flutter_ble_lib.event.ConnectionStateStreamHandler
 import hu.privatdoktor.flutter_ble_lib.event.RestoreStateStreamHandler
 import hu.privatdoktor.flutter_ble_lib.event.ScanningStreamHandler
 import io.flutter.embedding.engine.plugins.FlutterPlugin.FlutterPluginBinding
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.withTimeout
 import java.util.*
+
+
+fun bluetoothStateStrFrom(state: Int) : String {
+    return when (state) {
+        BluetoothAdapter.STATE_OFF -> "PoweredOff"
+        BluetoothAdapter.STATE_ON -> "PoweredOn"
+        BluetoothAdapter.STATE_TURNING_OFF, BluetoothAdapter.STATE_TURNING_ON -> "Resetting"
+        else -> "Unknown"
+    }
+}
 
 class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManagerCallback() {
     private val adapterStateStreamHandler = AdapterStateStreamHandler()
@@ -24,6 +35,8 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
     private val scanningStreamHandler = ScanningStreamHandler()
 
     private var centralManager: BluetoothCentralManager? = null
+    private val discoveredPeripherals = HashMap<String, DiscoveredPeripheral>()
+    private val adapterStateListeners = HashMap<UUID, (Int) -> Unit>()
 
     init {
         val bluetoothStateChannel = EventChannel(binding.binaryMessenger, ChannelName.ADAPTER_STATE_CHANGES)
@@ -35,6 +48,32 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
         val scanningChannel = EventChannel(binding.binaryMessenger, ChannelName.SCANNING_EVENTS)
         scanningChannel.setStreamHandler(scanningStreamHandler)
     }
+
+
+    //region Helpers
+
+    fun discoveredPeripheral(deviceIdentifier: String) : DiscoveredPeripheral {
+        val centralManager = this.centralManager
+        if (centralManager == null) {
+            throw BleError(errorCode = BleErrorCode.BluetoothManagerDestroyed)
+        }
+
+        val chachedDp = discoveredPeripherals[deviceIdentifier]
+
+        val dp = if (chachedDp != null) {
+            chachedDp
+        } else {
+            val libCachedPeripheral = centralManager.getPeripheral(deviceIdentifier)
+            val newDp = DiscoveredPeripheral(libCachedPeripheral, centralManager)
+            discoveredPeripherals[deviceIdentifier] = newDp
+            newDp
+        }
+        return dp
+    }
+
+    //endregion
+
+    //region API
 
     fun isClientCreated(result: MethodChannel.Result) {
         result.success(centralManager != null)
@@ -96,7 +135,7 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
     }
 
     @SuppressLint("MissingPermission")
-    fun enableRadio(result: MethodChannel.Result) {
+    suspend fun enableRadio(result: MethodChannel.Result) : Unit {
         val context = binding.applicationContext
         val bluetoothService =
             context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
@@ -105,30 +144,77 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
             result.success(null)
             return
         }
+        if (bluetoothAdapter.state == BluetoothAdapter.STATE_ON) {
+            result.success(null)
+            return
+        }
 
+        val listenerUuid = UUID.randomUUID()
+        val bluetoothOnNow = CompletableDeferred<Unit>()
+        adapterStateListeners[listenerUuid] = {
+            when (it) {
+                BluetoothAdapter.STATE_ON -> {
+                    bluetoothOnNow.complete(Unit)
+                }
+            }
+        }
         bluetoothAdapter.enable()
-        result.success(null)
+        withTimeout(timeMillis = 5 * 1000) {
+            try {
+                bluetoothOnNow.await()
+            } catch (e: Throwable) {
+               print(e)
+            }
+            adapterStateListeners.remove(listenerUuid)
+            result.success(null)
+        }
     }
 
-    fun disableRadio(result: MethodChannel.Result) {
-//        bleAdapter.disable(transactionId,
-//            object : OnSuccessCallback<Void?> {
-//                fun onSuccess(data: Void) {
-//                    result.success(null)
-//                }
-//            },
-//            OnErrorCallback { error ->
-//                result.error(
-//                    error.errorCode.code.toString(),
-//                    error.reason,
-//                    bleErrorJsonConverter.toJson(error)
-//                )
-//            })
-        result.success(null)
+    suspend fun disableRadio(result: MethodChannel.Result) {
+        val context = binding.applicationContext
+        val bluetoothService =
+            context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
+        val bluetoothAdapter = bluetoothService?.adapter
+        if (bluetoothAdapter == null) {
+            result.success(null)
+            return
+        }
+        if (bluetoothAdapter.state == BluetoothAdapter.STATE_OFF) {
+            result.success(null)
+            return
+        }
+
+        val listenerUuid = UUID.randomUUID()
+        val bluetoothOffNow = CompletableDeferred<Unit>()
+        adapterStateListeners[listenerUuid] = {
+            when (it) {
+                BluetoothAdapter.STATE_OFF -> {
+                    bluetoothOffNow.complete(Unit)
+                }
+            }
+        }
+        bluetoothAdapter.disable()
+        withTimeout(timeMillis = 5 * 1000) {
+            try {
+                bluetoothOffNow.await()
+            } catch (e: Throwable) {
+                print(e)
+            }
+            adapterStateListeners.remove(listenerUuid)
+            result.success(null)
+        }
     }
 
     fun getState(result: MethodChannel.Result) {
-        result.success(true)
+        val context = binding.applicationContext
+        val bluetoothService =
+            context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
+        val state = bluetoothService?.adapter?.state
+        if (state == null) {
+            result.success("Unsupported")
+            return
+        }
+        result.success(bluetoothStateStrFrom(state))
     }
 
     fun connectToDevice(
@@ -139,79 +225,34 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
         timeoutMillis: Long?,
         result: MethodChannel.Result
     ) {
-//        val refreshGattMoment =
-//            if (refreshGatt) {
-//                RefreshGattMoment.ON_CONNECTED
-//            } else {
-//                null
-//            }
-//
-//        val streamHandler = ConnectionStateStreamHandler(binaryMessenger, deviceId)
-//        streamHandlers.put(deviceId, streamHandler)
-//        val safeMainThreadResolver: SafeMainThreadResolver<*> = SafeMainThreadResolver(
-//            object : OnSuccessCallback<Any?> {
-//                fun onSuccess(data: Any) {
-//                    result.success(null)
-//                }
-//            }
-//        ) { error ->
-//            result.error(
-//                error.errorCode.code.toString(),
-//                error.reason,
-//                bleErrorJsonConverter.toJson(error)
-//            )
-//            streamHandler.end()
-//        }
-//        val connectionPriorityBalanced = 0 //BluetoothGatt.CONNECTION_PRIORITY_BALANCED
-//        bleAdapter.connectToDevice(
-//            deviceId,
-//            ConnectionOptions(
-//                isAutoConnect,
-//                requestMtu!!, refreshGattMoment, timeoutMillis, connectionPriorityBalanced
-//            ),
-//            object : OnSuccessCallback<Device?> {
-//                fun onSuccess(data: Device) {
-//                    safeMainThreadResolver.onSuccess(null)
-//                }
-//            },
-//            object : OnEventCallback<ConnectionState?> {
-//                fun onEvent(data: ConnectionState) {
-//                    if (data == ConnectionState.DISCONNECTED) {
-//                        for (cmsh in CharacteristicsDelegate.characteristicsMonitorStreamHandlers.values) {
-//                            if (cmsh.deviceId === deviceId) {
-//                                cmsh.end()
-//                            }
-//                        }
-//                    }
-//                    streamHandler.onNewConnectionState(ConnectionStateChange(deviceId, data))
-//                }
-//            },
-//            OnErrorCallback { error -> safeMainThreadResolver.onError(error) }
-//        )
-        result.success(null)
+        val centralManager = this.centralManager
+        if (centralManager == null) {
+            throw BleError(errorCode = BleErrorCode.BluetoothManagerDestroyed)
+        }
+        val dp = discoveredPeripheral(deviceIdentifier)
+
+        //FIXME: support configuration parameters
+
+        dp.connect {
+            it.fold(
+                onSuccess = {
+                    result.success(null)
+                },
+                onFailure = {
+                    result.error(it)
+                }
+            )
+        }
     }
 
     fun isDeviceConnected(deviceIdentifier: String, result: MethodChannel.Result) {
-//        val safeMainThreadResolver: SafeMainThreadResolver<*> = SafeMainThreadResolver(
-//            object : OnSuccessCallback<Boolean?> {
-//                fun onSuccess(data: Boolean) {
-//                    result.success(data)
-//                }
-//            }
-//        ) { error ->
-//            result.error(
-//                error.errorCode.code.toString(),
-//                error.reason,
-//                bleErrorJsonConverter.toJson(error)
-//            )
-//        }
-//        bleAdapter.isDeviceConnected(deviceIdentifier,
-//            object : OnSuccessCallback<Boolean?> {
-//                fun onSuccess(data: Boolean) {
-//                    safeMainThreadResolver.onSuccess(data)
-//                }
-//            },
-//            OnErrorCallback { error -> safeMainThreadResolver.onError(error) })
+        val centralManager = this.centralManager
+        if (centralManager == null) {
+            throw BleError(errorCode = BleErrorCode.BluetoothManagerDestroyed)
+        }
+        val dp = discoveredPeripheral(deviceIdentifier)
+
+        result.success(dp.peripheral.state == ConnectionState.CONNECTED)
     }
 
     fun observeConnectionState(
@@ -219,8 +260,14 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
         emitCurrentValue: Boolean,
         result: MethodChannel.Result
     ) {
+        val centralManager = this.centralManager
+        if (centralManager == null) {
+            throw BleError(errorCode = BleErrorCode.BluetoothManagerDestroyed)
+        }
+
+
 //        //emit current value if needed; rest is published automatically through connectToDevice()
-//        val streamHandler: ConnectionStateStreamHandler = streamHandlers.get(deviceId)
+        val streamHandler: ConnectionStateStreamHandler = streamHandlers[deviceId]
 //        val safeMainThreadResolver: SafeMainThreadResolver<*> = SafeMainThreadResolver(
 //            object : OnSuccessCallback<Boolean?> {
 //                fun onSuccess(isConnected: Boolean) {
@@ -666,36 +713,67 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
 //            safeMainThreadResolver //error
 //        )
     }
+    //endregion
 
-    override fun onConnectingPeripheral(peripheral: BluetoothPeripheral) {
-
-    }
-
-    override fun onConnectedPeripheral(peripheral: BluetoothPeripheral) {
-
-    }
-
-    override fun onConnectionFailed(peripheral: BluetoothPeripheral, status: HciStatus) {
-
-    }
-
-    override fun onDisconnectingPeripheral(peripheral: BluetoothPeripheral) {
-
-    }
-
-    override fun onDisconnectedPeripheral(peripheral: BluetoothPeripheral, status: HciStatus) {
-
-    }
+    //region Callbacks
 
     override fun onDiscoveredPeripheral(peripheral: BluetoothPeripheral, scanResult: ScanResult) {
-
+        val discoveredPeripheral = discoveredPeripherals[peripheral.address]
+        if (discoveredPeripheral != null) {
+            discoveredPeripheral.updateInternalPeripheral(peripheral)
+        } else {
+//            discoveredPeripherals[peripheral.address] = DiscoveredPeripheral(peripheral = peripheral)
+        }
     }
 
     override fun onScanFailed(scanFailure: ScanFailure) {
 
     }
 
-    override fun onBluetoothAdapterStateChanged(state: Int) {
+    override fun onConnectingPeripheral(peripheral: BluetoothPeripheral) {
+        discoveredPeripherals[peripheral.address]?.connectionStateChange()
+    }
+
+    override fun onConnectedPeripheral(peripheral: BluetoothPeripheral) {
+        val discoveredPeripheral = discoveredPeripherals[peripheral.address]
+        if (discoveredPeripheral == null) {
+            return
+        }
+        discoveredPeripheral.connectionStateChange()
+        discoveredPeripheral.connected(Result.success(Unit))
+    }
+
+    override fun onConnectionFailed(peripheral: BluetoothPeripheral, status: HciStatus) {
+        val discoveredPeripheral = discoveredPeripherals[peripheral.address]
+        if (discoveredPeripheral == null) {
+            return
+        }
+        discoveredPeripheral.connectionStateChange()
+        discoveredPeripheral.connected(
+            Result.failure(
+                BleError(errorCode = BleErrorCode.DeviceConnectionFailed)
+            )
+        )
 
     }
+
+    override fun onDisconnectingPeripheral(peripheral: BluetoothPeripheral) {
+        discoveredPeripherals[peripheral.address]?.connectionStateChange()
+    }
+
+    override fun onDisconnectedPeripheral(peripheral: BluetoothPeripheral, status: HciStatus) {
+        discoveredPeripherals[peripheral.address]?.connectionStateChange()
+        discoveredPeripherals.remove(peripheral.address)
+    }
+
+    override fun onBluetoothAdapterStateChanged(state: Int) {
+        adapterStateListeners.forEach {
+            it.value(state)
+        }
+        adapterStateStreamHandler.onNewAdapterState(bluetoothStateStrFrom(state))
+    }
+
+    //endregion
+
+
 }
