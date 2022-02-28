@@ -172,7 +172,7 @@ class FlutterBleLibPlugin : FlutterPlugin, MethodCallHandler {
                 }
                 MethodName.GET_CONNECTED_DEVICES -> {
                     client.getConnectedDevices(
-                        serviceUUIDs = call.argument<List<String>>(ArgumentKey.UUIDS)!!,
+                        serviceUUIDStrs = call.argument<List<String>>(ArgumentKey.UUIDS)!!,
                         result = result
                     )
                 }

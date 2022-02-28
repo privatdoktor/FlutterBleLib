@@ -145,7 +145,6 @@ class DiscoveredPeripheral : NSObject {
   weak var centralManager: CBCentralManager?
   var discoveredServices = [CBUUID : DiscoveredService]()
   
-  
   private var _connectCompleted: ((_ res: Result<(), ClientError>) -> ())?
   private var _disconnectCompleted: ((_ res: Result<(), ClientError>) -> ())?
   
@@ -173,6 +172,40 @@ class DiscoveredPeripheral : NSObject {
 }
 // MARK: - API
 extension DiscoveredPeripheral {
+  
+  func connect(
+    options: [String : Any]? = nil,
+    _ completion: @escaping (_ res: Result<(), ClientError>) -> ()
+  ) {
+    if let pending = _connectCompleted {
+      _connectCompleted = nil
+      pending(.failure(.peripheralConnection(internal: nil)))
+    }
+    _connectCompleted = completion
+    centralManager?.connect(peripheral, options: options)
+  }
+  
+  func disconnect(
+    _ completion: @escaping (_ res: Result<(), ClientError>) -> ()
+  ) {
+    if let pending = _disconnectCompleted {
+      _disconnectCompleted = nil
+      pending(.failure(.peripheralDisconnection(internal: nil)))
+    }
+    _disconnectCompleted = completion
+    centralManager?.cancelPeripheralConnection(peripheral)
+  }
+  
+  func onConnectionEvent(
+    handler: ((_ event: CBConnectionEvent) -> ())?
+  ) {
+    _connectionEventOccured = handler
+  }
+  
+  func onDisconnected(listener: @escaping () -> ()) {
+    _onDisconnectedListeners.enqueue(listener)
+  }
+  
   func discoverServices(
     serviceUUIDs: [CBUUID]? = nil,
     _ completion: @escaping (
@@ -186,32 +219,7 @@ extension DiscoveredPeripheral {
     _servicesDiscoveryCompleted = completion
     peripheral.discoverServices(serviceUUIDs)
   }
-  func connect(
-    options: [String : Any]? = nil,
-    _ completion: @escaping (_ res: Result<(), ClientError>) -> ()
-  ) {
-    if let pending = _connectCompleted {
-      _connectCompleted = nil
-      pending(.failure(.peripheralConnection(internal: nil)))
-    }
-    _connectCompleted = completion
-    centralManager?.connect(peripheral, options: options)
-  }
-  func disconnect(
-    _ completion: @escaping (_ res: Result<(), ClientError>) -> ()
-  ) {
-    if let pending = _disconnectCompleted {
-      _disconnectCompleted = nil
-      pending(.failure(.peripheralDisconnection(internal: nil)))
-    }
-    _disconnectCompleted = completion
-    centralManager?.cancelPeripheralConnection(peripheral)
-  }
-  func onConnectionEvent(
-    handler: ((_ event: CBConnectionEvent) -> ())?
-  ) {
-    _connectionEventOccured = handler
-  }
+  
   func readRssi(
     _ completion: @escaping (_ res: Result<Int, ClientError>
     ) -> ()) {
@@ -222,9 +230,7 @@ extension DiscoveredPeripheral {
     _readRSSICompleted = completion
     peripheral.readRSSI()
   }
-  func onDisconnected(listener: @escaping () -> ()) {
-    _onDisconnectedListeners.enqueue(listener)
-  }
+  
 }
 // MARK: - For Publishers
 extension DiscoveredPeripheral {

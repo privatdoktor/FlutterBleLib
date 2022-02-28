@@ -1,5 +1,12 @@
 package hu.privatdoktor.flutter_ble_lib
 
+import org.json.JSONObject
+
+
+private interface Metadata {
+
+}
+
 enum class BleErrorCode(val code: Int) {
     UnknownError(0),
     BluetoothManagerDestroyed(1),
@@ -53,8 +60,6 @@ class BleError(
     val internalMessage: String? = null,
 ) : Throwable() {
 
-
-
     override val message: String
         get() = (
             "Error code: " + errorCode +
@@ -67,7 +72,75 @@ class BleError(
             ", internalMessage" + internalMessage
         )
 
+    fun toJsonString(): String {
+        val root = JSONObject()
+        root.put(
+            ERROR_CODE,
+            errorCode.code
+        )
+        if (androidCode == null || androidCode > MAX_ATT_ERROR || androidCode < 0) {
+            root.put(
+                ATT_ERROR_CODE,
+                JSONObject.NULL
+            )
+        } else {
+            root.put(
+                ATT_ERROR_CODE,
+                androidCode
+            )
+        }
+        if (androidCode == null || androidCode <= MAX_ATT_ERROR) {
+            root.put(
+                ANDROID_ERROR_CODE,
+                JSONObject.NULL
+            )
+        } else {
+            root.put(
+                ANDROID_ERROR_CODE,
+                androidCode
+            )
+        }
+        root.put(
+            REASON,
+            reason
+        )
+        root.put(
+            DEVICE_ID,
+            deviceID
+        )
+        root.put(
+            SERVICE_UUID,
+            serviceUUID
+        )
+        root.put(
+            CHARACTERISTIC_UUID,
+            characteristicUUID
+        )
+        root.put(
+            DESCRIPTOR_UUID,
+            descriptorUUID
+        )
+        root.put(
+            INTERNAL_MESSAGE,
+            internalMessage
+        )
+        return root.toString()
+    }
+
     companion object {
+        const val ERROR_CODE = "errorCode"
+        const val ATT_ERROR_CODE = "attErrorCode"
+        const val ANDROID_ERROR_CODE = "androidErrorCode"
+        const val REASON = "reason"
+        const val DEVICE_ID = "deviceID"
+        const val SERVICE_UUID = "serviceUUID"
+        const val CHARACTERISTIC_UUID = "characteristicUUID"
+        const val DESCRIPTOR_UUID = "descriptorUUID"
+        const val INTERNAL_MESSAGE = "internalMessage"
+        const val TRANSACTION_ID = "transactionId"
+
+        const val MAX_ATT_ERROR = 0x80
+
         fun cancelled(): BleError {
             return BleError(errorCode = BleErrorCode.OperationCancelled)
         }

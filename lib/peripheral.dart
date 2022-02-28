@@ -308,9 +308,12 @@ class Peripheral {
   ///
   Future<int> rssi() async {
     try {
-      final raw = await BleManager._methodChannel.invokeMethod<int>(MethodName.rssi, <String, dynamic>{
-        ArgumentName.deviceIdentifier: identifier,
-      });
+      final raw = 
+        await BleManager._methodChannel.invokeMethod<int>(
+          MethodName.rssi, <String, dynamic>{
+            ArgumentName.deviceIdentifier: identifier,
+          }
+        );
       return raw!;
     } on PlatformException catch (pe) {
       final details = pe.details as Object?;
