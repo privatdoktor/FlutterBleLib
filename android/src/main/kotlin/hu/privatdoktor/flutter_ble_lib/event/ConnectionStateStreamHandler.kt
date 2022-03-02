@@ -14,10 +14,10 @@ import org.json.JSONObject
 import java.util.*
 
 class ConnectionStateStreamHandler(
-    binaryMessenger: BinaryMessenger?,
+    binaryMessenger: BinaryMessenger,
     val deviceId: String
 ) : EventChannel.StreamHandler {
-    val name: String =  ChannelName.CONNECTION_STATE_CHANGE_EVENTS + "/" + deviceId.uppercase(Locale.getDefault())
+    val name: String = ChannelName.CONNECTION_STATE_CHANGE_EVENTS + "/" + deviceId.lowercase()
     private val eventChannel: EventChannel = EventChannel(binaryMessenger, name)
     private var eventSink: EventSink? = null
 
@@ -25,11 +25,11 @@ class ConnectionStateStreamHandler(
         eventChannel.setStreamHandler(this)
     }
 
-    override fun onListen(o: Any, eventSink: EventSink) {
+    override fun onListen(o: Any?, eventSink: EventSink) {
         this.eventSink = eventSink
     }
 
-    override fun onCancel(o: Any) {
+    override fun onCancel(o: Any?) {
         eventSink = null
     }
 

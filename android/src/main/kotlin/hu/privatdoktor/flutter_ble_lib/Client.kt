@@ -6,11 +6,12 @@ import android.bluetooth.le.ScanResult
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import android.util.Base64
 import com.welie.blessed.*
 import hu.privatdoktor.flutter_ble_lib.event.AdapterStateStreamHandler
-import hu.privatdoktor.flutter_ble_lib.event.ConnectionStateStreamHandler
 import hu.privatdoktor.flutter_ble_lib.event.RestoreStateStreamHandler
 import hu.privatdoktor.flutter_ble_lib.event.ScanningStreamHandler
+import hu.privatdoktor.flutter_ble_lib.event.bluetoothStateStrFrom
 import io.flutter.embedding.engine.plugins.FlutterPlugin.FlutterPluginBinding
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
@@ -20,41 +21,17 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.Serializable
 import java.util.*
-import android.util.Base64
-
-
-fun bluetoothStateStrFrom(state: Int) : String {
-    return when (state) {
-        BluetoothAdapter.STATE_OFF -> "PoweredOff"
-        BluetoothAdapter.STATE_ON -> "PoweredOn"
-        BluetoothAdapter.STATE_TURNING_OFF, BluetoothAdapter.STATE_TURNING_ON -> "Resetting"
-        else -> "Unknown"
-    }
-}
 
 class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManagerCallback() {
-    private val adapterStateStreamHandler = AdapterStateStreamHandler()
-    private val restoreStateStreamHandler = RestoreStateStreamHandler()
-    private val scanningStreamHandler = ScanningStreamHandler()
+    private val adapterStateStreamHandler = AdapterStateStreamHandler(binding.binaryMessenger)
+    private val restoreStateStreamHandler = RestoreStateStreamHandler(binding.binaryMessenger)
+    private val scanningStreamHandler = ScanningStreamHandler(binding.binaryMessenger)
 
     private var centralManager: BluetoothCentralManager? = null
     private val discoveredPeripherals = HashMap<String, DiscoveredPeripheral>()
     private val adapterStateListeners = HashMap<UUID, (Int) -> Unit>()
 
-    init {
-        val bluetoothStateChannel = EventChannel(binding.binaryMessenger, ChannelName.ADAPTER_STATE_CHANGES)
-        bluetoothStateChannel.setStreamHandler(adapterStateStreamHandler)
-
-        val restoreStateChannel = EventChannel(binding.binaryMessenger, ChannelName.STATE_RESTORE_EVENTS)
-        restoreStateChannel.setStreamHandler(restoreStateStreamHandler)
-
-        val scanningChannel = EventChannel(binding.binaryMessenger, ChannelName.SCANNING_EVENTS)
-        scanningChannel.setStreamHandler(scanningStreamHandler)
-    }
-
-
     //region Helpers
-
     companion object {
         fun serviceResponsesFor(
             deviceIdentifier: String,
@@ -77,7 +54,7 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
                 characteristic.properties.and(BluetoothGattCharacteristic.PROPERTY_INDICATE) != 0
 
             val isNotifiable =
-                characteristic.properties.and(BluetoothGattCharacteristic.PROPERTY_NOTIFY)
+                characteristic.properties.and(BluetoothGattCharacteristic.PROPERTY_NOTIFY) != 0
             val isReadable =
                 characteristic.properties.and(BluetoothGattCharacteristic.PROPERTY_READ) != 0
             val isWritableWithResponse =
@@ -97,14 +74,14 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
 
         fun characteristicsResponseFor(
             peripheral: BluetoothPeripheral,
-            serviceUuid: String,
+            serviceUuidStr: String,
             characteristics: List<BluetoothGattCharacteristic>
         ) : Map<String, Any> {
             val characteristicResponses = characteristics.map {
                 characteristicResponseFor(peripheral, it)
             }
             val characteristicsResponse = mapOf(
-                "serviceUuid" to serviceUuid,
+                "serviceUuid" to serviceUuidStr,
                 "characteristics" to characteristicResponses
             )
             return characteristicsResponse
@@ -112,12 +89,12 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
 
         fun singleCharacteristicResponse(
             peripheral: BluetoothPeripheral,
-            serviceUuid: String,
+            serviceUuidStr: String,
             characteristic: BluetoothGattCharacteristic
         ) : Map<String, Any> {
             val characteristicResponse = characteristicResponseFor(peripheral, characteristic)
             mapOf(
-                "serviceUuid" to serviceUuid,
+                "serviceUuid" to serviceUuidStr,
                 "characteristic" to characteristicResponse
             )
             return characteristicResponse
@@ -125,7 +102,7 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
 
         fun singleCharacteristicWithValueResponse(
             peripheral: BluetoothPeripheral,
-            serviceUuid: String,
+            serviceUuidStr: String,
             characteristic: BluetoothGattCharacteristic
         ) : Map<String, Any> {
             val characteristicWithValueResponse =
@@ -134,9 +111,9 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
                     characteristic
                 ).toMutableMap()
             characteristicWithValueResponse["value"] =
-                Base64.encodeToString(characteristic.value, Base64.DEFAULT)
+                Base64.encodeToString(characteristic.value, Base64.NO_WRAP)
             mapOf(
-                "serviceUuid" to serviceUuid,
+                "serviceUuid" to serviceUuidStr,
                 "characteristic" to characteristicWithValueResponse
             )
             return characteristicWithValueResponse
@@ -144,11 +121,11 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
 
         fun descriptorsForPeripheralResponseFor(
             peripheral: BluetoothPeripheral,
-            serviceUuid: String,
+            serviceUuidStr: String,
             characteristic: BluetoothGattCharacteristic
         ) : Map<String, Any> {
             val response = characteristicResponseFor(peripheral, characteristic).toMutableMap()
-            response["serviceUuid"] = serviceUuid
+            response["serviceUuid"] = serviceUuidStr
             val descriptorResponses = characteristic.descriptors.map {
                 mapOf("descriptorUuid" to it.uuid.toString())
             }
@@ -158,14 +135,14 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
 
         fun descriptorResponseFor(
             peripheral: BluetoothPeripheral,
-            serviceUuid: String,
+            serviceUuidStr: String,
             characteristic: BluetoothGattCharacteristic,
             descriptor: BluetoothGattDescriptor
         ) : Map<String, Any> {
             val response = characteristicResponseFor(peripheral, characteristic).toMutableMap()
-            response["serviceUuid"] = serviceUuid
+            response["serviceUuid"] = serviceUuidStr
             response["descriptorUuid"] = descriptor.uuid.toString()
-            response["value"] = Base64.encodeToString(descriptor.value, Base64.DEFAULT)
+            response["value"] = Base64.encodeToString(descriptor.value, Base64.NO_WRAP)
             return  response
         }
 
@@ -233,16 +210,21 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
     fun startDeviceScan(
         scanMode: Int,
         callbackType: Int,
-        filteredUUIDStrings: List<String>,
+        filteredUUIDs: List<UUID>,
         result: MethodChannel.Result
     ) {
         val centralManager = this.centralManager
         if (centralManager == null) {
             throw BleError(errorCode = BleErrorCode.BluetoothManagerDestroyed)
         }
-
-        val filteredUUIDs = filteredUUIDStrings.map { UUID.fromString(it) }
-
+        val mode = when (scanMode) {
+            -1 -> ScanMode.OPPORTUNISTIC
+            0 -> ScanMode.LOW_POWER
+            1 -> ScanMode.BALANCED
+            2 -> ScanMode.LOW_LATENCY
+            else -> ScanMode.LOW_POWER
+        }
+        centralManager.setScanMode(mode)
         centralManager.scanForPeripheralsWithServices(filteredUUIDs.toTypedArray())
 
         result.success(null)
@@ -406,12 +388,12 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
 
     fun discoverServices(
         deviceIdentifier: String,
-        serviceUuids: List<String>?,
+        serviceUUIDs: List<UUID>?,
         result: MethodChannel.Result
     ) {
         val dp = discoveredPeripheral(deviceIdentifier)
 
-        dp.discoverServices(serviceUUIDs = serviceUuids?.map { UUID.fromString(it) }) {
+        dp.discoverServices(serviceUUIDs = serviceUUIDs) {
             it.fold(
                 onSuccess = {
                     val serviceResponses =
@@ -436,8 +418,8 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
 
     fun discoverCharacteristics(
         deviceIdentifier: String,
-        serviceUuid: String,
-        characteristicsUuids: List<String>?,
+        serviceUuid: UUID,
+        characteristicsUuids: List<UUID>?,
         result: MethodChannel.Result
     ) {
         characteristics(
@@ -465,45 +447,45 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
 
     fun characteristics(
         deviceIdentifier: String,
-        serviceUuid: String,
+        serviceUuid: UUID,
         result: MethodChannel.Result
     ) {
         val dp = discoveredPeripheral(deviceIdentifier)
 
-        val service = dp.peripheral.getService(UUID.fromString(serviceUuid))
+        val service = dp.peripheral.getService(serviceUuid)
         if (service == null) {
-            throw BleError.serviceNotFound(serviceUuid)
+            throw BleError.serviceNotFound(serviceUuid.toString())
         }
 
         val characteristicsResponse = characteristicsResponseFor(
             peripheral = dp.peripheral,
-            serviceUuid = serviceUuid,
+            serviceUuidStr = serviceUuid.toString(),
             characteristics = service.characteristics
         )
-        val characteristicsResponseJsonStr = JSONObject(characteristicsResponse)
+        val characteristicsResponseJsonStr = JSONObject(characteristicsResponse).toString()
         result.success(characteristicsResponseJsonStr)
     }
 
     fun descriptorsForDevice(
         deviceIdentifier: String,
-        serviceUuid: String,
-        characteristicUuid: String,
+        serviceUuid: UUID,
+        characteristicUuid: UUID,
         result: MethodChannel.Result
     ) {
         val dp = discoveredPeripheral(deviceIdentifier)
 
         val characteristic = dp.peripheral.getService(
-            UUID.fromString(serviceUuid)
+            serviceUuid
         )?.getCharacteristic(
-            UUID.fromString(characteristicUuid)
+            characteristicUuid
         )
         if (characteristic == null) {
-            throw BleError.characteristicNotFound(characteristicUuid)
+            throw BleError.characteristicNotFound(characteristicUuid.toString())
         }
 
         val response = descriptorsForPeripheralResponseFor(
             peripheral = dp.peripheral,
-            serviceUuid = serviceUuid,
+            serviceUuidStr = serviceUuid.toString(),
             characteristic = characteristic
         )
         val jsonStr = JSONObject(response).toString()
@@ -546,18 +528,21 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
         }
     }
 
-    fun getConnectedDevices(serviceUUIDStrs: List<String>, result: MethodChannel.Result) {
+    fun getConnectedDevices(
+        serviceUUIDs: List<UUID>,
+        result: MethodChannel.Result
+    ) {
         val centralManager = this.centralManager
         if (centralManager == null) {
             throw BleError(errorCode = BleErrorCode.BluetoothManagerDestroyed)
         }
-        val serviceUUIDs = serviceUUIDStrs.map { UUID.fromString(it) }.toSet()
+        val serviceUUIDset = serviceUUIDs.toSet()
         val connectedPeripherals = centralManager.connectedPeripherals
 
         val fileteredPeripherals =
             connectedPeripherals.filter {
                 val connectedServiceUUIDs = it.services.map { it.uuid }.toSet()
-                connectedServiceUUIDs.intersect(serviceUUIDs).isNotEmpty()
+                connectedServiceUUIDs.intersect(serviceUUIDset).isNotEmpty()
             }
 
         val peripheralResponses = fileteredPeripherals.map { peripheralResponseFor(it) }
@@ -588,18 +573,18 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
 
     fun readCharacteristicForDevice(
         deviceIdentifier: String,
-        serviceUuid: String,
-        characteristicUuid: String,
+        serviceUuid: UUID,
+        characteristicUuid: UUID,
         result: MethodChannel.Result
     ) {
         val dp = discoveredPeripheral(deviceIdentifier)
         val characteristic = dp.peripheral.getService(
-            UUID.fromString(serviceUuid)
+            serviceUuid
         )?.getCharacteristic(
-            UUID.fromString(characteristicUuid)
+            characteristicUuid
         )
         if (characteristic == null) {
-            throw BleError.characteristicNotFound(characteristicUuid)
+            throw BleError.characteristicNotFound(characteristicUuid.toString())
         }
 
         dp.readCharacteristic(char = characteristic) {
@@ -607,12 +592,12 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
                 onSuccess = {
                     val payload = singleCharacteristicWithValueResponse(
                         peripheral = dp.peripheral,
-                        serviceUuid = serviceUuid,
+                        serviceUuidStr = serviceUuid.toString(),
                         characteristic = it
                     )
                     try {
-                        val jsonObject = JSONObject(payload)
-                        result.success(jsonObject)
+                        val jsonStr = JSONObject(payload).toString()
+                        result.success(jsonStr)
                     } catch (e: Throwable) {
                         result.error(e)
                     }
@@ -626,20 +611,20 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
 
     fun writeCharacteristicForDevice(
         deviceIdentifier: String,
-        serviceUuid: String,
-        characteristicUuid: String,
+        serviceUuid: UUID,
+        characteristicUuid: UUID,
         bytesToWrite: ByteArray,
         withResponse: Boolean,
         result: MethodChannel.Result
     ) {
         val dp = discoveredPeripheral(deviceIdentifier)
         val characteristic = dp.peripheral.getService(
-            UUID.fromString(serviceUuid)
+            serviceUuid
         )?.getCharacteristic(
-            UUID.fromString(characteristicUuid)
+            characteristicUuid
         )
         if (characteristic == null) {
-            throw BleError.characteristicNotFound(characteristicUuid)
+            throw BleError.characteristicNotFound(characteristicUuid.toString())
         }
 
         dp.writeCharacteristic(
@@ -651,12 +636,12 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
                 onSuccess = {
                     val payload = singleCharacteristicResponse(
                         peripheral = dp.peripheral,
-                        serviceUuid = serviceUuid,
+                        serviceUuidStr = serviceUuid.toString(),
                         characteristic = it
                     )
                     try {
-                        val jsonObject = JSONObject(payload)
-                        result.success(jsonObject)
+                        val jsonStr = JSONObject(payload).toString()
+                        result.success(jsonStr)
                     } catch (e: Throwable) {
                         result.error(e)
                     }
@@ -670,15 +655,15 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
 
     fun monitorCharacteristicForDevice(
         deviceIdentifier: String,
-        serviceUuid: String,
-        characteristicUuid: String,
+        serviceUuid: UUID,
+        characteristicUuid: UUID,
         result: MethodChannel.Result
     ) {
         val dp = discoveredPeripheral(deviceIdentifier)
 
         dp.monitorCharacteristic(
-            serviceUuid = serviceUuid,
-            characteristicUuid = characteristicUuid
+            serviceUuid = serviceUuid.toString(),
+            characteristicUuid = characteristicUuid.toString()
         ) {
             it.fold(
                 onSuccess = {
@@ -693,21 +678,21 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
 
     fun readDescriptorForDevice(
         deviceIdentifier: String,
-        serviceUuid: String,
-        characteristicUuid: String,
-        descriptorUuid: String,
+        serviceUuid: UUID,
+        characteristicUuid: UUID,
+        descriptorUuid: UUID,
         result: MethodChannel.Result
     ) {
         val dp = discoveredPeripheral(deviceIdentifier)
         val descriptor = dp.peripheral.getService(
-            UUID.fromString(serviceUuid)
+            serviceUuid
         )?.getCharacteristic(
-            UUID.fromString(characteristicUuid)
+            characteristicUuid
         )?.getDescriptor(
-            UUID.fromString(descriptorUuid)
+            descriptorUuid
         )
         if (descriptor == null) {
-            throw BleError.descriptorNotFound(descriptorUuid)
+            throw BleError.descriptorNotFound(descriptorUuid.toString())
         }
 
         dp.readDescriptor(desc = descriptor) {
@@ -715,13 +700,13 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
                 onSuccess = {
                     val payload = descriptorResponseFor(
                         peripheral = dp.peripheral,
-                        serviceUuid = serviceUuid,
+                        serviceUuidStr = serviceUuid.toString(),
                         characteristic = it.characteristic,
                         descriptor = it
                     )
                     try {
-                        val jsonString = JSONObject(payload).toString()
-                        result.success(jsonString)
+                        val jsonStr = JSONObject(payload).toString()
+                        result.success(jsonStr)
                     } catch (e: Throwable) {
                         result.error(e)
                     }
@@ -736,22 +721,22 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
 
     fun writeDescriptorForDevice(
         deviceIdentifier: String,
-        serviceUuid: String,
-        characteristicUuid: String,
-        descriptorUuid: String,
+        serviceUuid: UUID,
+        characteristicUuid: UUID,
+        descriptorUuid: UUID,
         value: ByteArray,
         result: MethodChannel.Result
     ) {
         val dp = discoveredPeripheral(deviceIdentifier)
         val descriptor = dp.peripheral.getService(
-            UUID.fromString(serviceUuid)
+            serviceUuid
         )?.getCharacteristic(
-            UUID.fromString(characteristicUuid)
+            characteristicUuid
         )?.getDescriptor(
-            UUID.fromString(descriptorUuid)
+            descriptorUuid
         )
         if (descriptor == null) {
-            throw BleError.descriptorNotFound(descriptorUuid)
+            throw BleError.descriptorNotFound(descriptorUuid.toString())
         }
 
         dp.writeDescriptor(desc = descriptor, value = value) {
@@ -759,13 +744,13 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
                 onSuccess = {
                     val payload = descriptorResponseFor(
                         peripheral = dp.peripheral,
-                        serviceUuid = serviceUuid,
+                        serviceUuidStr = serviceUuid.toString(),
                         characteristic = it.characteristic,
                         descriptor = it
                     )
                     try {
-                        val jsonString = JSONObject(payload).toString()
-                        result.success(jsonString)
+                        val jsonStr = JSONObject(payload).toString()
+                        result.success(jsonStr)
                     } catch (e: Throwable) {
                         result.error(e)
                     }
@@ -797,6 +782,10 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
                     binding = binding
                 )
         }
+        scanningStreamHandler.onScanResult(
+            peripheral = peripheral,
+            scanResult = scanResult
+        )
     }
 
     override fun onScanFailed(scanFailure: ScanFailure) {
@@ -846,7 +835,7 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
         adapterStateListeners.forEach {
             it.value(state)
         }
-        adapterStateStreamHandler.onNewAdapterState(bluetoothStateStrFrom(state))
+        adapterStateStreamHandler.onNewAdapterState(state = state)
     }
 
     //endregion

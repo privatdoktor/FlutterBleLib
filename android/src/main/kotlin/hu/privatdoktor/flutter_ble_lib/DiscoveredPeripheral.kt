@@ -46,16 +46,20 @@ class DiscoveredPeripheral(
 
     //region API
     fun connect(completion: (Result<Unit>) -> Unit) {
-        val pending = _connectCompleted
+        val pending = _servicesDiscoveryCompleted
         if (pending != null) {
-            _connectCompleted = null
+            _servicesDiscoveryCompleted = null
             pending(
                 Result.failure(
                     BleError(errorCode = BleErrorCode.DeviceConnectionFailed)
                 )
             )
         }
-        _connectCompleted = completion
+
+        _servicesDiscoveryCompleted = {
+            completion(it.map { Unit })
+        }
+
         centralManager.get()?.connectPeripheral(peripheral, this)
     }
 
@@ -83,19 +87,12 @@ class DiscoveredPeripheral(
             res: Result<Map<UUID, BluetoothGattService>>
         ) -> Unit
     ) {
-        val pending =_servicesDiscoveryCompleted
-        if (pending != null){
-            _servicesDiscoveryCompleted = null
-            pending(
-                Result.failure(
-                    BleError(
-                        errorCode = BleErrorCode.ServicesDiscoveryFailed,
-                        deviceID = peripheral.address
-                    )
-                )
+
+        completion(
+            Result.success(
+                peripheral.services.associateBy { it.uuid }
             )
-        }
-        _servicesDiscoveryCompleted = completion
+        )
     }
 
     fun readRemoteRssi(
@@ -396,6 +393,15 @@ class DiscoveredPeripheral(
         }
     }
 
+    fun servicesDiscoveredCompleted(peripheral: BluetoothPeripheral) {
+        _servicesDiscoveryCompleted?.invoke(
+            Result.success(
+                value = peripheral.services.associateBy { it.uuid }
+            )
+        )
+        _servicesDiscoveryCompleted = null
+    }
+
     fun connectionStateChange() {
         streamHandler.onNewConnectionState(peripheral.state)
     }
@@ -436,11 +442,7 @@ class DiscoveredPeripheral(
 
     //region Callbacks
     override fun onServicesDiscovered(peripheral: BluetoothPeripheral) {
-        _servicesDiscoveryCompleted?.invoke(
-            Result.success(
-                value = peripheral.services.associateBy { it.uuid }
-            )
-        )
+        servicesDiscoveredCompleted(peripheral = peripheral)
     }
 
     override fun onNotificationStateUpdate(

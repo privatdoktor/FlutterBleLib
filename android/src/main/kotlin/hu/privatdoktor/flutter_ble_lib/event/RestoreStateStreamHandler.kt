@@ -8,13 +8,23 @@ import io.flutter.plugin.common.BinaryMessenger
 import hu.privatdoktor.flutter_ble_lib.event.ConnectionStateStreamHandler
 import hu.privatdoktor.flutter_ble_lib.ChannelName
 
-class RestoreStateStreamHandler : EventChannel.StreamHandler {
+class RestoreStateStreamHandler(
+    binaryMessenger: BinaryMessenger
+) : EventChannel.StreamHandler {
     private var restoreStateSink: EventSink? = null
-    override fun onListen(o: Any, eventSink: EventSink) {
+
+    private val eventChannel = EventChannel(binaryMessenger, ChannelName.STATE_RESTORE_EVENTS)
+    private var eventSink: EventSink? = null
+
+    init {
+        eventChannel.setStreamHandler(this)
+    }
+
+    override fun onListen(o: Any?, eventSink: EventSink) {
         restoreStateSink = eventSink
     }
 
-    override fun onCancel(o: Any) {
+    override fun onCancel(o: Any?) {
         restoreStateSink = null
     }
 

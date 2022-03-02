@@ -18,7 +18,7 @@ import org.json.JSONObject
 import java.util.*
 
 class CharacteristicsMonitorStreamHandler(
-    binaryMessenger: BinaryMessenger?,
+    binaryMessenger: BinaryMessenger,
     val deviceIdentifier: String,
     serviceUuid: String,
     characteristicUuid: String
@@ -29,18 +29,17 @@ class CharacteristicsMonitorStreamHandler(
 
     val name: String
 
-
     init {
         name = "${ChannelName.MONITOR_CHARACTERISTIC}/${serviceUuid}/${characteristicUuid}"
         eventChannel = EventChannel(binaryMessenger, name)
         eventChannel.setStreamHandler(this)
     }
 
-    override fun onListen(o: Any, eventSink: EventSink) {
+    override fun onListen(o: Any?, eventSink: EventSink) {
         this.eventSink = eventSink
     }
 
-    override fun onCancel(o: Any) {
+    override fun onCancel(o: Any?) {
         eventSink = null
         cleanUpClosure?.invoke()
         cleanUpClosure = null
@@ -53,12 +52,12 @@ class CharacteristicsMonitorStreamHandler(
     ) {
         val payload = Client.singleCharacteristicWithValueResponse(
             peripheral = peripheral,
-            serviceUuid = serviceUuid,
+            serviceUuidStr = serviceUuid,
             characteristic = characteristic
         )
         try {
-            val jsonString = JSONObject(payload).toString()
-            eventSink?.success(jsonString)
+            val jsonStr = JSONObject(payload).toString()
+            eventSink?.success(jsonStr)
         } catch (e: Throwable) {
             eventSink?.error(
                 BleErrorCode.UnknownError.toString(),

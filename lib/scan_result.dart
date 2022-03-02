@@ -38,12 +38,11 @@ class ScanResult {
 
 
   factory ScanResult.fromJson(
-    Map<String, dynamic> json, 
-    BleManager manager
+    Map<String, dynamic> json
   ) {
     assert(json[_ScanResultMetadata.rssi] is int);
     return ScanResult._(
-      Peripheral.fromJson(json, manager), 
+      Peripheral.fromJson(json), 
       json[_ScanResultMetadata.rssi],
       AdvertisementData._fromJson(json),
       isConnectable: json[_ScanResultMetadata.isConnectable],

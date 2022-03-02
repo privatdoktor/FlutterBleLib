@@ -14,7 +14,25 @@ import kotlinx.coroutines.*
 import java.util.*
 import kotlin.coroutines.suspendCoroutine
 
+
+private fun UUIDfrom(bluetoothUUIDStr: String) : UUID {
+    val baseUUIDPrefix = "0000"
+    val baseUUIDSuffix = "-0000-1000-8000-00805F9B34FB"
+
+    val outUUUID =
+        if (bluetoothUUIDStr.length == 4) {
+            baseUUIDPrefix + bluetoothUUIDStr + baseUUIDSuffix
+        } else if (bluetoothUUIDStr.length == 8) {
+            bluetoothUUIDStr + baseUUIDSuffix
+        } else {
+            bluetoothUUIDStr
+        }
+
+    return UUID.fromString(outUUUID)
+}
+
 class FlutterBleLibPlugin : FlutterPlugin, MethodCallHandler {
+
     private var client: Client? = null
     private var methodChannel: MethodChannel? = null
 
@@ -55,10 +73,15 @@ class FlutterBleLibPlugin : FlutterPlugin, MethodCallHandler {
                     client.destroyClient(result = result)
                 }
                 MethodName.START_DEVICE_SCAN -> {
+                    val filteredUUIDs =
+                        call.argument<List<String>>(ArgumentKey.UUIDS)!!.map {
+                            UUIDfrom(bluetoothUUIDStr = it)
+                        }
+
                     client.startDeviceScan(
                         scanMode = call.argument<Int>(ArgumentKey.SCAN_MODE)!!,
                         callbackType = call.argument<Int>(ArgumentKey.CALLBACK_TYPE)!!,
-                        filteredUUIDStrings = call.argument<List<String>>(ArgumentKey.UUIDS)!!,
+                        filteredUUIDs = filteredUUIDs,
                         result = result
                     )
                 }
@@ -122,24 +145,32 @@ class FlutterBleLibPlugin : FlutterPlugin, MethodCallHandler {
                     )
                 }
                 MethodName.DISCOVER_SERVICES -> {
+                    val serviceUuids =
+                        call.argument<List<String>>(ArgumentKey.SERVICE_UUIDS)?.map {
+                            UUIDfrom(bluetoothUUIDStr = it)
+                        }
                     client.discoverServices(
                         deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
-                        serviceUuids = call.argument<List<String>>(ArgumentKey.SERVICE_UUIDS),
+                        serviceUUIDs = serviceUuids,
                         result = result
                     )
                 }
                 MethodName.DISCOVER_CHARACTERISTICS -> {
+                    val characteristicsUuids =
+                        call.argument<List<String>>(ArgumentKey.CHARACTERISTIC_UUIDS)?.map {
+                            UUIDfrom(bluetoothUUIDStr = it)
+                        }
                     client.discoverCharacteristics(
                         deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
-                        serviceUuid = call.argument<String>(ArgumentKey.SERVICE_UUID)!!,
-                        characteristicsUuids = call.argument<List<String>>(ArgumentKey.CHARACTERISTIC_UUIDS),
+                        serviceUuid = UUIDfrom(call.argument<String>(ArgumentKey.SERVICE_UUID)!!),
+                        characteristicsUuids = characteristicsUuids,
                         result = result
                     )
                 }
                 MethodName.GET_CHARACTERISTICS -> {
                     client.characteristics(
                         deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
-                        serviceUuid = call.argument<String>(ArgumentKey.SERVICE_UUID)!!,
+                        serviceUuid = UUIDfrom(call.argument<String>(ArgumentKey.SERVICE_UUID)!!),
                         result = result
                     )
                 }
@@ -152,8 +183,8 @@ class FlutterBleLibPlugin : FlutterPlugin, MethodCallHandler {
                 MethodName.GET_DESCRIPTORS_FOR_DEVICE -> {
                     client.descriptorsForDevice(
                         deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
-                        serviceUuid = call.argument<String>(ArgumentKey.SERVICE_UUID)!!,
-                        characteristicUuid = call.argument<String>(ArgumentKey.CHARACTERISTIC_UUID)!!,
+                        serviceUuid = UUIDfrom(call.argument<String>(ArgumentKey.SERVICE_UUID)!!),
+                        characteristicUuid = UUIDfrom(call.argument<String>(ArgumentKey.CHARACTERISTIC_UUID)!!),
                         result = result
                     )
                 }
@@ -171,8 +202,11 @@ class FlutterBleLibPlugin : FlutterPlugin, MethodCallHandler {
                     )
                 }
                 MethodName.GET_CONNECTED_DEVICES -> {
+                    val serviceUUIDs = call.argument<List<String>>(ArgumentKey.UUIDS)!!.map {
+                        UUIDfrom(bluetoothUUIDStr = it)
+                    }
                     client.getConnectedDevices(
-                        serviceUUIDStrs = call.argument<List<String>>(ArgumentKey.UUIDS)!!,
+                        serviceUUIDs = serviceUUIDs,
                         result = result
                     )
                 }
@@ -185,8 +219,8 @@ class FlutterBleLibPlugin : FlutterPlugin, MethodCallHandler {
                 MethodName.READ_CHARACTERISTIC_FOR_DEVICE -> {
                     client.readCharacteristicForDevice(
                         deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
-                        serviceUuid = call.argument<String>(ArgumentKey.SERVICE_UUID)!!,
-                        characteristicUuid = call.argument<String>(ArgumentKey.CHARACTERISTIC_UUID)!!,
+                        serviceUuid = UUIDfrom(call.argument<String>(ArgumentKey.SERVICE_UUID)!!),
+                        characteristicUuid = UUIDfrom(call.argument<String>(ArgumentKey.CHARACTERISTIC_UUID)!!),
                         result = result
                     )
                 }
@@ -194,8 +228,8 @@ class FlutterBleLibPlugin : FlutterPlugin, MethodCallHandler {
                     val withResponse = call.argument<Boolean>(ArgumentKey.WITH_RESPONSE) ?: false;
                     client.writeCharacteristicForDevice(
                         deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
-                        serviceUuid = call.argument<String>(ArgumentKey.SERVICE_UUID)!!,
-                        characteristicUuid = call.argument<String>(ArgumentKey.CHARACTERISTIC_UUID)!!,
+                        serviceUuid = UUIDfrom(call.argument<String>(ArgumentKey.SERVICE_UUID)!!),
+                        characteristicUuid = UUIDfrom(call.argument<String>(ArgumentKey.CHARACTERISTIC_UUID)!!),
                         bytesToWrite = call.argument<ByteArray>(ArgumentKey.VALUE)!!,
                         withResponse = withResponse,
                         result = result
@@ -204,25 +238,25 @@ class FlutterBleLibPlugin : FlutterPlugin, MethodCallHandler {
                 MethodName.MONITOR_CHARACTERISTIC_FOR_DEVICE -> {
                     client.monitorCharacteristicForDevice(
                         deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
-                        serviceUuid = call.argument<String>(ArgumentKey.SERVICE_UUID)!!,
-                        characteristicUuid = call.argument<String>(ArgumentKey.CHARACTERISTIC_UUID)!!,
+                        serviceUuid = UUIDfrom(call.argument<String>(ArgumentKey.SERVICE_UUID)!!),
+                        characteristicUuid = UUIDfrom(call.argument<String>(ArgumentKey.CHARACTERISTIC_UUID)!!),
                         result = result
                     )
                 }
                 MethodName.READ_DESCRIPTOR_FOR_DEVICE -> {
                     client.readDescriptorForDevice(
                         deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
-                        serviceUuid = call.argument<String>(ArgumentKey.SERVICE_UUID)!!,
-                        characteristicUuid = call.argument<String>(ArgumentKey.CHARACTERISTIC_UUID)!!,
-                        descriptorUuid = call.argument(ArgumentKey.DESCRIPTOR_UUID)!!,
+                        serviceUuid = UUIDfrom(call.argument<String>(ArgumentKey.SERVICE_UUID)!!),
+                        characteristicUuid = UUIDfrom(call.argument<String>(ArgumentKey.CHARACTERISTIC_UUID)!!),
+                        descriptorUuid = UUIDfrom(call.argument(ArgumentKey.DESCRIPTOR_UUID)!!),
                         result = result
                     )
                 }
                 MethodName.WRITE_DESCRIPTOR_FOR_DEVICE -> {
                     client.writeDescriptorForDevice(
                         deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
-                        serviceUuid = call.argument<String>(ArgumentKey.SERVICE_UUID)!!,
-                        characteristicUuid = call.argument<String>(ArgumentKey.CHARACTERISTIC_UUID)!!,
+                        serviceUuid = UUIDfrom(call.argument<String>(ArgumentKey.SERVICE_UUID)!!),
+                        characteristicUuid = UUIDfrom(call.argument<String>(ArgumentKey.CHARACTERISTIC_UUID)!!),
                         descriptorUuid = call.argument(ArgumentKey.DESCRIPTOR_UUID)!!,
                         value = call.argument<ByteArray>(ArgumentKey.VALUE)!!,
                         result = result
@@ -241,6 +275,7 @@ class FlutterBleLibPlugin : FlutterPlugin, MethodCallHandler {
 fun MethodChannel.Result.error(throwable: Throwable) {
     if (throwable is BleError) {
         error(bleError = throwable)
+        return
     }
     error(BleErrorCode.UnknownError.code.toString(), throwable.localizedMessage, throwable.cause)
 }

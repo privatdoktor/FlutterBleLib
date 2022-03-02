@@ -142,7 +142,7 @@ class BleManager {
           final restoredPeripheralsJson = 
             (jsonDecode(jsonString) as List<dynamic>).cast<Map<String, dynamic>>();
           return restoredPeripheralsJson.map(
-            (peripheralJson) => Peripheral.fromJson(peripheralJson, this)
+            (peripheralJson) => Peripheral.fromJson(peripheralJson)
           ).toList();
       }).take(
         1
@@ -219,7 +219,7 @@ class BleManager {
           test: (error) => error is PlatformException,
         ).map(
           (scanResultJson) =>
-              ScanResult.fromJson(jsonDecode(scanResultJson), this),
+              ScanResult.fromJson(jsonDecode(scanResultJson)),
         );
       _activeScanEvents = scanEvents;
     }
@@ -351,7 +351,7 @@ class BleManager {
   List<Peripheral> _parsePeripheralsJson(String peripheralsJson) {
     List list = json
         .decode(peripheralsJson)
-        .map((peripheral) => Peripheral.fromJson(peripheral, this))
+        .map((peripheral) => Peripheral.fromJson(peripheral))
         .toList();
     return list.cast<Peripheral>();
   }
@@ -400,6 +400,6 @@ class BleManager {
     return Peripheral.fromJson({
       nameField: name,
       identifierField: peripheralId,
-    }, this);
+    });
   }
 }

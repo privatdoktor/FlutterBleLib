@@ -19,7 +19,7 @@ class Peripheral {
   final String? name;
   final String identifier;
 
-  Peripheral.fromJson(Map<String, dynamic> json, BleManager manager)
+  Peripheral.fromJson(Map<String, dynamic> json)
       : name = json[_PeripheralMetadata.name],
         identifier = json[_PeripheralMetadata.identifier];
 
@@ -72,16 +72,10 @@ class Peripheral {
     }
   }
 
-  static Stream<dynamic> _peripheralConnectionStateChanges({ 
-    required String? name ,
-  }) {
-    if (name == null) {
-      print('connectionStateChangeEvents name was null. using fallback');
-    }
-    name ??= ChannelName.connectionStateChangeEvents;
-    
-    return EventChannel(name)
-        .receiveBroadcastStream();
+  static Stream<dynamic> _peripheralConnectionStateChanges({
+    required String name,
+  }) {    
+    return EventChannel(name).receiveBroadcastStream();
   }
 
 // ++NTH++
@@ -109,7 +103,7 @@ class Peripheral {
       rethrow;
     }
 
-    final stream = _peripheralConnectionStateChanges(name: channelName)
+    final stream = _peripheralConnectionStateChanges(name: channelName!)
         .map(
           (jsonString) => ConnectionStateContainer.fromJson(
             jsonDecode(jsonString)
@@ -356,15 +350,21 @@ class Peripheral {
     final service = Service.fromJson(rootObject, this);
 
     return Characteristic.fromJson(
-            rootObject['characteristic'], service);
+      rootObject['characteristic'], 
+      service
+    );
   }
 
   CharacteristicWithValue _parseCharacteristicWithValue(String rawJsonValue) {
     Map<String, dynamic> rootObject = jsonDecode(rawJsonValue);
     final service = Service.fromJson(rootObject, this);
+    final charWithValue = CharacteristicWithValue.fromJson(
+      rootObject['characteristic'], 
+      service
+    );
 
-    return CharacteristicWithValue.fromJson(
-            rootObject['characteristic'], service);
+
+    return charWithValue;
   }
 
 // ++MH++
@@ -438,14 +438,8 @@ class Peripheral {
     return _parseCharacteristic(rawValue!);
   }
 
-  static Stream<String> _characteristicsMonitoringEvents({ required String? name }) {
-    if (name == null) {
-      print('characteristicsMonitoringEvents name was null. using fallback');
-    }
-    name ??= ChannelName.monitorCharacteristic;
-    return EventChannel(name)
-          .receiveBroadcastStream()
-          .cast();
+  static Stream<String> _characteristicsMonitoringEvents({ required String name }) {
+    return EventChannel(name).receiveBroadcastStream().cast();
   }
 
 // ++MH++
