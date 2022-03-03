@@ -13,7 +13,6 @@ import hu.privatdoktor.flutter_ble_lib.event.RestoreStateStreamHandler
 import hu.privatdoktor.flutter_ble_lib.event.ScanningStreamHandler
 import hu.privatdoktor.flutter_ble_lib.event.bluetoothStateStrFrom
 import io.flutter.embedding.engine.plugins.FlutterPlugin.FlutterPluginBinding
-import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.withTimeout
@@ -276,6 +275,7 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
         }
     }
 
+    @SuppressLint("MissingPermission")
     suspend fun disableRadio(result: MethodChannel.Result) {
         val context = binding.applicationContext
         val bluetoothService =
@@ -374,7 +374,7 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
     ) {
         val dp = discoveredPeripheral(deviceIdentifier)
 
-        dp.disconnect {
+        dp.disconnect { it ->
             it.fold(
                 onSuccess = {
                     result.success(null)
@@ -789,7 +789,7 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
     }
 
     override fun onScanFailed(scanFailure: ScanFailure) {
-        print("Client.kt::onScanFailed:  ${scanFailure.toString()}")
+        print("Client.kt::onScanFailed:  $scanFailure")
     }
 
     override fun onConnectingPeripheral(peripheral: BluetoothPeripheral) {
