@@ -18,7 +18,6 @@ extension Client : CallHandler {
     case .isClientCreated,
          .createClient,
          .destroyClient,
-         .cancelTransaction,
          .getState,
          .getAuthorization,
          .enableRadio,
@@ -56,9 +55,6 @@ extension Client : CallHandler {
       call.result()
     case .destroyClient:
       destroy()
-      call.result()
-    case .cancelTransaction(let transactionId):
-      noop()
       call.result()
     case .getState:
       call.result(state)

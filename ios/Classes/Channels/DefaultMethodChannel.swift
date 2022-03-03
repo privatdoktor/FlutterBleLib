@@ -162,9 +162,6 @@ final class DefaultMethodChannel : NSObject, MethodChannel {
         )
       case "destroyClient":
         self = .destroyClient
-      case "cancelTransaction":
-        let transactionId = args?[.transactionId]
-        self = .cancelTransaction(transactionId: transactionId)
       case "getState":
         self = .getState
       case "getAuthorization":
@@ -393,9 +390,7 @@ final class DefaultMethodChannel : NSObject, MethodChannel {
     case isClientCreated
     case createClient(restoreId: String?, showPowerAlert: Bool?)
     case destroyClient
-    
-    case cancelTransaction(transactionId: Any?)
-    
+        
     case getState
     case getAuthorization
     

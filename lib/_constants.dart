@@ -3,8 +3,6 @@ abstract class MethodName {
   static const String createClient = 'createClient';
   static const String destroyClient = 'destroyClient';
 
-  static const String cancelTransaction = 'cancelTransaction';
-
   static const String getState = 'getState';
   static const String getAuthorization = 'getAuthorization';
 
