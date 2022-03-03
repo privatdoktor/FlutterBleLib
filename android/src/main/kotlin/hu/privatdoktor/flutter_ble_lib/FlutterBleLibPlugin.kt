@@ -89,17 +89,13 @@ class FlutterBleLibPlugin : FlutterPlugin, MethodCallHandler {
                     client.stopDeviceScan(result = result)
                 }
                 MethodName.ENABLE_RADIO -> {
-                    runBlocking {
-                        launch(Dispatchers.Main.immediate) {
-                            client.enableRadio(result = result)
-                        }
+                    GlobalScope.launch(Dispatchers.Main.immediate) {
+                        client.enableRadio(result = result)
                     }
                 }
                 MethodName.DISABLE_RADIO -> {
-                    runBlocking {
-                        launch(Dispatchers.Main.immediate) {
-                            client.disableRadio(result = result)
-                        }
+                    GlobalScope.launch(Dispatchers.Main.immediate) {
+                        client.disableRadio(result = result)
                     }
                 }
                 MethodName.GET_STATE -> {

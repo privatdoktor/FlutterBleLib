@@ -12,6 +12,62 @@ abstract class _ScanResultMetadata {
   static const String overflowServiceUuids = 'overflowServiceUUIDs';
 }
 
+/// Data advertised by the [Peripheral]: power level, local name,
+/// manufacturer's data, advertised [Service]s
+class AdvertisementData {
+  /// The manufacturer data of the peripheral.
+  final Uint8List? manufacturerData;
+
+  /// A dictionary that contains service-specific advertisement data.
+  final Map<String, Uint8List>? serviceData;
+
+  /// A list of service UUIDs.
+  final List<String>? serviceUuids;
+
+  /// The local name of the [Peripheral]. Might be different than
+  /// [Peripheral.name].
+  final String? localName;
+
+  /// The transmit power of the peripheral.
+  final int? txPowerLevel;
+
+  /// A list of solicited service UUIDs.
+  final List<String>? solicitedServiceUuids;
+
+  static Map<String, Uint8List>? _getServiceDataOrNull(
+      Map<String, dynamic>? serviceData
+  ) {
+    return serviceData?.map(
+      (key, value) => MapEntry(key, base64Decode(value)),
+    );
+  }
+
+  static Uint8List? _decodeBase64OrNull(String? base64Value) {
+    if (base64Value != null) {
+      return base64.decode(base64Value);
+    } else {
+      return null;
+    }
+  }
+
+  static List<String>? _mapToListOfStringsOrNull(List<dynamic>? values) =>
+      values?.cast<String>();
+
+  AdvertisementData._fromJson(Map<String, dynamic> json)
+      : manufacturerData =
+            _decodeBase64OrNull(json[_ScanResultMetadata.manufacturerData]),
+        serviceData =
+            _getServiceDataOrNull(json[_ScanResultMetadata.serviceData]),
+        serviceUuids =
+            _mapToListOfStringsOrNull(json[_ScanResultMetadata.serviceUuids]),
+        localName = json[_ScanResultMetadata.localName],
+        txPowerLevel = json[_ScanResultMetadata.txPowerLevel],
+        solicitedServiceUuids =
+          _mapToListOfStringsOrNull(
+            json[_ScanResultMetadata.solicitedServiceUuids]
+          );
+}
+
 /// A scan result emitted by the scanning operation, containing [Peripheral] and [AdvertisementData].
 class ScanResult {
   final Peripheral peripheral;
@@ -49,59 +105,4 @@ class ScanResult {
       overflowServiceUuids: json[_ScanResultMetadata.overflowServiceUuids]
     );
   }
-}
-
-/// Data advertised by the [Peripheral]: power level, local name,
-/// manufacturer's data, advertised [Service]s
-class AdvertisementData {
-  /// The manufacturer data of the peripheral.
-  final Uint8List? manufacturerData;
-
-  /// A dictionary that contains service-specific advertisement data.
-  final Map<String, Uint8List>? serviceData;
-
-  /// A list of service UUIDs.
-  final List<String>? serviceUuids;
-
-  /// The local name of the [Peripheral]. Might be different than
-  /// [Peripheral.name].
-  final String? localName;
-
-  /// The transmit power of the peripheral.
-  final int? txPowerLevel;
-
-  /// A list of solicited service UUIDs.
-  final List<String>? solicitedServiceUuids;
-
-  AdvertisementData._fromJson(Map<String, dynamic> json)
-      : manufacturerData =
-            _decodeBase64OrNull(json[_ScanResultMetadata.manufacturerData]),
-        serviceData =
-            _getServiceDataOrNull(json[_ScanResultMetadata.serviceData]),
-        serviceUuids =
-            _mapToListOfStringsOrNull(json[_ScanResultMetadata.serviceUuids]),
-        localName = json[_ScanResultMetadata.localName],
-        txPowerLevel = json[_ScanResultMetadata.txPowerLevel],
-        solicitedServiceUuids =
-          _mapToListOfStringsOrNull(
-            json[_ScanResultMetadata.solicitedServiceUuids]
-          );
-
-  static Map<String, Uint8List>? _getServiceDataOrNull(
-      Map<String, dynamic>? serviceData) {
-    return serviceData?.map(
-      (key, value) => MapEntry(key, base64Decode(value)),
-    );
-  }
-
-  static Uint8List? _decodeBase64OrNull(String? base64Value) {
-    if (base64Value != null) {
-      return base64.decode(base64Value);
-    } else {
-      return null;
-    }
-  }
-
-  static List<String>? _mapToListOfStringsOrNull(List<dynamic>? values) =>
-      values?.cast<String>();
 }

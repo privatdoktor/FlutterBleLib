@@ -1,5 +1,21 @@
 part of flutter_ble_lib;
 
+abstract class _ConnectionStateContainerMetadata {
+  static const String peripheralIdentifier = 'peripheralIdentifier';
+  static const String connectionState = 'connectionState';
+}
+
+class _ConnectionStateContainer {
+  String peripheralIdentifier;
+  String connectionState;
+
+  _ConnectionStateContainer.fromJson(Map<String, dynamic> json)
+      : peripheralIdentifier =
+            json[_ConnectionStateContainerMetadata.peripheralIdentifier],
+        connectionState =
+            json[_ConnectionStateContainerMetadata.connectionState];
+}
+
 abstract class _PeripheralMetadata {
   static const name = 'name';
   static const identifier = 'id';
@@ -105,7 +121,7 @@ class Peripheral {
 
     final stream = _peripheralConnectionStateChanges(name: channelName!)
         .map(
-          (jsonString) => ConnectionStateContainer.fromJson(
+          (jsonString) => _ConnectionStateContainer.fromJson(
             jsonDecode(jsonString)
           ).connectionState
         )
@@ -363,7 +379,6 @@ class Peripheral {
       service
     );
 
-
     return charWithValue;
   }
 
@@ -371,7 +386,7 @@ class Peripheral {
   /// Reads value of [Characteristic] matching specified UUIDs.
   ///
   /// Returns value of characteristic with [characteristicUuid] for service with
-  /// [serviceUuid]. Optional [transactionId] could be used to cancel operation.
+  /// [serviceUuid].
   ///
   /// Will result in error if discovery was not done during this connection.
   Future<CharacteristicWithValue> readCharacteristic(
@@ -403,7 +418,7 @@ class Peripheral {
   /// Writes value of [Characteristic] matching specified UUIDs.
   ///
   /// Writes [value] to characteristic with [characteristicUuid] for service with
-  /// [serviceUuid]. Optional [transactionId] could be used to cancel operation.
+  /// [serviceUuid].
   ///
   /// Will result in error if discovery was not done during this connection.
   Future<Characteristic> writeCharacteristic(
@@ -449,15 +464,13 @@ class Peripheral {
   /// Emits [CharacteristicWithValue] for every observed change of the
   /// characteristic specified by [serviceUuid] and [characteristicUuid]
   /// If notifications are enabled they will be used in favour of indications.
-  /// Optional [transactionId] could be used to cancel operation. Unsubscribing
-  /// from the stream cancels monitoring.
+  /// Unsubscribing from the stream cancels monitoring.
   ///
   /// Will result in error if discovery was not done during this connection.
   Future<Stream<CharacteristicWithValue>> monitorCharacteristic(
     String serviceUuid,
-    String characteristicUuid, {
-    String? transactionId,
-  }) async {
+    String characteristicUuid
+  ) async {
       final channelName = await BleManager._methodChannel.invokeMethod<String>(
           MethodName.monitorCharacteristicForDevice,
           <String, dynamic>{
@@ -466,10 +479,25 @@ class Peripheral {
             ArgumentName.characteristicUuid: characteristicUuid,
           },
         );
-    return _characteristicsMonitoringEvents(name: channelName!)
-        .map((rawValue) {
-          return _parseCharacteristicWithValue(rawValue);
-        });
+
+    final Stream<CharacteristicWithValue> characteristicStream;
+    try {
+      final channel = EventChannel(channelName!);
+      final rawStream = channel.receiveBroadcastStream().cast<String>();
+      characteristicStream = rawStream.map((rawValue) {
+        CharacteristicWithValue charWithValue;
+        try {
+          charWithValue = _parseCharacteristicWithValue(rawValue);
+        } catch (e) {
+          rethrow;
+        }
+        return charWithValue;
+      });
+    } catch (e) {
+      rethrow;
+    }
+
+    return characteristicStream;
   }
 
   @override
@@ -576,16 +604,15 @@ class Peripheral {
   ///
   /// Write [value] to Descriptor specified by [serviceUuid],
   /// [characteristicUuid] and [descriptorUuid]. Returns Descriptor which saved
-  /// passed value. Optional [transactionId] could be used to cancel operation.
+  /// passed value.
   ///
   /// Will result in error if discovery was not done during this connection.
   Future<Descriptor> writeDescriptor(
     String serviceUuid,
     String characteristicUuid,
     String descriptorUuid,
-    Uint8List value, {
-    String? transactionId,
-  }) async {
+    Uint8List value
+  ) async {
     String? jsonResponse;
     try {
       jsonResponse = await BleManager._methodChannel.invokeMethod<String>(
@@ -596,7 +623,6 @@ class Peripheral {
           ArgumentName.characteristicUuid: characteristicUuid,
           ArgumentName.descriptorUuid: descriptorUuid,
           ArgumentName.value: value,
-          ArgumentName.transactionId: transactionId,
         },
       );
     } on PlatformException catch (pe) {

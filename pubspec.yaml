@@ -1,7 +1,7 @@
 name: flutter_ble_lib
-description: FlutterBle Library is a flutter library that supports BLE operations. It uses MultiPlatformBleAdapter as a native backend..
-version: 2.4.0
-homepage: https://github.com/Polidea/FlutterBleLib
+description: FlutterBle Library is a flutter library that supports BLE operations.
+version: 3.0.0
+homepage: https://github.com/privatdoktor/FlutterBleLib
 
 environment:
   sdk: ">=2.12.0-0 <3.0.0"
@@ -15,9 +15,7 @@ dependencies:
     sdk: flutter
 
 dev_dependencies:
-  mockito: ^5.0.3
   build_runner: ^2.1.4
-  pedantic: ^1.11.0
 
   flutter_test:
     sdk: flutter

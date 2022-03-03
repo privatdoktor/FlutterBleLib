@@ -100,10 +100,10 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
         }
 
         fun singleCharacteristicWithValueResponse(
-            peripheral: BluetoothPeripheral,
-            serviceUuidStr: String,
-            characteristic: BluetoothGattCharacteristic
-        ) : Map<String, Any> {
+                peripheral: BluetoothPeripheral,
+                serviceUuidStr: String,
+                characteristic: BluetoothGattCharacteristic
+        ): Map<String, Any> {
             val characteristicWithValueResponse =
                 characteristicResponseFor(
                     peripheral,
@@ -111,11 +111,10 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
                 ).toMutableMap()
             characteristicWithValueResponse["value"] =
                 Base64.encodeToString(characteristic.value, Base64.NO_WRAP)
-            mapOf(
+            return mapOf(
                 "serviceUuid" to serviceUuidStr,
                 "characteristic" to characteristicWithValueResponse
             )
-            return characteristicWithValueResponse
         }
 
         fun descriptorsForPeripheralResponseFor(
@@ -142,7 +141,7 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
             response["serviceUuid"] = serviceUuidStr
             response["descriptorUuid"] = descriptor.uuid.toString()
             response["value"] = Base64.encodeToString(descriptor.value, Base64.NO_WRAP)
-            return  response
+            return response
         }
 
         fun peripheralResponseFor(peripheral: BluetoothPeripheral) : Map<String, Any> {
@@ -263,8 +262,14 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
                 }
             }
         }
-        bluetoothAdapter.enable()
-        withTimeout(timeMillis = 5 * 1000) {
+        val succ = bluetoothAdapter.enable()
+        if (succ == false) {
+            result.error(
+                BleError(BleErrorCode.BluetoothStateChangeFailed)
+            )
+            return
+        }
+        withTimeout(timeMillis = 10 * 1000) {
             try {
                 bluetoothOnNow.await()
             } catch (e: Throwable) {
@@ -300,7 +305,7 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
             }
         }
         bluetoothAdapter.disable()
-        withTimeout(timeMillis = 5 * 1000) {
+        withTimeout(timeMillis = 10 * 1000) {
             try {
                 bluetoothOffNow.await()
             } catch (e: Throwable) {

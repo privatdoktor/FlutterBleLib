@@ -7,28 +7,28 @@ typedef RestoreStateAction = Function(List<Peripheral> peripherals);
 
 /// State of the Bluetooth Adapter.
 enum BluetoothState {
-  UNKNOWN,
-  UNSUPPORTED,
-  UNAUTHORIZED,
-  POWERED_ON,
-  POWERED_OFF,
-  RESETTING,
+  unknown,
+  unsupported,
+  unauthorized,
+  poweredOn,
+  poweredOff,
+  resetting,
 }
 
 BluetoothState _mapToBluetoothState(String? rawValue) {
   switch (rawValue) {
     case 'Unknown':
-      return BluetoothState.UNKNOWN;
+      return BluetoothState.unknown;
     case 'Unsupported':
-      return BluetoothState.UNSUPPORTED;
+      return BluetoothState.unsupported;
     case 'Unauthorized':
-      return BluetoothState.UNAUTHORIZED;
+      return BluetoothState.unauthorized;
     case 'Resetting':
-      return BluetoothState.RESETTING;
+      return BluetoothState.resetting;
     case 'PoweredOn':
-      return BluetoothState.POWERED_ON;
+      return BluetoothState.poweredOn;
     case 'PoweredOff':
-      return BluetoothState.POWERED_OFF;
+      return BluetoothState.poweredOff;
     default:
       throw 'Cannot map $rawValue to known bluetooth state';
   }
@@ -276,9 +276,6 @@ class BleManager {
 
 // ++MH++
   /// Enables Bluetooth on Android; NOOP on iOS.
-  ///
-  /// Passing optional [transactionId] lets you discard the result of this
-  /// operation before it is finished.
   Future<void> enableRadio() async {
     try {
       await BleManager._methodChannel.invokeMethod(
@@ -297,9 +294,6 @@ class BleManager {
 
 // ++MH++
   /// Disables Bluetooth on Android; NOOP on iOS.
-  ///
-  /// Passing optional [transactionId] lets you discard the result of this
-  /// operation before it is finished.
   Future<void> disableRadio() async {
     try {
       await BleManager._methodChannel.invokeMethod(
@@ -330,8 +324,8 @@ class BleManager {
 // ++MH++
   /// Returns current state of the Bluetooth adapter.
   Future<BluetoothState> bluetoothState() async {
-    final stateStr = await BleManager._methodChannel
-      .invokeMethod<String>(MethodName.getState);
+    final stateStr = 
+      await BleManager._methodChannel.invokeMethod<String>(MethodName.getState);
     return _mapToBluetoothState(stateStr);
   }
 
@@ -349,10 +343,11 @@ class BleManager {
   }
 
   List<Peripheral> _parsePeripheralsJson(String peripheralsJson) {
-    List list = json
-        .decode(peripheralsJson)
-        .map((peripheral) => Peripheral.fromJson(peripheral))
-        .toList();
+    List list = json.decode(
+      peripheralsJson
+    ).map(
+      (peripheral) => Peripheral.fromJson(peripheral)
+    ).toList();
     return list.cast<Peripheral>();
   }
 
@@ -376,10 +371,13 @@ class BleManager {
   ///
   /// If [serviceUUIDs] is empty, this will return an empty list.
   Future<List<Peripheral>> connectedPeripherals(List<String> serviceUuids) async {
-    final peripheralsJson = await BleManager._methodChannel
-        .invokeMethod<String>(MethodName.connectedDevices, <String, dynamic>{
-      ArgumentName.uuids: serviceUuids,
-      });
+    final peripheralsJson = 
+      await BleManager._methodChannel.invokeMethod<String>(
+        MethodName.connectedDevices, 
+        <String, dynamic>{
+          ArgumentName.uuids: serviceUuids,
+        }
+      );
     print('connected devices json: $peripheralsJson');
     return _parsePeripheralsJson(peripheralsJson!);
   }
