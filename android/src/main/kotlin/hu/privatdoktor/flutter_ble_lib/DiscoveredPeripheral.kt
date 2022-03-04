@@ -473,7 +473,7 @@ class DiscoveredPeripheral(
     ) {
         if (peripheral.isNotifying(characteristic)) {
             val key =
-                "${ChannelName.MONITOR_CHARACTERISTIC}/${characteristic.service.uuid.toString()}/${characteristic.uuid.toString()}"
+                "${ChannelName.MONITOR_CHARACTERISTIC}/${peripheral.address}/${characteristic.service.uuid.toString()}/${characteristic.uuid.toString()}"
             val streamHandler = monitorCharacteristicStreamHandlers[key]
             streamHandler?.onCharacteristicsUpdate(
                 peripheral,

@@ -19,7 +19,7 @@ import java.util.*
 
 class CharacteristicsMonitorStreamHandler(
     binaryMessenger: BinaryMessenger,
-    val deviceIdentifier: String,
+    deviceIdentifier: String,
     serviceUuid: String,
     characteristicUuid: String
 ) : EventChannel.StreamHandler {
@@ -30,7 +30,7 @@ class CharacteristicsMonitorStreamHandler(
     val name: String
 
     init {
-        name = "${ChannelName.MONITOR_CHARACTERISTIC}/${serviceUuid}/${characteristicUuid}"
+        name = "${ChannelName.MONITOR_CHARACTERISTIC}/$deviceIdentifier/$serviceUuid/$characteristicUuid"
         eventChannel = EventChannel(binaryMessenger, name)
         eventChannel.setStreamHandler(this)
     }
