@@ -92,11 +92,10 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
             characteristic: BluetoothGattCharacteristic
         ) : Map<String, Any> {
             val characteristicResponse = characteristicResponseFor(peripheral, characteristic)
-            mapOf(
+            return mapOf(
                 "serviceUuid" to serviceUuidStr,
                 "characteristic" to characteristicResponse
             )
-            return characteristicResponse
         }
 
         fun singleCharacteristicWithValueResponse(
@@ -163,6 +162,7 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
             chachedDp
         } else {
             val libCachedPeripheral = centralManager.getPeripheral(deviceIdentifier)
+
             val newDp = DiscoveredPeripheral(_peripheral =  libCachedPeripheral, centralManager = centralManager, binding = binding)
             discoveredPeripherals[deviceIdentifier] = newDp
             newDp
@@ -367,10 +367,10 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
 
         if (emitCurrentValue) {
             Handler(Looper.getMainLooper()).post {
-                dp.streamHandler.onNewConnectionState(dp.peripheral.state)
+                dp.connectionStateStreamHandler.onNewConnectionState(dp.peripheral.state)
             }
         }
-        result.success(dp.streamHandler.name)
+        result.success(dp.connectionStateStreamHandler.name)
     }
 
     fun cancelConnection(
@@ -798,16 +798,20 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
     }
 
     override fun onConnectingPeripheral(peripheral: BluetoothPeripheral) {
-        discoveredPeripherals[peripheral.address]?.connectionStateChange()
+        discoveredPeripherals[peripheral.address]?.connectionStateStreamHandler?.onNewConnectionState(
+            ConnectionState.CONNECTING
+        )
     }
 
     override fun onConnectedPeripheral(peripheral: BluetoothPeripheral) {
-        val discoveredPeripheral = discoveredPeripherals[peripheral.address]
-        if (discoveredPeripheral == null) {
+        val dp = discoveredPeripherals[peripheral.address]
+        if (dp == null) {
             return
         }
-        discoveredPeripheral.connectionStateChange()
-        discoveredPeripheral.connected(Result.success(Unit))
+        dp.connectionStateStreamHandler.onNewConnectionState(
+            ConnectionState.CONNECTED
+        )
+        dp.connected(Result.success(Unit))
     }
 
     override fun onConnectionFailed(peripheral: BluetoothPeripheral, status: HciStatus) {
@@ -815,7 +819,7 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
         if (discoveredPeripheral == null) {
             return
         }
-        discoveredPeripheral.connectionStateChange()
+
         discoveredPeripheral.connected(
             Result.failure(
                 BleError(errorCode = BleErrorCode.DeviceConnectionFailed)
@@ -826,12 +830,16 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
 
     override fun onDisconnectingPeripheral(peripheral: BluetoothPeripheral) {
         val dp = discoveredPeripherals[peripheral.address]
-        dp?.connectionStateChange()
+        dp?.connectionStateStreamHandler?.onNewConnectionState(
+            ConnectionState.DISCONNECTING
+        )
     }
 
     override fun onDisconnectedPeripheral(peripheral: BluetoothPeripheral, status: HciStatus) {
         val dp = discoveredPeripherals[peripheral.address]
-        dp?.connectionStateChange()
+        dp?.connectionStateStreamHandler?.onNewConnectionState(
+            ConnectionState.DISCONNECTED
+        )
         dp?.disconnected(Result.success(Unit))
         discoveredPeripherals.remove(peripheral.address)
     }

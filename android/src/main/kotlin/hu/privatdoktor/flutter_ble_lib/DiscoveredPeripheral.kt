@@ -18,7 +18,7 @@ class DiscoveredPeripheral(
 ) : BluetoothPeripheralCallback() {
     val peripheral get() = _peripheral
     private var centralManager: WeakReference<BluetoothCentralManager?>
-    val streamHandler = ConnectionStateStreamHandler(binding.binaryMessenger, peripheral.address)
+    val connectionStateStreamHandler = ConnectionStateStreamHandler(binding.binaryMessenger, peripheral.address)
 
     private var _connectCompleted: ((Result<Unit>) -> Unit)? = null
     private var _disconnectCompleted: ((Result<Unit>) -> Unit)? = null
@@ -26,6 +26,9 @@ class DiscoveredPeripheral(
     private var _servicesDiscoveryCompleted:((Result<Map<UUID, BluetoothGattService>>) -> Unit)? = null
     private var _onRemoteRssiReadCompleted: ((Result<Int>) -> Unit)? = null
     private var _onRequestMtuCompleted: ((Result<Int>) -> Unit)? = null
+
+    private var _onSetNotifyCompleted: ((Result<Unit>) -> Unit)? = null
+
 
     private var _onCharacteristicReadCompleted: ((Result<BluetoothGattCharacteristic>) -> Unit)? = null
     private var _onCharacteristicWriteCompleted: ((Result<BluetoothGattCharacteristic>) -> Unit)? = null
@@ -61,6 +64,7 @@ class DiscoveredPeripheral(
         }
 
         centralManager.get()?.connectPeripheral(peripheral, this)
+        peripheral.requestConnectionPriority(ConnectionPriority.HIGH)
     }
 
     fun disconnect(completion: (Result<Unit>) -> Unit) {
@@ -218,8 +222,9 @@ class DiscoveredPeripheral(
                 )
             )
         }
-        _onCharacteristicWriteCompleted = completion
+
         val type = if (withResponse) {
+            _onCharacteristicWriteCompleted = completion
             WriteType.WITH_RESPONSE
         } else {
             WriteType.WITHOUT_RESPONSE
@@ -238,7 +243,9 @@ class DiscoveredPeripheral(
                 )
             )
         }
-
+        if (withResponse == false) {
+            completion(Result.success(char))
+        }
     }
 
     fun monitorCharacteristic(
@@ -258,7 +265,6 @@ class DiscoveredPeripheral(
             return
         }
 
-
         val streamHandler =
             CharacteristicsMonitorStreamHandler(
                 binaryMessenger = binding.binaryMessenger,
@@ -271,28 +277,41 @@ class DiscoveredPeripheral(
         streamHandler.afterCancelDo {
             monitorCharacteristicStreamHandlers.remove(key)
             if (peripheral.isNotifying(characteristic)) {
-                peripheral.setNotify(characteristic, false)
+//                peripheral.setNotify(characteristic, false)
             }
         }
         onDisconnected {
             streamHandler.end()
             monitorCharacteristicStreamHandlers.remove(key)
         }
-        if (peripheral.isNotifying(characteristic) == false) {
-            val succ = peripheral.setNotify(characteristic, true)
-            if (succ == false) {
-                completion(Result.failure(
-                    BleError(
-                        errorCode = BleErrorCode.CharacteristicNotifyChangeFailed,
-                        serviceUUID = characteristic.service.uuid.toString(),
-                        characteristicUUID = characteristic.uuid.toString(),
-                        reason = "peripheral.monitorCharacteristic() failed, maybe device is not connected"
-                    )
-                ))
-                return
-            }
+        val pending = _onSetNotifyCompleted
+        if (pending != null) {
+            _onSetNotifyCompleted = null
+            pending.invoke(Result.failure(BleError(BleErrorCode.CharacteristicNotifyChangeFailed)))
         }
-        completion(Result.success(key))
+
+        if (peripheral.isNotifying(characteristic)) {
+            completion(Result.success(key))
+            return
+        }
+
+        _onSetNotifyCompleted = {
+            completion(it.map { key })
+        }
+        val succ = peripheral.setNotify(characteristic, true)
+        if (succ == false) {
+            _onSetNotifyCompleted = null
+            completion(Result.failure(
+                BleError(
+                    errorCode = BleErrorCode.CharacteristicNotifyChangeFailed,
+                    serviceUUID = characteristic.service.uuid.toString(),
+                    characteristicUUID = characteristic.uuid.toString(),
+                    reason = "peripheral.monitorCharacteristic() failed, maybe device is not connected"
+                )
+            ))
+            return
+        }
+
     }
 
     fun readDescriptor(
@@ -402,10 +421,6 @@ class DiscoveredPeripheral(
         _servicesDiscoveryCompleted = null
     }
 
-    fun connectionStateChange() {
-        streamHandler.onNewConnectionState(peripheral.state)
-    }
-
     private fun remoteRssiReadComleted(res: Result<Int>) {
         _onRemoteRssiReadCompleted?.invoke(res)
         _onRemoteRssiReadCompleted = null
@@ -450,6 +465,12 @@ class DiscoveredPeripheral(
         characteristic: BluetoothGattCharacteristic,
         status: GattStatus
     ) {
+        if (status != GattStatus.SUCCESS) {
+            _onSetNotifyCompleted?.invoke(Result.failure(BleError(BleErrorCode.CharacteristicNotifyChangeFailed)))
+            _onSetNotifyCompleted = null
+            return
+        }
+
         val key =
             "${ChannelName.MONITOR_CHARACTERISTIC}/${characteristic.service.uuid.toString()}/${characteristic.uuid.toString()}"
         val streamHandler = monitorCharacteristicStreamHandlers[key]
@@ -457,6 +478,8 @@ class DiscoveredPeripheral(
 
         if (peripheral.isNotifying(characteristic)) {
             print("DiscoveredPeripheral::onNotificationStateUpdate: isNotifying: true for char: ${characteristic.uuid.toString()}")
+            _onSetNotifyCompleted?.invoke(Result.success(Unit))
+            _onSetNotifyCompleted = null
         } else {
             print("DiscoveredPeripheral::onNotificationStateUpdate: isNotifying: false for char: ${characteristic.uuid.toString()}")
             print("DiscoveredPeripheral::onNotificationStateUpdate: ending flutter notify stream for char: ${characteristic.uuid.toString()}")

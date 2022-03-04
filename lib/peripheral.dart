@@ -119,14 +119,14 @@ class Peripheral {
       rethrow;
     }
 
-    final stream = _peripheralConnectionStateChanges(name: channelName!)
-        .map(
-          (jsonString) => _ConnectionStateContainer.fromJson(
-            jsonDecode(jsonString)
-          ).connectionState
-        )
-        .map((connectionStateString) {
-      switch (connectionStateString.toLowerCase()) {
+    final stream = 
+    _peripheralConnectionStateChanges(
+      name: channelName!
+    ).map((jsonString) {
+      final str = _ConnectionStateContainer.fromJson(
+        jsonDecode(jsonString)
+      ).connectionState;
+      switch (str.toLowerCase()) {
         case NativeConnectionState.connected:
           return PeripheralConnectionState.connected;
         case NativeConnectionState.connecting:
@@ -137,7 +137,7 @@ class Peripheral {
           return PeripheralConnectionState.disconnecting;
         default:
           throw FormatException(
-            'Unrecognized value of device connection state. Value: $connectionStateString',
+            'Unrecognized value of device connection state. Value: $str',
           );
       }
     });
