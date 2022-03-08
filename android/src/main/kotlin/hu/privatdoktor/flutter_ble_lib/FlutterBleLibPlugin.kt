@@ -61,209 +61,210 @@ class FlutterBleLibPlugin : FlutterPlugin, MethodCallHandler {
             Log.d(TAG, "on native side onMethodCall:: client was null ")
             return
         }
-        try {
-            when (call.method) {
-                MethodName.IS_CLIENT_CREATED -> {
-                    client.isClientCreated(result = result)
-                }
-                MethodName.CREATE_CLIENT -> {
-                    client.createClient(result = result)
-                }
-                MethodName.DESTROY_CLIENT -> {
-                    client.destroyClient(result = result)
-                }
-                MethodName.START_DEVICE_SCAN -> {
-                    val filteredUUIDs =
-                        call.argument<List<String>>(ArgumentKey.UUIDS)!!.map {
-                            UUIDfrom(bluetoothUUIDStr = it)
-                        }
+        GlobalScope.launch(Dispatchers.Main.immediate) {
+            try {
+                when (call.method) {
+                    MethodName.IS_CLIENT_CREATED -> {
+                        client.isClientCreated(result = result)
+                    }
+                    MethodName.CREATE_CLIENT -> {
+                        client.createClient(result = result)
+                    }
+                    MethodName.DESTROY_CLIENT -> {
+                        client.destroyClient(result = result)
+                    }
+                    MethodName.START_DEVICE_SCAN -> {
+                        val filteredUUIDs =
+                            call.argument<List<String>>(ArgumentKey.UUIDS)!!.map {
+                                UUIDfrom(bluetoothUUIDStr = it)
+                            }
 
-                    client.startDeviceScan(
-                        scanMode = call.argument<Int>(ArgumentKey.SCAN_MODE)!!,
-                        callbackType = call.argument<Int>(ArgumentKey.CALLBACK_TYPE)!!,
-                        filteredUUIDs = filteredUUIDs,
-                        result = result
-                    )
-                }
-                MethodName.STOP_DEVICE_SCAN -> {
-                    client.stopDeviceScan(result = result)
-                }
-                MethodName.ENABLE_RADIO -> {
-                    GlobalScope.launch(Dispatchers.Main.immediate) {
+                        client.startDeviceScan(
+                            scanMode = call.argument<Int>(ArgumentKey.SCAN_MODE)!!,
+                            callbackType = call.argument<Int>(ArgumentKey.CALLBACK_TYPE)!!,
+                            filteredUUIDs = filteredUUIDs,
+                            result = result
+                        )
+                    }
+                    MethodName.STOP_DEVICE_SCAN -> {
+                        client.stopDeviceScan(result = result)
+                    }
+                    MethodName.ENABLE_RADIO -> {
                         client.enableRadio(result = result)
+
                     }
-                }
-                MethodName.DISABLE_RADIO -> {
-                    GlobalScope.launch(Dispatchers.Main.immediate) {
+                    MethodName.DISABLE_RADIO -> {
                         client.disableRadio(result = result)
+
                     }
-                }
-                MethodName.GET_STATE -> {
-                    client.getState(result = result)
-                }
-                MethodName.GET_AUTHORIZATION -> {
-                    result.success("allowedAlways")
-                }
-                MethodName.CONNECT_TO_DEVICE -> {
-                    val timeoutMillis =
-                        try {
-                            val unwrappedValue = call.argument<Int>(ArgumentKey.TIMEOUT_MILLIS)
-                            unwrappedValue?.toLong()
-                        } catch (exception: ClassCastException) {
-                            call.argument<Long>(ArgumentKey.TIMEOUT_MILLIS)
-                        }
-                    client.connectToDevice(
-                        deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
-                        isAutoConnect = call.argument<Boolean>(ArgumentKey.IS_AUTO_CONNECT),
-                        requestMtu = call.argument<Int>(ArgumentKey.REQUEST_MTU),
-                        refreshGatt = call.argument<Boolean>(ArgumentKey.REFRESH_GATT)!!,
-                        timeoutMillis = timeoutMillis,
-                        result = result
-                    )
-                }
-                MethodName.IS_DEVICE_CONNECTED -> {
-                    client.isDeviceConnected(
-                        deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
-                        result = result
-                    )
-                }
-                MethodName.OBSERVE_CONNECTION_STATE -> {
-                    client.observeConnectionState(
-                        deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
-                        emitCurrentValue = call.argument<Boolean>(ArgumentKey.EMIT_CURRENT_VALUE)!!,
-                        result = result
-                    )
-                }
-                MethodName.CANCEL_CONNECTION -> {
-                    client.cancelConnection(
-                        deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
-                        result = result
-                    )
-                }
-                MethodName.DISCOVER_SERVICES -> {
-                    val serviceUuids =
-                        call.argument<List<String>>(ArgumentKey.SERVICE_UUIDS)?.map {
+                    MethodName.GET_STATE -> {
+                        client.getState(result = result)
+                    }
+                    MethodName.GET_AUTHORIZATION -> {
+                        result.success("allowedAlways")
+                    }
+                    MethodName.CONNECT_TO_DEVICE -> {
+                        val timeoutMillis =
+                            try {
+                                val unwrappedValue = call.argument<Int>(ArgumentKey.TIMEOUT_MILLIS)
+                                unwrappedValue?.toLong()
+                            } catch (exception: ClassCastException) {
+                                call.argument<Long>(ArgumentKey.TIMEOUT_MILLIS)
+                            }
+                        client.connectToDevice(
+                            deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
+                            isAutoConnect = call.argument<Boolean>(ArgumentKey.IS_AUTO_CONNECT),
+                            requestMtu = call.argument<Int>(ArgumentKey.REQUEST_MTU),
+                            refreshGatt = call.argument<Boolean>(ArgumentKey.REFRESH_GATT)!!,
+                            timeoutMillis = timeoutMillis,
+                            result = result
+                        )
+                    }
+                    MethodName.IS_DEVICE_CONNECTED -> {
+                        client.isDeviceConnected(
+                            deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
+                            result = result
+                        )
+                    }
+                    MethodName.OBSERVE_CONNECTION_STATE -> {
+                        client.observeConnectionState(
+                            deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
+                            emitCurrentValue = call.argument<Boolean>(ArgumentKey.EMIT_CURRENT_VALUE)!!,
+                            result = result
+                        )
+                    }
+                    MethodName.CANCEL_CONNECTION -> {
+                        client.cancelConnection(
+                            deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
+                            result = result
+                        )
+                    }
+                    MethodName.DISCOVER_SERVICES -> {
+                        val serviceUuids =
+                            call.argument<List<String>>(ArgumentKey.SERVICE_UUIDS)?.map {
+                                UUIDfrom(bluetoothUUIDStr = it)
+                            }
+                        client.discoverServices(
+                            deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
+                            serviceUUIDs = serviceUuids,
+                            result = result
+                        )
+                    }
+                    MethodName.DISCOVER_CHARACTERISTICS -> {
+                        val characteristicsUuids =
+                            call.argument<List<String>>(ArgumentKey.CHARACTERISTIC_UUIDS)?.map {
+                                UUIDfrom(bluetoothUUIDStr = it)
+                            }
+                        client.discoverCharacteristics(
+                            deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
+                            serviceUuid = UUIDfrom(call.argument<String>(ArgumentKey.SERVICE_UUID)!!),
+                            characteristicsUuids = characteristicsUuids,
+                            result = result
+                        )
+                    }
+                    MethodName.GET_CHARACTERISTICS -> {
+                        client.characteristics(
+                            deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
+                            serviceUuid = UUIDfrom(call.argument<String>(ArgumentKey.SERVICE_UUID)!!),
+                            result = result
+                        )
+                    }
+                    MethodName.GET_SERVICES -> {
+                        client.services(
+                            deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
+                            result = result
+                        )
+                    }
+                    MethodName.GET_DESCRIPTORS_FOR_DEVICE -> {
+                        client.descriptorsForDevice(
+                            deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
+                            serviceUuid = UUIDfrom(call.argument<String>(ArgumentKey.SERVICE_UUID)!!),
+                            characteristicUuid = UUIDfrom(call.argument<String>(ArgumentKey.CHARACTERISTIC_UUID)!!),
+                            result = result
+                        )
+                    }
+                    MethodName.RSSI -> {
+                        client.rssi(
+                            deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
+                            result = result
+                        )
+                    }
+                    MethodName.REQUEST_MTU -> {
+                        client.requestMtu(
+                            deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
+                            mtu = call.argument<Int>(ArgumentKey.MTU)!!,
+                            result = result
+                        )
+                    }
+                    MethodName.GET_CONNECTED_DEVICES -> {
+                        val serviceUUIDs = call.argument<List<String>>(ArgumentKey.UUIDS)!!.map {
                             UUIDfrom(bluetoothUUIDStr = it)
                         }
-                    client.discoverServices(
-                        deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
-                        serviceUUIDs = serviceUuids,
-                        result = result
-                    )
-                }
-                MethodName.DISCOVER_CHARACTERISTICS -> {
-                    val characteristicsUuids =
-                        call.argument<List<String>>(ArgumentKey.CHARACTERISTIC_UUIDS)?.map {
-                            UUIDfrom(bluetoothUUIDStr = it)
-                        }
-                    client.discoverCharacteristics(
-                        deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
-                        serviceUuid = UUIDfrom(call.argument<String>(ArgumentKey.SERVICE_UUID)!!),
-                        characteristicsUuids = characteristicsUuids,
-                        result = result
-                    )
-                }
-                MethodName.GET_CHARACTERISTICS -> {
-                    client.characteristics(
-                        deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
-                        serviceUuid = UUIDfrom(call.argument<String>(ArgumentKey.SERVICE_UUID)!!),
-                        result = result
-                    )
-                }
-                MethodName.GET_SERVICES -> {
-                    client.services(
-                        deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
-                        result = result
-                    )
-                }
-                MethodName.GET_DESCRIPTORS_FOR_DEVICE -> {
-                    client.descriptorsForDevice(
-                        deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
-                        serviceUuid = UUIDfrom(call.argument<String>(ArgumentKey.SERVICE_UUID)!!),
-                        characteristicUuid = UUIDfrom(call.argument<String>(ArgumentKey.CHARACTERISTIC_UUID)!!),
-                        result = result
-                    )
-                }
-                MethodName.RSSI -> {
-                    client.rssi(
-                        deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
-                        result = result
-                    )
-                }
-                MethodName.REQUEST_MTU -> {
-                    client.requestMtu(
-                        deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
-                        mtu = call.argument<Int>(ArgumentKey.MTU)!!,
-                        result = result
-                    )
-                }
-                MethodName.GET_CONNECTED_DEVICES -> {
-                    val serviceUUIDs = call.argument<List<String>>(ArgumentKey.UUIDS)!!.map {
-                        UUIDfrom(bluetoothUUIDStr = it)
+                        client.getConnectedDevices(
+                            serviceUUIDs = serviceUUIDs,
+                            result = result
+                        )
                     }
-                    client.getConnectedDevices(
-                        serviceUUIDs = serviceUUIDs,
-                        result = result
-                    )
+                    MethodName.GET_KNOWN_DEVICES -> {
+                        client.getKnownDevices(
+                            deviceIdentifiers = call.argument<List<String>>(ArgumentKey.DEVICE_IDENTIFIERS)!!,
+                            result = result
+                        )
+                    }
+                    MethodName.READ_CHARACTERISTIC_FOR_DEVICE -> {
+                        val jsonString = client.readCharacteristicForDevice(
+                            deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
+                            serviceUuidStr = call.argument<String>(ArgumentKey.SERVICE_UUID)!!,
+                            characteristicUuidStr = call.argument<String>(ArgumentKey.CHARACTERISTIC_UUID)!!,
+                        )
+                        result.success(jsonString)
+                    }
+                    MethodName.WRITE_CHARACTERISTIC_FOR_DEVICE -> {
+                        val withResponse =
+                            call.argument<Boolean>(ArgumentKey.WITH_RESPONSE) ?: false;
+                        client.writeCharacteristicForDevice(
+                            deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
+                            serviceUuid = UUIDfrom(call.argument<String>(ArgumentKey.SERVICE_UUID)!!),
+                            characteristicUuid = UUIDfrom(call.argument<String>(ArgumentKey.CHARACTERISTIC_UUID)!!),
+                            bytesToWrite = call.argument<ByteArray>(ArgumentKey.VALUE)!!,
+                            withResponse = withResponse,
+                            result = result
+                        )
+                    }
+                    MethodName.MONITOR_CHARACTERISTIC_FOR_DEVICE -> {
+                        client.monitorCharacteristicForDevice(
+                            deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
+                            serviceUuid = UUIDfrom(call.argument<String>(ArgumentKey.SERVICE_UUID)!!),
+                            characteristicUuid = UUIDfrom(call.argument<String>(ArgumentKey.CHARACTERISTIC_UUID)!!),
+                            result = result
+                        )
+                    }
+                    MethodName.READ_DESCRIPTOR_FOR_DEVICE -> {
+                        client.readDescriptorForDevice(
+                            deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
+                            serviceUuid = UUIDfrom(call.argument<String>(ArgumentKey.SERVICE_UUID)!!),
+                            characteristicUuid = UUIDfrom(call.argument<String>(ArgumentKey.CHARACTERISTIC_UUID)!!),
+                            descriptorUuid = UUIDfrom(call.argument(ArgumentKey.DESCRIPTOR_UUID)!!),
+                            result = result
+                        )
+                    }
+                    MethodName.WRITE_DESCRIPTOR_FOR_DEVICE -> {
+                        client.writeDescriptorForDevice(
+                            deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
+                            serviceUuid = UUIDfrom(call.argument<String>(ArgumentKey.SERVICE_UUID)!!),
+                            characteristicUuid = UUIDfrom(call.argument<String>(ArgumentKey.CHARACTERISTIC_UUID)!!),
+                            descriptorUuid = call.argument(ArgumentKey.DESCRIPTOR_UUID)!!,
+                            value = call.argument<ByteArray>(ArgumentKey.VALUE)!!,
+                            result = result
+                        )
+                    }
+                    else -> throw NotImplementedError()
                 }
-                MethodName.GET_KNOWN_DEVICES -> {
-                    client.getKnownDevices(
-                        deviceIdentifiers = call.argument<List<String>>(ArgumentKey.DEVICE_IDENTIFIERS)!!,
-                        result = result
-                    )
-                }
-                MethodName.READ_CHARACTERISTIC_FOR_DEVICE -> {
-                    client.readCharacteristicForDevice(
-                        deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
-                        serviceUuid = UUIDfrom(call.argument<String>(ArgumentKey.SERVICE_UUID)!!),
-                        characteristicUuid = UUIDfrom(call.argument<String>(ArgumentKey.CHARACTERISTIC_UUID)!!),
-                        result = result
-                    )
-                }
-                MethodName.WRITE_CHARACTERISTIC_FOR_DEVICE -> {
-                    val withResponse = call.argument<Boolean>(ArgumentKey.WITH_RESPONSE) ?: false;
-                    client.writeCharacteristicForDevice(
-                        deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
-                        serviceUuid = UUIDfrom(call.argument<String>(ArgumentKey.SERVICE_UUID)!!),
-                        characteristicUuid = UUIDfrom(call.argument<String>(ArgumentKey.CHARACTERISTIC_UUID)!!),
-                        bytesToWrite = call.argument<ByteArray>(ArgumentKey.VALUE)!!,
-                        withResponse = withResponse,
-                        result = result
-                    )
-                }
-                MethodName.MONITOR_CHARACTERISTIC_FOR_DEVICE -> {
-                    client.monitorCharacteristicForDevice(
-                        deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
-                        serviceUuid = UUIDfrom(call.argument<String>(ArgumentKey.SERVICE_UUID)!!),
-                        characteristicUuid = UUIDfrom(call.argument<String>(ArgumentKey.CHARACTERISTIC_UUID)!!),
-                        result = result
-                    )
-                }
-                MethodName.READ_DESCRIPTOR_FOR_DEVICE -> {
-                    client.readDescriptorForDevice(
-                        deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
-                        serviceUuid = UUIDfrom(call.argument<String>(ArgumentKey.SERVICE_UUID)!!),
-                        characteristicUuid = UUIDfrom(call.argument<String>(ArgumentKey.CHARACTERISTIC_UUID)!!),
-                        descriptorUuid = UUIDfrom(call.argument(ArgumentKey.DESCRIPTOR_UUID)!!),
-                        result = result
-                    )
-                }
-                MethodName.WRITE_DESCRIPTOR_FOR_DEVICE -> {
-                    client.writeDescriptorForDevice(
-                        deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
-                        serviceUuid = UUIDfrom(call.argument<String>(ArgumentKey.SERVICE_UUID)!!),
-                        characteristicUuid = UUIDfrom(call.argument<String>(ArgumentKey.CHARACTERISTIC_UUID)!!),
-                        descriptorUuid = call.argument(ArgumentKey.DESCRIPTOR_UUID)!!,
-                        value = call.argument<ByteArray>(ArgumentKey.VALUE)!!,
-                        result = result
-                    )
-                }
-                else -> throw NotImplementedError()
+            } catch (e: NotImplementedError) {
+                result.notImplemented()
+            } catch (e: Throwable) {
+                result.error(throwable = e)
             }
-        } catch (e: NotImplementedError) {
-            result.notImplemented()
-        } catch (e: Throwable) {
-            result.error(throwable = e)
         }
     }
 }

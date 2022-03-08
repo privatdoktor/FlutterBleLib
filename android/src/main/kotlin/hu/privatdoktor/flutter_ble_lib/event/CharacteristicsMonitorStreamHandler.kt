@@ -11,27 +11,28 @@ import io.flutter.plugin.common.EventChannel.EventSink
 
 import io.flutter.plugin.common.BinaryMessenger
 
-import hu.privatdoktor.flutter_ble_lib.event.ConnectionStateStreamHandler
-
-import org.json.JSONException
 import org.json.JSONObject
-import java.util.*
 
 class CharacteristicsMonitorStreamHandler(
     binaryMessenger: BinaryMessenger,
-    deviceIdentifier: String,
-    serviceUuid: String,
-    characteristicUuid: String
+    val uniqueKey: String,
 ) : EventChannel.StreamHandler {
-    private val eventChannel: EventChannel
+    private val eventChannel = EventChannel(binaryMessenger, uniqueKey)
     private var eventSink: EventSink? = null
     private var cleanUpClosure: (() -> Unit)? = null
 
-    val name: String
+    companion object {
+        fun uniqueKeyFor(
+            deviceIdentifier: String,
+            char: BluetoothGattCharacteristic
+        ) : String {
+            val characteristicUuid = char.uuid.toString().lowercase()
+            val serviceUuid = char.service.toString().lowercase()
+            return "${ChannelName.MONITOR_CHARACTERISTIC}/$deviceIdentifier/$serviceUuid/$characteristicUuid"
+        }
+    }
 
     init {
-        name = "${ChannelName.MONITOR_CHARACTERISTIC}/$deviceIdentifier/$serviceUuid/$characteristicUuid"
-        eventChannel = EventChannel(binaryMessenger, name)
         eventChannel.setStreamHandler(this)
     }
 
