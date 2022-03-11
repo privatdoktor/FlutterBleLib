@@ -7,6 +7,9 @@ import com.welie.blessed.*
 import hu.privatdoktor.flutter_ble_lib.event.CharacteristicsMonitorStreamHandler
 import hu.privatdoktor.flutter_ble_lib.event.ConnectionStateStreamHandler
 import io.flutter.embedding.engine.plugins.FlutterPlugin
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.withTimeout
 import java.lang.ref.WeakReference
 import java.util.*
 
@@ -21,24 +24,18 @@ class DiscoveredPeripheral(
     private val centralManager get() = _centralManager.get()
 
     val connectionStateStreamHandler = ConnectionStateStreamHandler(binding.binaryMessenger, peripheral.address)
-
-    private var _connectCompleted: ((Result<Unit>) -> Unit)? = null
-    private var _disconnectCompleted: ((Result<Unit>) -> Unit)? = null
-    private var _onDisconnectedListeners: Queue<() -> Unit> = LinkedList()
-    private var _servicesDiscoveryCompleted:((Result<Map<UUID, BluetoothGattService>>) -> Unit)? = null
-    private var _onRemoteRssiReadCompleted: ((Result<Int>) -> Unit)? = null
-    private var _onRequestMtuCompleted: ((Result<Int>) -> Unit)? = null
-
-//    private var _onSetNotifyCompleted: ((Result<Unit>) -> Unit)? = null
     private val discoveredCharacteristics = HashMap<String, DiscoveredCharacteristic>()
-
-
-//    private var _onCharacteristicWriteCompleted: ((Result<BluetoothGattCharacteristic>) -> Unit)? = null
 
     private val monitorCharacteristicStreamHandlers = HashMap<String, CharacteristicsMonitorStreamHandler>()
 
-    private var _onDescriptorReadCompleted: ((Result<BluetoothGattDescriptor>) -> Unit)? = null
-    private var _onDescriptorWriteCompleted: ((Result<BluetoothGattDescriptor>) -> Unit)? = null
+    private var connectCompleter: CompletableDeferred<Unit>? = null
+    private var serviceDiscoveryCompleter: CompletableDeferred<Map<UUID, BluetoothGattService>>? = null
+
+    private var disconnectCompleter: CompletableDeferred<Unit>? = null
+    private var _onDisconnectedListeners: Queue<() -> Unit> = LinkedList()
+
+    private var onRemoteRssiReadCompleter: CompletableDeferred<Int>? = null
+    private var onRequestMtuCompleter: CompletableDeferred<Int>? = null
 
 
     init {
@@ -50,37 +47,42 @@ class DiscoveredPeripheral(
     }
 
     //region API
-    fun connect(completion: (Result<Unit>) -> Unit) {
-        val pending = _servicesDiscoveryCompleted
-        if (pending != null) {
-            _servicesDiscoveryCompleted = null
-            pending(
-                Result.failure(
-                    BleError(errorCode = BleErrorCode.DeviceConnectionFailed)
-                )
+    suspend fun connect() {
+        val pending = connectCompleter
+        if (pending != null && pending.isActive) {
+            pending.completeExceptionally(
+                BleError(errorCode = BleErrorCode.DeviceConnectionFailed)
             )
         }
-
-        _servicesDiscoveryCompleted = {
-            completion(it.map { Unit })
+        val pendingServiceDiscovery = serviceDiscoveryCompleter
+        if (pendingServiceDiscovery != null && pendingServiceDiscovery.isActive) {
+            pendingServiceDiscovery.completeExceptionally(
+                BleError(errorCode = BleErrorCode.DeviceConnectionFailed)
+            )
         }
+        val connectCompleter =  CompletableDeferred<Unit>()
+        val serviceDiscoveryCompleter = CompletableDeferred<Map<UUID, BluetoothGattService>>()
+        this.connectCompleter = connectCompleter
+        this.serviceDiscoveryCompleter = serviceDiscoveryCompleter
 
         centralManager?.connectPeripheral(peripheral, this)
         peripheral.requestConnectionPriority(ConnectionPriority.HIGH)
+        withTimeout(timeMillis = 10 * 1000) {
+            awaitAll(connectCompleter, serviceDiscoveryCompleter)
+        }
     }
 
-    fun disconnect(completion: (Result<Unit>) -> Unit) {
-        val pending = _disconnectCompleted
-        if (pending != null) {
-            _disconnectCompleted = null
-            pending(
-                Result.failure(
-                    BleError(errorCode = BleErrorCode.DeviceConnectionFailed)
-                )
+    suspend fun disconnect() {
+        val pending = disconnectCompleter
+        if (pending != null && pending.isActive) {
+            pending.completeExceptionally(
+                BleError(errorCode = BleErrorCode.DeviceConnectionFailed)
             )
         }
-        _disconnectCompleted = completion
+        val completer = CompletableDeferred<Unit>()
+        disconnectCompleter = completer
         centralManager?.cancelConnection(peripheral)
+        completer.await()
     }
 
     fun onDisconnected(listener: () -> Unit) {
@@ -89,83 +91,56 @@ class DiscoveredPeripheral(
 
     fun discoverServices(
         serviceUUIDs: List<UUID>? = null,
-        completion: (
-            res: Result<Map<UUID, BluetoothGattService>>
-        ) -> Unit
-    ) {
-
-        completion(
-            Result.success(
-                peripheral.services.associateBy { it.uuid }
-            )
-        )
+    ) : Map<UUID, BluetoothGattService> {
+        return peripheral.services.associateBy { it.uuid }
     }
 
-    fun readRemoteRssi(
-        completion: (
-            res: Result<Int>
-        ) -> Unit
-    ) {
-        val pending = _onRemoteRssiReadCompleted
-        if (pending != null) {
-            _onRemoteRssiReadCompleted = null
-            pending(
-                Result.failure(
-                    BleError(
-                        errorCode = BleErrorCode.DeviceRSSIReadFailed,
-                        deviceID = peripheral.address
-                    )
+    suspend fun readRemoteRssi() : Int {
+        val pending = onRemoteRssiReadCompleter
+        if (pending != null && pending.isActive) {
+            pending.completeExceptionally(
+                BleError(
+                    errorCode = BleErrorCode.DeviceRSSIReadFailed,
+                    deviceID = peripheral.address
                 )
             )
         }
-        _onRemoteRssiReadCompleted = completion
+        val completer = CompletableDeferred<Int>()
+        onRemoteRssiReadCompleter = completer
         val succ = peripheral.readRemoteRssi()
         if (succ == false) {
-            _onRemoteRssiReadCompleted = null
-            completion(
-                Result.failure(
-                    BleError(
-                        errorCode = BleErrorCode.DeviceRSSIReadFailed,
-                        deviceID = peripheral.address,
-                        reason = "peripheral.readRemoteRssi() failed, maybe device is not connected"
-                    )
-                )
+            onRemoteRssiReadCompleter = null
+            throw BleError(
+                errorCode = BleErrorCode.DeviceRSSIReadFailed,
+                deviceID = peripheral.address,
+                reason = "peripheral.readRemoteRssi() failed, maybe device is not connected"
             )
         }
+        return completer.await()
     }
 
-    fun requestMtu(
-        mtu: Int,
-        completion: (
-            res: Result<Int>
-        ) -> Unit
-    ) {
-        val pending = _onRequestMtuCompleted
-        if (pending != null) {
-            _onRequestMtuCompleted = null
-            pending(
-                Result.failure(
-                    BleError(
-                        errorCode = BleErrorCode.DeviceMTUChangeFailed,
-                        deviceID = peripheral.address
-                    )
+    suspend fun requestMtu(mtu: Int) : Int {
+        val pending = onRequestMtuCompleter
+        if (pending != null && pending.isActive) {
+            pending.completeExceptionally(
+                BleError(
+                    errorCode = BleErrorCode.DeviceMTUChangeFailed,
+                    deviceID = peripheral.address
                 )
             )
         }
-        _onRequestMtuCompleted = completion
+        val completer = CompletableDeferred<Int>()
+        onRequestMtuCompleter = completer
         val succ = peripheral.requestMtu(mtu)
         if (succ == false) {
-            _onRequestMtuCompleted = null
-            completion(
-                Result.failure(
-                    BleError(
-                        errorCode = BleErrorCode.DeviceMTUChangeFailed,
-                        deviceID = peripheral.address,
-                        reason = "peripheral.requestMtu() failed, maybe device is not connected"
-                    )
-                )
+            onRequestMtuCompleter = null
+            throw BleError(
+                errorCode = BleErrorCode.DeviceMTUChangeFailed,
+                deviceID = peripheral.address,
+                reason = "peripheral.requestMtu() failed, maybe device is not connected"
             )
         }
+        return completer.await()
     }
 
     fun discoveredCharacteristicFor(
@@ -189,209 +164,21 @@ class DiscoveredPeripheral(
             )
         ]
     }
-
-
-
-
-
-    suspend fun monitorCharacteristic(
-        serviceUuid: String,
-        characteristicUuid: String
-    ) : String {
-
-        val characteristic = peripheral.getService(
-            UUID.fromString(serviceUuid)
-        )?.getCharacteristic(
-            UUID.fromString(characteristicUuid)
-        )
-        if (characteristic == null) {
-            throw BleError.characteristicNotFound(characteristicUuid)
-        }
-        val uniqueKey = CharacteristicsMonitorStreamHandler.uniqueKeyFor(
-            deviceIdentifier = peripheral.address,
-            char = characteristic
-        )
-        val streamHandler =
-            CharacteristicsMonitorStreamHandler(
-                binaryMessenger = binding.binaryMessenger,
-                uniqueKey = uniqueKey
-            )
-        monitorCharacteristicStreamHandlers[uniqueKey] = streamHandler
-        streamHandler.afterCancelDo {
-            monitorCharacteristicStreamHandlers.remove(uniqueKey)
-            if (peripheral.isNotifying(characteristic)) {
-//                peripheral.setNotify(characteristic, false)
-            }
-        }
-        onDisconnected {
-            streamHandler.end()
-            monitorCharacteristicStreamHandlers.remove(uniqueKey)
-        }
-
-        return uniqueKey
-
-//        val pending = _onSetNotifyCompleted
-//        if (pending != null) {
-//            _onSetNotifyCompleted = null
-//            pending.invoke(Result.failure(BleError(BleErrorCode.CharacteristicNotifyChangeFailed)))
-//        }
-//
-//        if (peripheral.isNotifying(characteristic)) {
-//            completion(Result.success(key))
-//            return
-//        }
-//
-//        _onSetNotifyCompleted = {
-//            completion(it.map { key })
-//        }
-//        val succ = peripheral.setNotify(characteristic, true)
-//        if (succ == false) {
-//            _onSetNotifyCompleted = null
-//            completion(Result.failure(
-//                BleError(
-//                    errorCode = BleErrorCode.CharacteristicNotifyChangeFailed,
-//                    serviceUUID = characteristic.service.uuid.toString(),
-//                    characteristicUUID = characteristic.uuid.toString(),
-//                    reason = "peripheral.monitorCharacteristic() failed, maybe device is not connected"
-//                )
-//            ))
-//            return
-//        }
-//
-    }
-
-    fun readDescriptor(
-        desc: BluetoothGattDescriptor,
-        completion: (Result<BluetoothGattDescriptor>) -> Unit
-    ) {
-        val pending = _onDescriptorReadCompleted
-        if (pending != null) {
-            _onDescriptorReadCompleted = null
-            pending(
-                Result.failure(
-                    BleError(
-                        errorCode = BleErrorCode.CharacteristicReadFailed,
-                        deviceID = peripheral.address,
-                        serviceUUID = desc.characteristic.service.uuid.toString(),
-                        characteristicUUID = desc.characteristic.uuid.toString(),
-                        descriptorUUID = desc.uuid.toString()
-                    )
-                )
-            )
-        }
-        _onDescriptorReadCompleted = completion
-        val succ = peripheral.readDescriptor(desc)
-        if (succ == false) {
-            _onDescriptorReadCompleted = null
-            completion(
-                Result.failure(
-                    BleError(
-                        errorCode = BleErrorCode.CharacteristicReadFailed,
-                        serviceUUID = desc.characteristic.service.uuid.toString(),
-                        characteristicUUID = desc.characteristic.uuid.toString(),
-                        descriptorUUID = desc.uuid.toString(),
-                        reason = "peripheral.readDescriptor() failed, maybe device is not connected"
-                    )
-                )
-            )
-        }
-
-    }
-
-    fun writeDescriptor(
-        desc: BluetoothGattDescriptor,
-        value: ByteArray,
-        completion: (Result<BluetoothGattDescriptor>) -> Unit
-    ) {
-        val pending = _onDescriptorWriteCompleted
-        if (pending != null) {
-            _onDescriptorWriteCompleted = null
-            pending(
-                Result.failure(
-                    BleError(
-                        errorCode = BleErrorCode.DescriptorWriteFailed,
-                        deviceID = peripheral.address,
-                        serviceUUID = desc.characteristic.service.uuid.toString(),
-                        characteristicUUID = desc.characteristic.uuid.toString(),
-                        descriptorUUID = desc.uuid.toString()
-                    )
-                )
-            )
-        }
-        _onDescriptorWriteCompleted = completion
-
-        val succ = peripheral.writeDescriptor(desc, value)
-        if (succ == false) {
-            _onDescriptorWriteCompleted = null
-            completion(
-                Result.failure(
-                    BleError(
-                        errorCode = BleErrorCode.DescriptorWriteFailed,
-                        deviceID = peripheral.address,
-                        serviceUUID = desc.characteristic.service.uuid.toString(),
-                        characteristicUUID = desc.characteristic.uuid.toString(),
-                        descriptorUUID = desc.uuid.toString(),
-                        reason = "peripheral.writeDescriptor() failed, maybe device is not connected"
-                    )
-                )
-            )
-        }
-    }
-
     //endregion
 
     //region For Publishers
 
     fun connected(res: Result<Unit>) {
-        _connectCompleted?.invoke(res)
-        _connectCompleted = null
+        connectCompleter?.complete(Unit)
     }
 
-    fun disconnected(res: Result<Unit>) {
-        _disconnectCompleted?.invoke(res)
-        _disconnectCompleted = null
+    fun disconnected() {
+        disconnectCompleter?.complete(Unit)
 
-        if (res.isSuccess) {
-            while (_onDisconnectedListeners.isNotEmpty()) {
-                _onDisconnectedListeners.poll()?.invoke()
-            }
+        while (_onDisconnectedListeners.isNotEmpty()) {
+            _onDisconnectedListeners.poll()?.invoke()
         }
     }
-
-    fun servicesDiscoveredCompleted(peripheral: BluetoothPeripheral) {
-        _servicesDiscoveryCompleted?.invoke(
-            Result.success(
-                value = peripheral.services.associateBy { it.uuid }
-            )
-        )
-        _servicesDiscoveryCompleted = null
-    }
-
-    private fun remoteRssiReadComleted(res: Result<Int>) {
-        _onRemoteRssiReadCompleted?.invoke(res)
-        _onRemoteRssiReadCompleted = null
-    }
-
-    private fun requestMtuCompleted(res: Result<Int>) {
-        _onRequestMtuCompleted?.invoke(res)
-        _onRequestMtuCompleted = null
-    }
-
-
-    private fun descriptorReadCompleted(res: Result<BluetoothGattDescriptor>) {
-        _onDescriptorReadCompleted?.invoke(res)
-        _onDescriptorReadCompleted = null
-    }
-
-    private fun descriptorWriteCompleted(res: Result<BluetoothGattDescriptor>) {
-        _onDescriptorWriteCompleted?.invoke(res)
-        _onDescriptorWriteCompleted = null
-    }
-    //endregion
-
-    //region Helpers
-
-
 
     //endregion
 
@@ -403,7 +190,8 @@ class DiscoveredPeripheral(
                     DiscoveredCharacteristic(discoveredPeripheral = this, characteristic = char)
             }
         }
-        servicesDiscoveredCompleted(peripheral = peripheral)
+
+        serviceDiscoveryCompleter?.complete(peripheral.services.associateBy { it.uuid })
     }
 
     override fun onNotificationStateUpdate(
@@ -431,6 +219,10 @@ class DiscoveredPeripheral(
             return
         }
 
+        dc?.onSetNotifyChanged(
+            Result.success(peripheral.isNotifying(characteristic))
+        )
+
         val key =
             CharacteristicsMonitorStreamHandler.uniqueKeyFor(
                 deviceIdentifier = peripheral.address,
@@ -438,17 +230,6 @@ class DiscoveredPeripheral(
             )
         val streamHandler = monitorCharacteristicStreamHandlers[key]
         print("DiscoveredPeripheral::onNotificationStateUpdate: streamhandler exists: ${streamHandler != null}}")
-
-        if (peripheral.isNotifying(characteristic)) {
-            print("DiscoveredPeripheral::onNotificationStateUpdate: isNotifying: true for char: ${characteristic.uuid.toString()}")
-//            _onSetNotifyCompleted?.invoke(Result.success(Unit))
-//            _onSetNotifyCompleted = null
-        } else {
-            print("DiscoveredPeripheral::onNotificationStateUpdate: isNotifying: false for char: ${characteristic.uuid.toString()}")
-            print("DiscoveredPeripheral::onNotificationStateUpdate: ending flutter notify stream for char: ${characteristic.uuid.toString()}")
-            streamHandler?.end()
-        }
-
     }
 
     override fun onCharacteristicUpdate(
@@ -528,6 +309,12 @@ class DiscoveredPeripheral(
         descriptor: BluetoothGattDescriptor,
         status: GattStatus
     ) {
+        val dd = discoveredCharacteristics[
+            descriptor.characteristic.uuid.toString().lowercase()
+        ]?.discoveredDescriptors?.get(
+            descriptor.uuid.toString().lowercase()
+        )
+
         val res = if (status == GattStatus.SUCCESS) {
             Result.success(descriptor)
         } else {
@@ -543,7 +330,7 @@ class DiscoveredPeripheral(
                 )
             )
         }
-        descriptorReadCompleted(res)
+        dd?.onReadCompleted(res)
     }
 
     override fun onDescriptorWrite(
@@ -552,6 +339,12 @@ class DiscoveredPeripheral(
         descriptor: BluetoothGattDescriptor,
         status: GattStatus
     ) {
+        val dd = discoveredCharacteristics[
+            descriptor.characteristic.uuid.toString().lowercase()
+        ]?.discoveredDescriptors?.get(
+            descriptor.uuid.toString().lowercase()
+        )
+
         val res = if (status == GattStatus.SUCCESS) {
             Result.success(descriptor)
         } else {
@@ -567,7 +360,7 @@ class DiscoveredPeripheral(
                 )
             )
         }
-        descriptorWriteCompleted(res)
+        dd?.onWriteCompleted(res)
     }
 
     override fun onBondingStarted(peripheral: BluetoothPeripheral) {
@@ -587,10 +380,10 @@ class DiscoveredPeripheral(
     }
 
     override fun onReadRemoteRssi(peripheral: BluetoothPeripheral, rssi: Int, status: GattStatus) {
-        val res = if (status == GattStatus.SUCCESS) {
-            Result.success(rssi)
+        if (status == GattStatus.SUCCESS) {
+            onRemoteRssiReadCompleter?.complete(rssi)
         } else {
-            Result.failure(
+            onRemoteRssiReadCompleter?.completeExceptionally(
                 BleError(
                     errorCode = BleErrorCode.DeviceRSSIReadFailed,
                     androidCode = status.value,
@@ -598,7 +391,6 @@ class DiscoveredPeripheral(
                 )
             )
         }
-        remoteRssiReadComleted(res)
     }
 
     override fun onMtuChanged(
@@ -606,10 +398,10 @@ class DiscoveredPeripheral(
         mtu: Int,
         status: GattStatus
     ) {
-        val res = if (status == GattStatus.SUCCESS) {
-            Result.success(mtu)
+        if (status == GattStatus.SUCCESS) {
+            onRequestMtuCompleter?.complete(mtu)
         } else {
-            Result.failure(
+            onRequestMtuCompleter?.completeExceptionally(
                 BleError(
                     errorCode = BleErrorCode.DeviceMTUChangeFailed,
                     androidCode = status.value,
@@ -617,7 +409,6 @@ class DiscoveredPeripheral(
                 )
             )
         }
-        requestMtuCompleted(res)
     }
 
     override fun onPhyUpdate(

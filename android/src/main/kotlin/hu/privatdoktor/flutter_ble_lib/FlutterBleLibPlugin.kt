@@ -65,13 +65,16 @@ class FlutterBleLibPlugin : FlutterPlugin, MethodCallHandler {
             try {
                 when (call.method) {
                     MethodName.IS_CLIENT_CREATED -> {
-                        client.isClientCreated(result = result)
+                        val isCreated = client.isClientCreated()
+                        result.success(isCreated)
                     }
                     MethodName.CREATE_CLIENT -> {
-                        client.createClient(result = result)
+                        client.createClient()
+                        result.success(null)
                     }
                     MethodName.DESTROY_CLIENT -> {
-                        client.destroyClient(result = result)
+                        client.destroyClient()
+                        result.success(null)
                     }
                     MethodName.START_DEVICE_SCAN -> {
                         val filteredUUIDs =
@@ -82,23 +85,27 @@ class FlutterBleLibPlugin : FlutterPlugin, MethodCallHandler {
                         client.startDeviceScan(
                             scanMode = call.argument<Int>(ArgumentKey.SCAN_MODE)!!,
                             callbackType = call.argument<Int>(ArgumentKey.CALLBACK_TYPE)!!,
-                            filteredUUIDs = filteredUUIDs,
-                            result = result
+                            filteredUUIDs = filteredUUIDs
                         )
+                        result.success(null)
                     }
                     MethodName.STOP_DEVICE_SCAN -> {
-                        client.stopDeviceScan(result = result)
+                        client.stopDeviceScan()
+                        result.success(null)
                     }
                     MethodName.ENABLE_RADIO -> {
-                        client.enableRadio(result = result)
+                        client.enableRadio()
+                        result.success(null)
 
                     }
                     MethodName.DISABLE_RADIO -> {
-                        client.disableRadio(result = result)
+                        client.disableRadio()
+                        result.success(null)
 
                     }
                     MethodName.GET_STATE -> {
-                        client.getState(result = result)
+                        val stateStr = client.getState()
+                        result.success(stateStr)
                     }
                     MethodName.GET_AUTHORIZATION -> {
                         result.success("allowedAlways")
@@ -116,100 +123,100 @@ class FlutterBleLibPlugin : FlutterPlugin, MethodCallHandler {
                             isAutoConnect = call.argument<Boolean>(ArgumentKey.IS_AUTO_CONNECT),
                             requestMtu = call.argument<Int>(ArgumentKey.REQUEST_MTU),
                             refreshGatt = call.argument<Boolean>(ArgumentKey.REFRESH_GATT)!!,
-                            timeoutMillis = timeoutMillis,
-                            result = result
+                            timeoutMillis = timeoutMillis
                         )
+                        result.success(null)
                     }
                     MethodName.IS_DEVICE_CONNECTED -> {
-                        client.isDeviceConnected(
-                            deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
-                            result = result
+                        val isConnected = client.isDeviceConnected(
+                            deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!
                         )
+                        result.success(isConnected)
                     }
                     MethodName.OBSERVE_CONNECTION_STATE -> {
-                        client.observeConnectionState(
+                        val streamHandlerName = client.observeConnectionState(
                             deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
-                            emitCurrentValue = call.argument<Boolean>(ArgumentKey.EMIT_CURRENT_VALUE)!!,
-                            result = result
+                            emitCurrentValue = call.argument<Boolean>(ArgumentKey.EMIT_CURRENT_VALUE)!!
                         )
+                        result.success(streamHandlerName)
                     }
                     MethodName.CANCEL_CONNECTION -> {
                         client.cancelConnection(
-                            deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
-                            result = result
+                            deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!
                         )
+                        result.success(null)
                     }
                     MethodName.DISCOVER_SERVICES -> {
                         val serviceUuids =
                             call.argument<List<String>>(ArgumentKey.SERVICE_UUIDS)?.map {
                                 UUIDfrom(bluetoothUUIDStr = it)
                             }
-                        client.discoverServices(
+                        val jsonString = client.discoverServices(
                             deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
-                            serviceUUIDs = serviceUuids,
-                            result = result
+                            serviceUUIDs = serviceUuids
                         )
+                        result.success(jsonString)
                     }
                     MethodName.DISCOVER_CHARACTERISTICS -> {
                         val characteristicsUuids =
                             call.argument<List<String>>(ArgumentKey.CHARACTERISTIC_UUIDS)?.map {
                                 UUIDfrom(bluetoothUUIDStr = it)
                             }
-                        client.discoverCharacteristics(
+                        val jsonString = client.discoverCharacteristics(
                             deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
                             serviceUuid = UUIDfrom(call.argument<String>(ArgumentKey.SERVICE_UUID)!!),
-                            characteristicsUuids = characteristicsUuids,
-                            result = result
+                            characteristicsUuids = characteristicsUuids
                         )
+                        result.success(jsonString)
                     }
                     MethodName.GET_CHARACTERISTICS -> {
-                        client.characteristics(
+                        val jsonString = client.characteristics(
                             deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
-                            serviceUuid = UUIDfrom(call.argument<String>(ArgumentKey.SERVICE_UUID)!!),
-                            result = result
+                            serviceUuid = UUIDfrom(call.argument<String>(ArgumentKey.SERVICE_UUID)!!)
                         )
+                        result.success(jsonString)
                     }
                     MethodName.GET_SERVICES -> {
-                        client.services(
-                            deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
-                            result = result
+                        val jsonString = client.services(
+                            deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!
                         )
+                        result.success(jsonString)
                     }
                     MethodName.GET_DESCRIPTORS_FOR_DEVICE -> {
-                        client.descriptorsForDevice(
+                        val jsonString = client.descriptorsForDevice(
                             deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
                             serviceUuid = UUIDfrom(call.argument<String>(ArgumentKey.SERVICE_UUID)!!),
-                            characteristicUuid = UUIDfrom(call.argument<String>(ArgumentKey.CHARACTERISTIC_UUID)!!),
-                            result = result
+                            characteristicUuid = UUIDfrom(call.argument<String>(ArgumentKey.CHARACTERISTIC_UUID)!!)
                         )
+                        result.success(jsonString)
                     }
                     MethodName.RSSI -> {
-                        client.rssi(
-                            deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
-                            result = result
+                        val rssi = client.rssi(
+                            deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!
                         )
+                        result.success(rssi)
                     }
                     MethodName.REQUEST_MTU -> {
-                        client.requestMtu(
+                        val newMTU = client.requestMtu(
                             deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
-                            mtu = call.argument<Int>(ArgumentKey.MTU)!!,
-                            result = result
+                            mtu = call.argument<Int>(ArgumentKey.MTU)!!
                         )
+                        result.success(newMTU)
                     }
                     MethodName.GET_CONNECTED_DEVICES -> {
                         val serviceUUIDs = call.argument<List<String>>(ArgumentKey.UUIDS)!!.map {
                             UUIDfrom(bluetoothUUIDStr = it)
                         }
-                        client.getConnectedDevices(
-                            serviceUUIDs = serviceUUIDs,
-                            result = result
+                        val jsonString = client.getConnectedDevices(
+                            serviceUUIDs = serviceUUIDs
                         )
+                        result.success(jsonString)
                     }
                     MethodName.GET_KNOWN_DEVICES -> {
-                        client.getKnownDevices(
-                            deviceIdentifiers = call.argument<List<String>>(ArgumentKey.DEVICE_IDENTIFIERS)!!,
-                            result = result
+                        val jsonString = client.getKnownDevices(
+                            deviceIdentifiers = call.argument<List<String>>(ArgumentKey.DEVICE_IDENTIFIERS)!!
                         )
+                        result.success(jsonString)
                     }
                     MethodName.READ_CHARACTERISTIC_FOR_DEVICE -> {
                         val jsonString = client.readCharacteristicForDevice(
@@ -222,41 +229,41 @@ class FlutterBleLibPlugin : FlutterPlugin, MethodCallHandler {
                     MethodName.WRITE_CHARACTERISTIC_FOR_DEVICE -> {
                         val withResponse =
                             call.argument<Boolean>(ArgumentKey.WITH_RESPONSE) ?: false;
-                        client.writeCharacteristicForDevice(
+                        val jsonString =  client.writeCharacteristicForDevice(
                             deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
-                            serviceUuid = UUIDfrom(call.argument<String>(ArgumentKey.SERVICE_UUID)!!),
-                            characteristicUuid = UUIDfrom(call.argument<String>(ArgumentKey.CHARACTERISTIC_UUID)!!),
+                            serviceUuidStr = call.argument<String>(ArgumentKey.SERVICE_UUID)!!,
+                            characteristicUuidStr = call.argument<String>(ArgumentKey.CHARACTERISTIC_UUID)!!,
                             bytesToWrite = call.argument<ByteArray>(ArgumentKey.VALUE)!!,
-                            withResponse = withResponse,
-                            result = result
+                            withResponse = withResponse
                         )
+                        result.success(jsonString)
                     }
                     MethodName.MONITOR_CHARACTERISTIC_FOR_DEVICE -> {
-                        client.monitorCharacteristicForDevice(
+                        val key = client.monitorCharacteristicForDevice(
                             deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
                             serviceUuid = UUIDfrom(call.argument<String>(ArgumentKey.SERVICE_UUID)!!),
-                            characteristicUuid = UUIDfrom(call.argument<String>(ArgumentKey.CHARACTERISTIC_UUID)!!),
-                            result = result
+                            characteristicUuid = UUIDfrom(call.argument<String>(ArgumentKey.CHARACTERISTIC_UUID)!!)
                         )
+                        result.success(key)
                     }
                     MethodName.READ_DESCRIPTOR_FOR_DEVICE -> {
-                        client.readDescriptorForDevice(
+                        val jsonString = client.readDescriptorForDevice(
                             deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
-                            serviceUuid = UUIDfrom(call.argument<String>(ArgumentKey.SERVICE_UUID)!!),
-                            characteristicUuid = UUIDfrom(call.argument<String>(ArgumentKey.CHARACTERISTIC_UUID)!!),
-                            descriptorUuid = UUIDfrom(call.argument(ArgumentKey.DESCRIPTOR_UUID)!!),
-                            result = result
+                            serviceUuidStr = call.argument<String>(ArgumentKey.SERVICE_UUID)!!,
+                            characteristicUuidStr = call.argument<String>(ArgumentKey.CHARACTERISTIC_UUID)!!,
+                            descriptorUuidStr = call.argument<String>(ArgumentKey.DESCRIPTOR_UUID)!!
                         )
+                        result.success(jsonString)
                     }
                     MethodName.WRITE_DESCRIPTOR_FOR_DEVICE -> {
-                        client.writeDescriptorForDevice(
+                        val jsonString =  client.writeDescriptorForDevice(
                             deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
-                            serviceUuid = UUIDfrom(call.argument<String>(ArgumentKey.SERVICE_UUID)!!),
-                            characteristicUuid = UUIDfrom(call.argument<String>(ArgumentKey.CHARACTERISTIC_UUID)!!),
-                            descriptorUuid = call.argument(ArgumentKey.DESCRIPTOR_UUID)!!,
-                            value = call.argument<ByteArray>(ArgumentKey.VALUE)!!,
-                            result = result
+                            serviceUuidStr = call.argument<String>(ArgumentKey.SERVICE_UUID)!!,
+                            characteristicUuidStr = call.argument<String>(ArgumentKey.CHARACTERISTIC_UUID)!!,
+                            descriptorUuidStr = call.argument(ArgumentKey.DESCRIPTOR_UUID)!!,
+                            value = call.argument<ByteArray>(ArgumentKey.VALUE)!!
                         )
+                        result.success(jsonString)
                     }
                     else -> throw NotImplementedError()
                 }
