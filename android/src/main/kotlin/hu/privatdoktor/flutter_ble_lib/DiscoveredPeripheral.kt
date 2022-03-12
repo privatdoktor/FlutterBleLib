@@ -223,12 +223,7 @@ class DiscoveredPeripheral(
             Result.success(peripheral.isNotifying(characteristic))
         )
 
-        val key =
-            CharacteristicsMonitorStreamHandler.uniqueKeyFor(
-                deviceIdentifier = peripheral.address,
-                char = characteristic
-            )
-        val streamHandler = monitorCharacteristicStreamHandlers[key]
+        val streamHandler = dc?.monitorStreamHandler
         print("DiscoveredPeripheral::onNotificationStateUpdate: streamhandler exists: ${streamHandler != null}}")
     }
 
@@ -238,23 +233,17 @@ class DiscoveredPeripheral(
         characteristic: BluetoothGattCharacteristic,
         status: GattStatus
     ) {
+        val dc = discoveredCharacteristicFor(characteristic = characteristic)
+        if (dc == null) {
+            return
+        }
+
         if (peripheral.isNotifying(characteristic)) {
-            val key =
-                CharacteristicsMonitorStreamHandler.uniqueKeyFor(
-                    deviceIdentifier = peripheral.address,
-                    char = characteristic
-                )
-            val streamHandler = monitorCharacteristicStreamHandlers[key]
-            streamHandler?.onCharacteristicsUpdate(
+            dc.monitorStreamHandler?.onCharacteristicsUpdate(
                 peripheral,
                 characteristic.service.uuid.toString(),
                 characteristic
             )
-            return
-        }
-
-        val dc = discoveredCharacteristicFor(characteristic = characteristic)
-        if (dc == null) {
             return
         }
 

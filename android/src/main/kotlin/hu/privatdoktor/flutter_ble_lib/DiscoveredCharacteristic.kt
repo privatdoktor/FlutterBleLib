@@ -9,6 +9,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.withTimeout
 import java.lang.ref.WeakReference
 import java.util.*
+import java.util.logging.StreamHandler
 import kotlin.time.Duration
 
 class DiscoveredCharacteristic(
@@ -33,8 +34,10 @@ class DiscoveredCharacteristic(
     private var readCharacteristicCompleter: CompletableDeferred<BluetoothGattCharacteristic>? = null
     private var writeCharacteristicCompleter: CompletableDeferred<BluetoothGattCharacteristic>? = null
 
-    private var setNotifyCompleter: CompletableDeferred<Unit>? = null
+    private var setNotifyCompleter: CompletableDeferred<Boolean>? = null
+    private var setNotifyExpectedValue: Boolean? = null
 
+    var monitorStreamHandler: CharacteristicsMonitorStreamHandler? = null
 
     init {
         _discoveredPeripheral = WeakReference(discoveredPeripheral)
@@ -151,6 +154,11 @@ class DiscoveredCharacteristic(
     }
 
     suspend fun setNotify(enable: Boolean) {
+        val dp = discoveredPeripheral
+        if (dp == null) {
+            throw BleError.characteristicNotFound(characteristic.uuid.toString())
+        }
+
         val pending = setNotifyCompleter
         if (pending != null && pending.isActive) {
             val reason = "DiscoveredCharacteristic:: pending setNotify() cancelled"
@@ -162,75 +170,53 @@ class DiscoveredCharacteristic(
                 )
             )
         }
-        val completer = CompletableDeferred<Unit>()
+        setNotifyExpectedValue = enable
+        val completer = CompletableDeferred<Boolean>()
         setNotifyCompleter = completer
-
-        withTimeout(timeMillis = 2 * 1000) {
-            completer.await()
+        dp.peripheral.setNotify(characteristic, enable)
+        try {
+            withTimeout(timeMillis = 2 * 1000) {
+                val it = completer.await()
+            }
+        } catch (e: Throwable) {
+            throw e
+        } finally {
+            setNotifyExpectedValue = null
         }
-
     }
 
     suspend fun monitor() : String {
-        val characteristic = peripheral.getService(
-            UUID.fromString(serviceUuid)
-        )?.getCharacteristic(
-            UUID.fromString(characteristicUuid)
-        )
-        if (characteristic == null) {
-            throw BleError.characteristicNotFound(characteristicUuid)
+        val dp = discoveredPeripheral
+        if (dp == null) {
+            throw BleError.characteristicNotFound(characteristic.uuid.toString())
         }
-        val uniqueKey = CharacteristicsMonitorStreamHandler.uniqueKeyFor(
-            deviceIdentifier = peripheral.address,
+        val uniqueKey = CharacteristicsMonitorStreamHandler.generateRandomUniqueKeyFor(
+            deviceIdentifier = dp.peripheral.address,
             char = characteristic
         )
         val streamHandler =
             CharacteristicsMonitorStreamHandler(
-                binaryMessenger = binding.binaryMessenger,
+                binaryMessenger = dp.binding.binaryMessenger,
                 uniqueKey = uniqueKey
             )
-        monitorCharacteristicStreamHandlers[uniqueKey] = streamHandler
+        monitorStreamHandler = streamHandler
         streamHandler.afterCancelDo {
-            monitorCharacteristicStreamHandlers.remove(uniqueKey)
-            if (peripheral.isNotifying(characteristic)) {
-//                peripheral.setNotify(characteristic, false)
+            monitorStreamHandler = null
+            if (dp.peripheral.isNotifying(characteristic)) {
+                withTimeout(timeMillis = 500) {
+                    setNotify(enable = false)
+                }
             }
         }
-        onDisconnected {
+        dp.onDisconnected {
             streamHandler.end()
-            monitorCharacteristicStreamHandlers.remove(uniqueKey)
+        }
+
+        withTimeout(timeMillis = 1 * 1000) {
+            setNotify(enable = true)
         }
 
         return uniqueKey
-
-//        val pending = _onSetNotifyCompleted
-//        if (pending != null) {
-//            _onSetNotifyCompleted = null
-//            pending.invoke(Result.failure(BleError(BleErrorCode.CharacteristicNotifyChangeFailed)))
-//        }
-//
-//        if (peripheral.isNotifying(characteristic)) {
-//            completion(Result.success(key))
-//            return
-//        }
-//
-//        _onSetNotifyCompleted = {
-//            completion(it.map { key })
-//        }
-//        val succ = peripheral.setNotify(characteristic, true)
-//        if (succ == false) {
-//            _onSetNotifyCompleted = null
-//            completion(Result.failure(
-//                BleError(
-//                    errorCode = BleErrorCode.CharacteristicNotifyChangeFailed,
-//                    serviceUUID = characteristic.service.uuid.toString(),
-//                    characteristicUUID = characteristic.uuid.toString(),
-//                    reason = "peripheral.monitorCharacteristic() failed, maybe device is not connected"
-//                )
-//            ))
-//            return
-//        }
-//
     }
     //endregion
 
@@ -259,9 +245,15 @@ class DiscoveredCharacteristic(
     }
 
     fun onSetNotifyChanged(enable: Result<Boolean>) {
+        val expected = setNotifyExpectedValue
+        if (expected == null) {
+            return
+        }
         enable.fold(
             onSuccess = {
-                setNotifyCompleter?.complete(Unit)
+                if (it == expected) {
+                    setNotifyCompleter?.complete(it)
+                }
             },
             onFailure = {
                 setNotifyCompleter?.completeExceptionally(it)

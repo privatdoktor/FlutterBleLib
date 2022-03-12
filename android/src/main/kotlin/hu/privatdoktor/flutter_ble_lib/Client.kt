@@ -544,15 +544,20 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
 
     suspend fun monitorCharacteristicForDevice(
         deviceIdentifier: String,
-        serviceUuid: UUID,
-        characteristicUuid: UUID
+        serviceUuidStr: String,
+        characteristicUuidStr: String
     ) : String {
         val dp = discoveredPeripheral(deviceIdentifier)
 
-        val key = dp.monitorCharacteristic(
-            serviceUuid = serviceUuid.toString(),
-            characteristicUuid = characteristicUuid.toString()
+        val dc = dp.discoveredCharacteristicFor(
+            serviceUuidStr = serviceUuidStr,
+            characteristicUuidStr = characteristicUuidStr
         )
+        if (dc == null) {
+            throw BleError.characteristicNotFound(characteristicUuidStr)
+        }
+
+        val key = dc.monitor()
         return key
     }
 

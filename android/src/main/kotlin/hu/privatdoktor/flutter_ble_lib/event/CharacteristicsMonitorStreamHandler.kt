@@ -10,8 +10,12 @@ import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.EventChannel.EventSink
 
 import io.flutter.plugin.common.BinaryMessenger
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 
 import org.json.JSONObject
+import java.util.*
 
 class CharacteristicsMonitorStreamHandler(
     binaryMessenger: BinaryMessenger,
@@ -19,16 +23,17 @@ class CharacteristicsMonitorStreamHandler(
 ) : EventChannel.StreamHandler {
     private val eventChannel = EventChannel(binaryMessenger, uniqueKey)
     private var eventSink: EventSink? = null
-    private var cleanUpClosure: (() -> Unit)? = null
+    private var cleanUpClosure: (suspend () -> Unit)? = null
 
     companion object {
-        fun uniqueKeyFor(
+        fun generateRandomUniqueKeyFor(
             deviceIdentifier: String,
             char: BluetoothGattCharacteristic
         ) : String {
             val characteristicUuid = char.uuid.toString().lowercase()
             val serviceUuid = char.service.toString().lowercase()
-            return "${ChannelName.MONITOR_CHARACTERISTIC}/$deviceIdentifier/$serviceUuid/$characteristicUuid"
+            val unique = UUID.randomUUID().toString().lowercase()
+            return "${ChannelName.MONITOR_CHARACTERISTIC}/$deviceIdentifier/$serviceUuid/$characteristicUuid/$unique"
         }
     }
 
@@ -42,8 +47,13 @@ class CharacteristicsMonitorStreamHandler(
 
     override fun onCancel(o: Any?) {
         eventSink = null
-        cleanUpClosure?.invoke()
-        cleanUpClosure = null
+        val cleanUpClosure = this.cleanUpClosure
+        if (cleanUpClosure != null) {
+            GlobalScope.launch(Dispatchers.Main.immediate) {
+                cleanUpClosure()
+            }
+        }
+        this.cleanUpClosure = null
     }
 
     fun onCharacteristicsUpdate(
@@ -71,8 +81,6 @@ class CharacteristicsMonitorStreamHandler(
     fun end() {
         eventSink?.endOfStream()
         eventSink = null
-        cleanUpClosure?.invoke()
-        cleanUpClosure = null
     }
 
     fun onError(error: BleError) {
@@ -83,7 +91,7 @@ class CharacteristicsMonitorStreamHandler(
         )
     }
 
-    fun afterCancelDo(cleanUpClosure: () -> Unit) {
+    fun afterCancelDo(cleanUpClosure: suspend () -> Unit) {
         this.cleanUpClosure = cleanUpClosure
     }
 

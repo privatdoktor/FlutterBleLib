@@ -241,8 +241,8 @@ class FlutterBleLibPlugin : FlutterPlugin, MethodCallHandler {
                     MethodName.MONITOR_CHARACTERISTIC_FOR_DEVICE -> {
                         val key = client.monitorCharacteristicForDevice(
                             deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
-                            serviceUuid = UUIDfrom(call.argument<String>(ArgumentKey.SERVICE_UUID)!!),
-                            characteristicUuid = UUIDfrom(call.argument<String>(ArgumentKey.CHARACTERISTIC_UUID)!!)
+                            serviceUuidStr = call.argument<String>(ArgumentKey.SERVICE_UUID)!!,
+                            characteristicUuidStr = call.argument<String>(ArgumentKey.CHARACTERISTIC_UUID)!!
                         )
                         result.success(key)
                     }
