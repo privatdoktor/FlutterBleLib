@@ -3,7 +3,7 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'flutter_ble_lib'
-  s.version          = '2.3.2'
+  s.version          = '3.0.0'
   s.summary          = 'A new flutter plugin project.'
   s.description      = <<-DESC
 A new flutter plugin project.
@@ -15,9 +15,7 @@ A new flutter plugin project.
   s.source_files = 'Classes/**/*'
   s.public_header_files = 'Classes/**/*.h' 
   s.dependency 'Flutter'
-  s.swift_versions = ['4.0', '4.2', '5.0']
-  s.dependency 'MultiplatformBleAdapter', '~> 0.1.8'
-
-  s.ios.deployment_target = '8.0'
+  s.swift_versions = ['5.5']
+  s.ios.deployment_target = '12.4'
 end
 

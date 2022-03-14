@@ -1,3 +1,9 @@
+## 2.4.0
+
+* Add `BleManager#isClientCreated()` for checking whether native client exists
+* Library now has nullsafety! (thanks, @okocsis)
+
+
 ## 2.3.2
 
 * Fix lack of disconnection event on iOS if connection failed to be established

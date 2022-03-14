@@ -16,7 +16,7 @@ class SensorTagTestWithScanAndConnectionScenario implements TestScenario {
     log("STARTING SCAN...");
     log("Looking for Sensor Tag...");
 
-    bleManager.startPeripheralScan().listen((scanResult) async {
+    (await bleManager.startPeripheralScan()).listen((scanResult) async {
       log("RECEIVED SCAN RESULT: "
           "\n name: ${scanResult.peripheral.name}"
           "\n identifier: ${scanResult.peripheral.identifier}"
@@ -40,8 +40,8 @@ class SensorTagTestWithScanAndConnectionScenario implements TestScenario {
     log("OBSERVING connection state \nfor ${peripheral.name},"
         " ${peripheral.identifier}...");
 
-    peripheral
-        .observeConnectionState(emitCurrentValue: true)
+    (await peripheral
+        .observeConnectionState(emitCurrentValue: true))
         .listen((connectionState) {
       log("Current connection state is: \n $connectionState");
       if (connectionState == PeripheralConnectionState.disconnected) {
@@ -55,8 +55,7 @@ class SensorTagTestWithScanAndConnectionScenario implements TestScenario {
     deviceConnectionAttempted = false;
 
     await peripheral
-        .discoverAllServicesAndCharacteristics()
-        .then((_) => peripheral.services())
+        .discoverServices()
         .then((services) {
           log("PRINTING SERVICES for ${peripheral.name}");
           services.forEach((service) => log("Found service ${service.uuid}"));
@@ -65,13 +64,13 @@ class SensorTagTestWithScanAndConnectionScenario implements TestScenario {
         .then((service) async {
           log("PRINTING CHARACTERISTICS FOR SERVICE \n${service.uuid}");
           List<Characteristic> characteristics =
-              await service.characteristics();
+              await service.discoverCharacteristics();
           characteristics.forEach((characteristic) {
             log("${characteristic.uuid}");
           });
 
           log("PRINTING CHARACTERISTICS FROM \nPERIPHERAL for the same service");
-          return peripheral.characteristics(service.uuid);
+          return peripheral.discoverCharacteristics(service.uuid);
         })
         .then((characteristics) => characteristics.forEach((characteristic) =>
             log("Found characteristic \n ${characteristic.uuid}")))

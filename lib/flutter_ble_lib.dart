@@ -33,17 +33,18 @@
 /// For more samples refer to specific classes.
 library flutter_ble_lib;
 
+import 'package:flutter/foundation.dart';
+
+import 'package:flutter_ble_lib/_constants.dart';
+
+import 'package:flutter/services.dart';
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
+import 'dart:io';
 
-import 'package:flutter_ble_lib/src/_internal.dart';
-import 'package:flutter_ble_lib/src/_managers_for_classes.dart';
-import 'package:flutter_ble_lib/src/util/_transaction_id_generator.dart';
-
-import 'src/_managers_for_classes.dart';
-
-part 'error/ble_error.dart';
+part 'ble_error.dart';
 
 part 'ble_manager.dart';
 

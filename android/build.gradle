@@ -1,40 +1,57 @@
-group 'com.polidea.flutter_ble_lib'
-version '2.3.2'
+group 'hu.privatdoktor.flutter_ble_lib'
+version '3.0.0'
 
 buildscript {
+    ext.kotlin_version = '1.6.10'
     repositories {
         google()
-        jcenter()
+        mavenCentral()
     }
 
     dependencies {
-        classpath 'com.android.tools.build:gradle:3.5.3'
+        classpath 'com.android.tools.build:gradle:3.5.4'
     }
 }
 
 rootProject.allprojects {
     repositories {
         google()
-        jcenter()
+        mavenCentral()
         maven { url "https://jitpack.io" }
     }
 }
 
 apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
 
 android {
-    compileSdkVersion 28
+    compileSdkVersion 31
 
     defaultConfig {
-        minSdkVersion 18
+        minSdkVersion 23
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        targetSdkVersion 31
     }
     lintOptions {
-        disable 'InvalidPackage'
+//        disable 'InvalidPackage'
+    }
+    buildToolsVersion '31.0.0'
+    ndkVersion '23.0.7599858'
+
+    sourceSets {
+        main.java.srcDirs += 'src/main/kotlin'
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
     }
 }
 
+ext {
+
+}
+
 dependencies {
-    implementation 'androidx.annotation:annotation:1.1.0'
-    implementation 'com.github.privatdoktor:MultiPlatformBleAdapter:0.1.8'
+    implementation 'com.github.weliem:blessed-android:2.1.6'
 }

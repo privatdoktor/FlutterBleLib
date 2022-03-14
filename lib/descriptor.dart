@@ -1,59 +1,57 @@
 part of flutter_ble_lib;
 
-abstract class _DescriptorMetadata {
+abstract class DescriptorMetadata {
   static const String uuid = 'descriptorUuid';
-  static const String id = 'descriptorId';
   static const String value = 'value';
 }
 
-class Descriptor extends InternalDescriptor {
-  ManagerForDescriptor _manager;
-  Characteristic characteristic;
-  String uuid;
+class Descriptor {
+  final Characteristic characteristic;
+  final String uuid;
 
-  Descriptor.fromJson(
-    Map<String, dynamic> jsonObject,
-    Characteristic characteristic,
-    ManagerForDescriptor manager,
-  ) : super(jsonObject[_DescriptorMetadata.id]) {
-    _manager = manager;
-    this.characteristic = characteristic;
-    uuid = jsonObject[_DescriptorMetadata.uuid];
+  Descriptor(
+    this.uuid,
+    this.characteristic,
+  );
+
+  Future<Uint8List> read() async {
+    final descWithVal = await characteristic.service.peripheral.readDescriptor(
+      characteristic.service.uuid,
+      characteristic.uuid,
+      uuid
+    );
+    return descWithVal.value;
   }
 
-  Future<Uint8List> read({String transactionId}) =>
-      _manager.readDescriptorForIdentifier(
-        this,
-        transactionId ?? TransactionIdGenerator.getNextId(),
-      );
 
-  Future<void> write(Uint8List value, {String transactionId}) =>
-      _manager.writeDescriptorForIdentifier(
-        this,
-        value,
-        transactionId ?? TransactionIdGenerator.getNextId(),
-      );
+  Future<void> write(Uint8List value) async {
+    await characteristic.service.peripheral.writeDescriptor(
+      characteristic.service.uuid,
+      characteristic.uuid,
+      uuid, 
+      value
+    );
+  }
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is Descriptor &&
           runtimeType == other.runtimeType &&
-          _manager == other._manager &&
           characteristic == other.characteristic &&
           uuid == other.uuid;
 
   @override
   int get hashCode =>
-      _manager.hashCode ^ characteristic.hashCode ^ uuid.hashCode;
+      characteristic.hashCode ^ uuid.hashCode;
 }
 
-class DescriptorWithValue extends Descriptor with WithValue {
-  DescriptorWithValue.fromJson(
-    Map<String, dynamic> jsonObject,
+class DescriptorWithValue extends Descriptor {
+  Uint8List value;
+
+  DescriptorWithValue(
+    this.value,
+    String uuid,
     Characteristic characteristic,
-    ManagerForDescriptor manager,
-  ) : super.fromJson(jsonObject, characteristic, manager) {
-    value = base64Decode(jsonObject[_DescriptorMetadata.value]);
-  }
+  ) : super(uuid, characteristic);
 }

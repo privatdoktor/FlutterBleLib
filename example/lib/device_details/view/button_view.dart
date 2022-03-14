@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 class ButtonView extends StatelessWidget {
   final String _text;
-  final Function action;
+  final void Function()? action;
 
   ButtonView(this._text, {this.action});
 
@@ -11,11 +11,13 @@ class ButtonView extends StatelessWidget {
     return Expanded(
       child: Padding(
         padding: const EdgeInsets.all(2.0),
-        child: RaisedButton(
-          color: Colors.blue,
-          textColor: Colors.white,
+        child: ElevatedButton(
           child: Text(_text),
           onPressed: action,
+          style: ButtonStyle(
+            foregroundColor: MaterialStateProperty.all(Colors.white),
+            backgroundColor: MaterialStateProperty.all(Colors.blue),
+          ),
         ),
       ),
     );
