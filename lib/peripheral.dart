@@ -39,12 +39,7 @@ class Peripheral {
       : name = json[_PeripheralMetadata.name],
         identifier = json[_PeripheralMetadata.identifier];
 
-// ++MH++
   /// Connects to the peripheral.
-  ///
-  /// Optional [isAutoConnect] controls whether to directly connect to the
-  /// remote peripheral (`false`) or to automatically connect as soon as the
-  /// remote peripheral becomes available (true). (Android only)
   ///
   /// Optional [requestMtu] size will be negotiated to this value. It is not
   /// guaranteed to get it after connection is successful. (Android only)
@@ -63,7 +58,6 @@ class Peripheral {
   /// immediately. Timeout may happen earlier than specified due to OS
   /// specific behavior.
   Future<void> connect({
-    bool isAutoConnect = false,
     int requestMtu = NO_MTU_NEGOTIATION,
     bool refreshGatt = false,
     Duration? timeout, // can ignore
@@ -73,7 +67,6 @@ class Peripheral {
         MethodName.connectToDevice,
         <String, dynamic>{
           ArgumentName.deviceIdentifier: identifier,
-          ArgumentName.isAutoConnect: isAutoConnect,
           ArgumentName.requestMtu: requestMtu,
           ArgumentName.refreshGatt: refreshGatt,
           ArgumentName.timeoutMillis: timeout?.inMilliseconds
@@ -84,6 +77,29 @@ class Peripheral {
       if (details is String) {
         throw BleError.fromJson(jsonDecode(details));
       }
+      rethrow;
+    }
+  }
+
+  /// Android Only, on iOS it's noop
+  Future<void> ensureBonded() {
+    if (Platform.isAndroid == false) {
+      return
+    }
+    try {
+      await BleManager._methodChannel.invokeMethod<void>(
+        MethodName.ensureBondedWithDevice,
+        <String, dynamic>{
+          ArgumentName.deviceIdentifier: identifier,
+        },
+      );
+    } on PlatformException catch (pe) {
+      final details = pe.details as Object?;
+      if (details is String) {
+        throw BleError.fromJson(jsonDecode(details));
+      }
+      rethrow;
+    } catch (e) {
       rethrow;
     }
   }
@@ -144,7 +160,7 @@ class Peripheral {
     return stream;
   }
 
-// ++MH++
+
   /// Returns whether this peripheral is connected.
   Future<bool> isConnected() async {
     try {
@@ -165,7 +181,7 @@ class Peripheral {
     }
   } 
 
-// ++MH++
+
   /// Disconnects from this peripheral if it's connected or cancels pending
   /// connection.
   Future<void> disconnectOrCancelConnection() async {
@@ -183,7 +199,7 @@ class Peripheral {
       rethrow;    }
   }
 
-// ++MH++
+
   Future<List<Service>> discoverServices({List<String>? serviceUuids}) async {
     String? jsonString;
     try {
@@ -210,7 +226,7 @@ class Peripheral {
         .toList();
   }
 
-// ++MH++
+
   Future<List<Characteristic>> discoverCharacteristics(
     String serviceUuid,
     {List<String>? characteristicUuids
@@ -247,7 +263,7 @@ class Peripheral {
   }
 
 
-// ++MH++
+
   /// Returns a list of [Service]s of this peripheral.
   ///
   /// Will result in error if discovery was not done during this connection.
@@ -277,7 +293,7 @@ class Peripheral {
         .toList();
   }
 
-// ++MH++
+
   /// Returns a list of discovered [Characteristic]s of a [Service] identified
   /// by [servicedUuid].
   ///
@@ -313,7 +329,7 @@ class Peripheral {
     }).toList();
   }
 
-// ++MH++
+
   /// Reads RSSI for the peripheral.
   ///
   Future<int> rssi() async {
@@ -382,7 +398,7 @@ class Peripheral {
     return charWithValue;
   }
 
-// ++MH++
+
   /// Reads value of [Characteristic] matching specified UUIDs.
   ///
   /// Returns value of characteristic with [characteristicUuid] for service with
@@ -414,7 +430,7 @@ class Peripheral {
     return _parseCharacteristicWithValue(rawValue!);
   }
 
-// ++MH++
+
   /// Writes value of [Characteristic] matching specified UUIDs.
   ///
   /// Writes [value] to characteristic with [characteristicUuid] for service with
@@ -457,7 +473,7 @@ class Peripheral {
     return EventChannel(name).receiveBroadcastStream().cast();
   }
 
-// ++MH++
+
   /// Returns a stream of notifications/indications from [Characteristic]
   /// matching specified UUIDs.
   ///

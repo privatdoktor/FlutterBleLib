@@ -14,6 +14,11 @@ abstract class MethodName {
   static const String stopDeviceScan = 'stopDeviceScan';
 
   static const String connectToDevice = 'connectToDevice';
+  
+  static const String createBondWithDevice = "createBondWithDevice"
+  static const String removeBondFromDevice = "removeBondFromDevice"
+  static const String ensureBondedWithDevice = "ensureBondedWithDevice"
+  
   static const String isDeviceConnected = 'isDeviceConnected';
   static const String observeConnectionState = 'observeConnectionState';
   static const String cancelConnection = 'cancelConnection';
@@ -69,7 +74,6 @@ abstract class ArgumentName {
   static const String transactionId = 'transactionId';
 
   static const String deviceIdentifier = 'deviceIdentifier';
-  static const String isAutoConnect = 'isAutoConnect';
   static const String requestMtu = 'requestMtu';
   static const String refreshGatt = 'refreshGatt';
   static const String timeoutMillis = 'timeout';
