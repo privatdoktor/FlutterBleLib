@@ -175,7 +175,7 @@ class DiscoveredCharacteristic(
         setNotifyCompleter = completer
         dp.peripheral.setNotify(characteristic, enable)
         try {
-            withTimeout(timeMillis = 15 * 1000) {
+            withTimeout(timeMillis = 60 * 1000) {
                 val it = completer.await()
             }
         } catch (e: Throwable) {

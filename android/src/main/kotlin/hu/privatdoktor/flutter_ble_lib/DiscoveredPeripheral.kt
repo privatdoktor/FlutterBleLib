@@ -37,6 +37,12 @@ class DiscoveredPeripheral(
     private var onRemoteRssiReadCompleter: CompletableDeferred<Int>? = null
     private var onRequestMtuCompleter: CompletableDeferred<Int>? = null
 
+    private var onBondingStartedCompleter: CompletableDeferred<Unit>? = null
+    private var onBondedCompleter: CompletableDeferred<Result<Unit>>? = null
+    private var onBondingLostCompleter: CompletableDeferred<Unit>? = null
+
+
+
 
     init {
         _centralManager = WeakReference(centralManager)
