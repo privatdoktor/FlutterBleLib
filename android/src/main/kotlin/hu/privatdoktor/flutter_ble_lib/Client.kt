@@ -314,6 +314,10 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
         dp.connect()
     }
 
+    suspend fun ensureBondedWithDevice(deviceIdentifier: String) {
+
+    }
+
     fun isDeviceConnected(deviceIdentifier: String) : Boolean {
         val dp = discoveredPeripheral(deviceIdentifier)
 

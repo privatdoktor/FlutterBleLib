@@ -33,8 +33,6 @@
 /// For more samples refer to specific classes.
 library flutter_ble_lib;
 
-import 'package:flutter/foundation.dart';
-
 import 'package:flutter_ble_lib/_constants.dart';
 
 import 'package:flutter/services.dart';

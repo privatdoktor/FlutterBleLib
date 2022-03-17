@@ -37,24 +37,13 @@ class ConnectionStateStreamHandler(
         assert(Looper.getMainLooper().isCurrentThread())
 
         val connectionStateStr =
-        when (connectionState) {
-            ConnectionState.CONNECTING -> "connecting"
-            ConnectionState.CONNECTED -> "connected"
-            ConnectionState.DISCONNECTING -> "disconnecting"
-            ConnectionState.DISCONNECTED -> "disconnected"
-        }
-
-        val payload = mapOf<String, String>(
-            "peripheralIdentifier" to deviceId,
-            "connectionState" to connectionStateStr
-        )
-
-        try {
-            val jsonStr = JSONObject(payload).toString()
-            eventSink?.success(jsonStr)
-        } catch (e: JSONException) {
-            eventSink?.error("-1", e.message, e.stackTrace)
-        }
+            when (connectionState) {
+                ConnectionState.CONNECTING -> "connecting"
+                ConnectionState.CONNECTED -> "connected"
+                ConnectionState.DISCONNECTING -> "disconnecting"
+                ConnectionState.DISCONNECTED -> "disconnected"
+            }
+        eventSink?.success(connectionStateStr)
     }
 
     fun end() {

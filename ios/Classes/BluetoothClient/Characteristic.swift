@@ -8,139 +8,6 @@
 import Foundation
 import CoreBluetooth
 
-struct CharacteristicResponse : Encodable {
-  let characteristicUuid: String
-  let isIndicatable: Bool
-  let isNotifiable: Bool
-  let isNotifying: Bool
-  let isReadable: Bool
-  let isWritableWithResponse: Bool
-  let isWritableWithoutResponse: Bool
-  
-  init(
-    char: CBCharacteristic
-  ) {
-    characteristicUuid = char.uuid.fullUUIDString
-    let properties = char.properties
-    isIndicatable = properties.contains(.indicate)
-    isReadable = properties.contains(.read)
-    isWritableWithResponse = properties.contains(.write)
-    isWritableWithoutResponse = properties.contains(.writeWithoutResponse)
-    isNotifiable =  properties.contains(.notify)
-    isNotifying = char.isNotifying
-  }
-  
-  private enum CodingKeys: String, CodingKey {
-    case characteristicUuid = "characteristicUuid"
-    case isIndicatable = "isIndicatable"
-    case isNotifiable = "isNotifiable"
-    case isNotifying = "isNotifying"
-    case isReadable = "isReadable"
-    case isWritableWithResponse = "isWritableWithResponse"
-    case isWritableWithoutResponse = "isWritableWithoutResponse"
-  }
-}
-
-struct SingleCharacteristicResponse : Encodable {
-  let serviceUuid: String
-    
-  let characteristic: CharacteristicResponse
-  
-  init(
-    char: CBCharacteristic
-  ) {
-    serviceUuid = char.service?.uuid.fullUUIDString ?? ""
-        
-    characteristic =
-      CharacteristicResponse(char: char)
-  }
-  
-  private enum CodingKeys: String, CodingKey {
-    case serviceUuid = "serviceUuid"
-        
-    case characteristic = "characteristic"
-  }
-}
-
-struct CharacteristicWithValueResponse : Encodable {
-  let characteristicUuid: String
-  let isIndicatable: Bool
-  let isNotifiable: Bool
-  let isNotifying: Bool
-  let isReadable: Bool
-  let isWritableWithResponse: Bool
-  let isWritableWithoutResponse: Bool
-  let value: String // base64encodedString from Data
-  
-  init(
-    char: CBCharacteristic
-  ) {
-    characteristicUuid = char.uuid.fullUUIDString
-    let properties = char.properties
-    isIndicatable = properties.contains(.indicate)
-    isReadable = properties.contains(.read)
-    isWritableWithResponse = properties.contains(.write)
-    isWritableWithoutResponse = properties.contains(.writeWithoutResponse)
-    isNotifiable =  properties.contains(.notify)
-    isNotifying = char.isNotifying
-    value = char.value?.base64EncodedString() ?? ""
-  }
-  
-  private enum CodingKeys: String, CodingKey {
-    case characteristicUuid = "characteristicUuid"
-    case isIndicatable = "isIndicatable"
-    case isNotifiable = "isNotifiable"
-    case isNotifying = "isNotifying"
-    case isReadable = "isReadable"
-    case isWritableWithResponse = "isWritableWithResponse"
-    case isWritableWithoutResponse = "isWritableWithoutResponse"
-    case value = "value"
-  }
-}
-
-struct SingleCharacteristicWithValueResponse : Encodable {
-  let serviceUuid: String
-    
-  let characteristic: CharacteristicWithValueResponse
-  
-  init(
-    char: CBCharacteristic
-  ) {
-    serviceUuid = char.service?.uuid.fullUUIDString ?? ""
-        
-    characteristic =
-      CharacteristicWithValueResponse(char: char)
-  }
-  
-  private enum CodingKeys: String, CodingKey {
-    case serviceUuid = "serviceUuid"
-        
-    case characteristic = "characteristic"
-  }
-}
-
-struct CharacteristicsResponse : Encodable {
-  let serviceUuid: String
-  let characteristics: [CharacteristicResponse]
-  
-  init(
-    with chars: [CBCharacteristic],
-    service: CBService
-  ) {
-    serviceUuid = service.uuid.fullUUIDString
-    characteristics = chars.map({ char in
-      return CharacteristicResponse(
-        char: char
-      )
-    })
-  }
-  
-  private enum CodingKeys: String, CodingKey {
-    case serviceUuid = "serviceUuid"
-    case characteristics = "characteristics"
-  }
-}
-
 class DiscoveredCharacteristic {
   let characteristic: CBCharacteristic
   private var _descriptorsDiscoveryCompleted: ((_ res: Result<[CBUUID : DiscoveredDescriptor], PeripheralError>) -> ())?
@@ -154,6 +21,7 @@ class DiscoveredCharacteristic {
     self.characteristic = characteristic
   }
 }
+
 extension DiscoveredCharacteristic {
   private func writeWithoutResponse(
     _ data: Data
@@ -231,6 +99,7 @@ extension DiscoveredCharacteristic {
       for: characteristic
     )
   }
+  
   func read(
     _ completion: @escaping (_ res: Result<CBCharacteristic, PeripheralError>) -> ()
   ) {

@@ -127,6 +127,13 @@ class FlutterBleLibPlugin : FlutterPlugin, MethodCallHandler {
                         )
                         result.success(null)
                     }
+                    MethodName.ENSURE_BONDED_WITH_DEVICE -> {
+
+                        client.ensureBondedWithDevice(
+                            deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!,
+                        )
+                        result.success(null)
+                    }
                     MethodName.IS_DEVICE_CONNECTED -> {
                         val isConnected = client.isDeviceConnected(
                             deviceIdentifier = call.argument<String>(ArgumentKey.DEVICE_IDENTIFIER)!!

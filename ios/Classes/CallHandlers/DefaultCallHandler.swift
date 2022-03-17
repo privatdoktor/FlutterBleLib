@@ -57,9 +57,38 @@ extension Client : CallHandler {
       destroy()
       call.result()
     case .getState:
-      call.result(state)
+      let stateStr: String
+      let unknown = "Unknown"
+      switch state {
+      case .unknown: stateStr = unknown
+      case .resetting: stateStr = "Resetting"
+      case .unsupported: stateStr = "Unsupported"
+      case .unauthorized: stateStr = "Unauthorized"
+      case .poweredOff: stateStr = "PoweredOff"
+      case .poweredOn: stateStr = "PoweredOn"
+      @unknown default: stateStr = unknown
+      }
+      call.result(stateStr)
     case .getAuthorization:
-      call.result(authorization)
+      let authorizationStr: String
+      if #available(iOS 13.0, *) {
+        switch authorization {
+        case .restricted:
+          authorizationStr = "restricted"
+        case .denied:
+          authorizationStr = "denied"
+        case .allowedAlways:
+          authorizationStr = "allowedAlways"
+        case .notDetermined:
+          fallthrough
+        @unknown default:
+          authorizationStr = "notDetermined"
+        }
+      } else {
+        authorizationStr = "allowedAlways"
+      }
+      
+      call.result(authorizationStr)
     case .enableRadio:
       noop()
       call.result()
@@ -96,7 +125,7 @@ extension Client : CallHandler {
           ConnectionStateChangeEvents.self
         )
       let sinkerName = sinker.name
-      let stream = Stream<ConnectionStateResponse>(eventHandler: { payload in
+      let stream = Stream<CBPeripheralState>(eventHandler: { payload in
         switch payload {
         case .data(let state):
           sinker.sink(state)
@@ -149,7 +178,7 @@ extension Client : CallHandler {
                                let serviceUUID,
                                let characteristicUUID):
       let res =
-        descriptorsForDevice(
+        descriptors(
           for: deviceIdentifier,
           serviceUUID: serviceUUID,
           characteristicUUID: characteristicUUID
@@ -182,7 +211,7 @@ extension Client : CallHandler {
                                        let characteristicUUID,
                                        let value,
                                        let withResponse):
-      writeCharacteristicForDevice(
+      writeCharacteristic(
         deviceIdentifier: deviceIdentifier,
         serviceUUID: serviceUUID,
         characteristicUUID: characteristicUUID,
@@ -199,7 +228,7 @@ extension Client : CallHandler {
         )
       let sinkerName = sinker.name
       let stream =
-        Client.Stream<SingleCharacteristicWithValueResponse>(
+        Client.Stream<CharacteristicResponse>(
           eventHandler: { payload in
             switch payload {
             case .data(let charRes):
@@ -213,7 +242,7 @@ extension Client : CallHandler {
         eventChannelFactory.removeEventChannel(name: sinkerName)
         stream.afterCancelDo?()
       }
-      monitorCharacteristicForDevice(
+      monitorCharacteristic(
         deviceIdentifier: deviceIdentifier,
         serviceUUID: serviceUUID,
         characteristicUUID: characteristicUUID,

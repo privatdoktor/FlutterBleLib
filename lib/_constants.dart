@@ -15,9 +15,9 @@ abstract class MethodName {
 
   static const String connectToDevice = 'connectToDevice';
   
-  static const String createBondWithDevice = "createBondWithDevice"
-  static const String removeBondFromDevice = "removeBondFromDevice"
-  static const String ensureBondedWithDevice = "ensureBondedWithDevice"
+  static const String createBondWithDevice = "createBondWithDevice";
+  static const String removeBondFromDevice = "removeBondFromDevice";
+  static const String ensureBondedWithDevice = "ensureBondedWithDevice";
   
   static const String isDeviceConnected = 'isDeviceConnected';
   static const String observeConnectionState = 'observeConnectionState';
@@ -99,9 +99,3 @@ abstract class ArgumentName {
   static const String deviceIdentifiers = 'deviceIdentifiers';
 }
 
-abstract class NativeConnectionState {
-  static const String connecting = 'connecting';
-  static const String connected = 'connected';
-  static const String disconnecting = 'disconnecting';
-  static const String disconnected = 'disconnected';
-}

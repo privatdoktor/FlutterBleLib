@@ -23,15 +23,61 @@ class Service {
   Future<List<Characteristic>> discoverCharacteristics({
     List<String>? characteristicUuids
   }) async {
-    return await peripheral.discoverCharacteristics(
-      uuid, 
-      characteristicUuids: characteristicUuids
-    );
+    String? jsonString;
+    try {
+      jsonString = await BleManager._methodChannel.invokeMethod<String>(
+        MethodName.discoverCharacteristics,
+        <String, dynamic>{
+          ArgumentName.deviceIdentifier: peripheral.identifier,
+          ArgumentName.serviceUuid: uuid,
+          ArgumentName.characteristicUuids: characteristicUuids,
+        },
+      );
+    } on PlatformException catch (pe) {
+      final details = pe.details as Object?;
+      if (details is String) {
+        throw BleError.fromJson(jsonDecode(details));
+      }
+      rethrow;
+    } catch (ex) {
+      rethrow;
+    }
+
+    final jsonObject = jsonDecode(jsonString!);
+    final jsonCharacteristics = 
+      (jsonObject as List<dynamic>).cast<Map<String, dynamic>>();
+
+    return jsonCharacteristics.map((characteristicJson) {
+      return Characteristic.fromJson(characteristicJson, this);
+    }).toList();
   }
 
   /// Returns a list of [Characteristic]s of this service.
   Future<List<Characteristic>> characteristics() async {
-    return await peripheral.characteristics(uuid);
+    String? jsonString;
+    try {
+      await BleManager._methodChannel.invokeMethod<String>(
+        MethodName.characteristics,
+        <String, dynamic>{
+          ArgumentName.deviceIdentifier: peripheral.identifier,
+          ArgumentName.serviceUuid: uuid,
+        },
+      );
+    } on PlatformException catch (pe) {
+      final details = pe.details as Object?;
+      if (details is String) {
+        throw BleError.fromJson(jsonDecode(details));
+      }
+      rethrow;
+    }
+
+    final jsonObject = jsonDecode(jsonString!);
+    final jsonCharacteristics = 
+      (jsonObject as List<dynamic>).cast<Map<String, dynamic>>();
+
+    return jsonCharacteristics.map((characteristicJson) {
+      return Characteristic.fromJson(characteristicJson, this);
+    }).toList();
   }
 
   @override

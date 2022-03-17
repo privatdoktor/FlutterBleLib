@@ -1,6 +1,6 @@
 part of flutter_ble_lib;
 
-abstract class DescriptorMetadata {
+abstract class _DescriptorMetadata {
   static const String uuid = 'descriptorUuid';
   static const String value = 'value';
 }
@@ -9,28 +9,77 @@ class Descriptor {
   final Characteristic characteristic;
   final String uuid;
 
-  Descriptor(
-    this.uuid,
+  Uint8List? value;
+
+  Descriptor.fromJson(
+    Map<String, dynamic> jsonObject,
     this.characteristic,
-  );
+  ) : uuid = jsonObject[_DescriptorMetadata.uuid] {
+    final valueStr = jsonObject[_DescriptorMetadata.value];
+    if (valueStr != null && valueStr is String) {
+      value = base64Decode(valueStr);
+    }
+  }
+
+  void _update({
+    required Map<String, dynamic> jsonObject
+  }) {
+    final valueStr = jsonObject[_DescriptorMetadata.value];
+    if (valueStr != null && valueStr is String) {
+      value = base64Decode(valueStr);
+    }
+  }
 
   Future<Uint8List> read() async {
-    final descWithVal = await characteristic.service.peripheral.readDescriptor(
-      characteristic.service.uuid,
-      characteristic.uuid,
-      uuid
-    );
-    return descWithVal.value;
+    String? jsonResponse;
+    try {
+      jsonResponse = await BleManager._methodChannel.invokeMethod<String>(
+        MethodName.readDescriptorForDevice,
+        <String, dynamic>{
+          ArgumentName.deviceIdentifier: characteristic.service.peripheral.identifier,
+          ArgumentName.serviceUuid: characteristic.service.uuid,
+          ArgumentName.characteristicUuid: characteristic.uuid,
+          ArgumentName.descriptorUuid: uuid,
+        },
+      );
+    } on PlatformException catch (pe) {
+      final details = pe.details as Object?;
+      if (details is String) {
+        throw BleError.fromJson(jsonDecode(details));
+      }
+      rethrow;
+    }
+
+    Map<String, dynamic> jsonObject = jsonDecode(jsonResponse!);
+    _update(jsonObject: jsonObject);
+
+    return value!;
   }
 
 
-  Future<void> write(Uint8List value) async {
-    await characteristic.service.peripheral.writeDescriptor(
-      characteristic.service.uuid,
-      characteristic.uuid,
-      uuid, 
-      value
-    );
+  Future<void> write(Uint8List valueToWrite) async {
+    String? jsonResponse;
+    try {
+      jsonResponse = await BleManager._methodChannel.invokeMethod<String>(
+        MethodName.writeDescriptorForDevice,
+        <String, dynamic>{
+          ArgumentName.deviceIdentifier: characteristic.service.peripheral.identifier,
+          ArgumentName.serviceUuid: characteristic.service.uuid,
+          ArgumentName.characteristicUuid: characteristic.uuid,
+          ArgumentName.descriptorUuid: uuid,
+          ArgumentName.value: valueToWrite,
+        },
+      );
+    } on PlatformException catch (pe) {
+      final details = pe.details as Object?;
+      if (details is String) {
+        throw BleError.fromJson(jsonDecode(details));
+      }
+      rethrow;
+    }
+
+    Map<String, dynamic> jsonObject = jsonDecode(jsonResponse!);
+    _update(jsonObject: jsonObject);
   }
 
   @override
@@ -42,16 +91,5 @@ class Descriptor {
           uuid == other.uuid;
 
   @override
-  int get hashCode =>
-      characteristic.hashCode ^ uuid.hashCode;
-}
-
-class DescriptorWithValue extends Descriptor {
-  Uint8List value;
-
-  DescriptorWithValue(
-    this.value,
-    String uuid,
-    Characteristic characteristic,
-  ) : super(uuid, characteristic);
+  int get hashCode => characteristic.hashCode ^ uuid.hashCode;
 }

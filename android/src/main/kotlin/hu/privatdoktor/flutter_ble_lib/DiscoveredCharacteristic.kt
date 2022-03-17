@@ -175,7 +175,7 @@ class DiscoveredCharacteristic(
         setNotifyCompleter = completer
         dp.peripheral.setNotify(characteristic, enable)
         try {
-            withTimeout(timeMillis = 2 * 1000) {
+            withTimeout(timeMillis = 15 * 1000) {
                 val it = completer.await()
             }
         } catch (e: Throwable) {
@@ -212,9 +212,7 @@ class DiscoveredCharacteristic(
             streamHandler.end()
         }
 
-        withTimeout(timeMillis = 1 * 1000) {
-            setNotify(enable = true)
-        }
+        setNotify(enable = true)
 
         return uniqueKey
     }

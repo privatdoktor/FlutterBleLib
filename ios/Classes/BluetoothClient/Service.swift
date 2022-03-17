@@ -8,26 +8,6 @@
 import Foundation
 import CoreBluetooth
 
-struct ServiceResponse : Encodable {
-  let uuid: String
-  let deviceID: String
-  let isPrimary: Bool
-  
-  init(
-    with service: CBService
-  ) {
-    uuid = service.uuid.fullUUIDString
-    deviceID = service.peripheral?.identifier.uuidString ?? ""
-    isPrimary = service.isPrimary
-  }
-  
-  private enum CodingKeys: String, CodingKey {
-    case uuid = "serviceUuid"
-    case deviceID = "deviceID"
-    case isPrimary = "isPrimary"
-  }
-}
-
 class DiscoveredService {
   let service: CBService
   

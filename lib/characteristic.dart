@@ -1,6 +1,6 @@
 part of flutter_ble_lib;
 
-abstract class CharacteristicMetadata {
+abstract class _CharacteristicMetadata {
   static const String uuid = 'characteristicUuid';
   static const String isReadable = 'isReadable';
   static const String isWritableWithResponse = 'isWritableWithResponse';
@@ -22,40 +22,108 @@ class Characteristic {
   /// The UUID of this characteristic.
   final String uuid;
 
+  bool _isReadable;
   /// True if this characteristic can be read.
-  final bool isReadable;
+  bool get isReadable => _isReadable;
 
+  bool _isWritableWithResponse;
   /// True if this characteristic can be written with resposne.
-  final bool isWritableWithResponse;
+  bool get isWritableWithResponse => _isWritableWithResponse;
 
+  bool _isWritableWithoutResponse;
   /// True if this characteristic can be written without resposne.
-  final bool isWritableWithoutResponse;
+  bool get isWritableWithoutResponse => _isWritableWithoutResponse;
 
+  bool _isNotifiable;
   /// True if this characteristic can be monitored via notifications.
-  final bool isNotifiable;
+  bool get isNotifiable => _isNotifiable;
 
+  bool _isIndicatable;
   /// True if this characteristic can be monitored via indications.
-  final bool isIndicatable;
+  bool get isIndicatable => _isIndicatable;
 
-  Characteristic.fromJson(Map<String, dynamic> jsonObject, Service service,)
-      : service = service,
-        uuid = jsonObject[CharacteristicMetadata.uuid],
-        isReadable = jsonObject[CharacteristicMetadata.isReadable],
-        isWritableWithResponse =
-            jsonObject[CharacteristicMetadata.isWritableWithResponse],
-        isWritableWithoutResponse =
-            jsonObject[CharacteristicMetadata.isWritableWithoutResponse],
-        isNotifiable = jsonObject[CharacteristicMetadata.isNotifiable],
-        isIndicatable = jsonObject[CharacteristicMetadata.isIndicatable];
+  Uint8List? value;
+
+  Characteristic.fromJson(
+    Map<String, dynamic> jsonObject, 
+    Service service
+  ) : service = service,
+      uuid = jsonObject[_CharacteristicMetadata.uuid],
+      _isReadable = jsonObject[_CharacteristicMetadata.isReadable],
+      _isWritableWithResponse =
+        jsonObject[_CharacteristicMetadata.isWritableWithResponse],
+      _isWritableWithoutResponse =
+        jsonObject[_CharacteristicMetadata.isWritableWithoutResponse],
+      _isNotifiable = jsonObject[_CharacteristicMetadata.isNotifiable],
+      _isIndicatable = jsonObject[_CharacteristicMetadata.isIndicatable] {
+    final valueStr = jsonObject[_CharacteristicMetadata.value];
+    if (valueStr != null && valueStr is String) {
+      value = base64Decode(valueStr);
+    }
+  }
+
+  void _update({ required Map<String, dynamic> jsonObject }) {
+    final isReadable = jsonObject[_CharacteristicMetadata.isReadable];
+    if (isReadable != null && isReadable is bool) {
+      _isReadable = isReadable;
+    }
+
+    final isWritableWithResponse = 
+      jsonObject[_CharacteristicMetadata.isWritableWithResponse];
+    if (isWritableWithResponse != null && isWritableWithResponse is bool) {
+      _isWritableWithResponse = isWritableWithResponse;
+    }
+
+    final isWritableWithoutResponse =
+      jsonObject[_CharacteristicMetadata.isWritableWithoutResponse];
+    if (isWritableWithoutResponse != null && isWritableWithoutResponse is bool) {
+      _isWritableWithoutResponse = isWritableWithoutResponse;
+    }
+
+    final isNotifiable = jsonObject[_CharacteristicMetadata.isNotifiable];
+    if (isNotifiable != null && isNotifiable is bool) {
+      _isNotifiable = isNotifiable;
+    }
+
+    final isIndicatable = jsonObject[_CharacteristicMetadata.isIndicatable];
+    if (isIndicatable != null && isIndicatable is bool) {
+      _isIndicatable = isIndicatable;
+    }
+
+    final valueStr = jsonObject[_CharacteristicMetadata.value];
+    if (valueStr != null && valueStr is String) {
+      value = base64Decode(valueStr);
+    }
+  }
 
 
   /// Reads the value of this characteristic.
   ///
   /// The value can be read only if [isReadable] is `true`.
   Future<Uint8List> read() async {
-    final charWithVal =
-      await service.peripheral.readCharacteristic(service.uuid, uuid);
-    return charWithVal.value;
+    String? rawValue;
+    try {
+      rawValue = await BleManager._methodChannel
+          .invokeMethod<String>(
+            MethodName.readCharacteristicForDevice,
+            <String, dynamic>{
+              ArgumentName.deviceIdentifier: service.peripheral.identifier,
+              ArgumentName.serviceUuid: service.uuid,
+              ArgumentName.characteristicUuid: uuid,
+            },
+          );
+    } on PlatformException catch (pe) {
+      final details = pe.details as Object?;
+      if (details is String) {
+        throw BleError.fromJson(jsonDecode(details));
+      }
+      rethrow;
+    }
+
+    Map<String, dynamic> charObject = jsonDecode(rawValue!);
+    _update(jsonObject: charObject);
+
+    return value!;
   }
 
   /// Writes to the value of this characteristic.
@@ -67,12 +135,31 @@ class Characteristic {
     Uint8List value,
     {required bool withResponse,
   }) async {
-    await service.peripheral.writeCharacteristic(
-      service.uuid, 
-      uuid, 
-      value, 
-      withResponse: withResponse
-    );
+    String? rawValue;
+    try {
+      rawValue = await BleManager._methodChannel.invokeMethod<String>(
+        MethodName.writeCharacteristicForDevice,
+        <String, dynamic>{
+          ArgumentName.deviceIdentifier: service.peripheral.identifier,
+          ArgumentName.serviceUuid: service.uuid,
+          ArgumentName.characteristicUuid: uuid,
+          ArgumentName.value: value,
+          ArgumentName.withResponse: withResponse,
+        },
+      );
+    } on PlatformException catch (pe) {
+      final details = pe.details as Object?;
+      if (details is String) {
+        throw BleError.fromJson(jsonDecode(details));
+      }
+      rethrow;
+    }
+    if (rawValue is String == false) {
+      print('$rawValue');
+    }
+
+    Map<String, dynamic> charObject = jsonDecode(rawValue!);
+    _update(jsonObject: charObject);
   }
 
   /// Returns a [Stream] of notifications/indications emitted by this
@@ -84,44 +171,63 @@ class Characteristic {
   /// on the peripheral. Cancelling the last subscription disables the
   /// notifications/indications on this characteristic.
   Future<Stream<Uint8List>> monitor() async {
-    final stream = 
-      await service.peripheral.monitorCharacteristic(service.uuid, uuid);
+    String? channelName; 
+    try {
+      channelName = await BleManager._methodChannel.invokeMethod<String>(
+        MethodName.monitorCharacteristicForDevice,
+        <String, dynamic>{
+          ArgumentName.deviceIdentifier: service.peripheral.identifier,
+          ArgumentName.serviceUuid: service.uuid,
+          ArgumentName.characteristicUuid: uuid,
+        },
+      );
+    } on PlatformException catch (pe) {
+      final details = pe.details as Object?;
+      if (details is String) {
+        throw BleError.fromJson(jsonDecode(details));
+      }
+      rethrow;
+    }
+    final channel = EventChannel(channelName!);
+    final rawStream = channel.receiveBroadcastStream().cast<String>();
+    final stream = rawStream.map((rawValue) {
+      Map<String, dynamic> charObject = jsonDecode(rawValue);
+      _update(jsonObject: charObject);
+      return value!;
+    });
 
-    return stream.map((charWithValue) => charWithValue.value);
-  }
+    return stream;
+  } 
 
   /// Returns a list of [Descriptor]s of this characteristic.
   Future<List<Descriptor>> descriptors() async {
-    return await service.peripheral.descriptorsForCharacteristic(
-      service.uuid,
-      uuid
-    );
+    String? jsonString;
+    try {
+      jsonString = await BleManager._methodChannel.invokeMethod(
+        MethodName.descriptorsForDevice, 
+        <String, dynamic>{
+          ArgumentName.deviceIdentifier: service.peripheral.identifier,
+          ArgumentName.serviceUuid: service.uuid,
+          ArgumentName.characteristicUuid: uuid,
+        }
+      );
+    } on PlatformException catch (pe) {
+      final details = pe.details as Object?;
+      if (details is String) {
+        throw BleError.fromJson(jsonDecode(details));
+      }
+      rethrow;
+    }
+
+    final jsonObject = jsonDecode(jsonString!);
+    final jsonDescriptors =
+      (jsonObject as List<dynamic>).cast<Map<String, dynamic>>();
+
+    return jsonDescriptors.map((jsonDescriptor) {
+      return Descriptor.fromJson(jsonDescriptor, this);
+    }).toList();
   }
 
-  /// Reads the value of a [Descriptor] identified by [descriptorUuid].
-  Future<DescriptorWithValue> readDescriptor(
-    String descriptorUuid, {
-    String? transactionId,
-  }) async {
-    return service.peripheral.readDescriptor(
-      service.uuid,
-      uuid,
-      descriptorUuid
-    );
-  }
-
-  /// Writes the [value] of a [Descriptor] identified by [descriptorUuid].
-  Future<Descriptor> writeDescriptor(
-    String descriptorUuid,
-    Uint8List value
-  ) async {
-    return service.peripheral.writeDescriptor(
-      service.uuid, 
-      uuid, 
-      descriptorUuid, 
-      value
-    );
-  }
 
 
   @override
@@ -157,38 +263,7 @@ class Characteristic {
         ' isWritableWithResponse: $isWritableWithResponse,'
         ' isWritableWithoutResponse: $isWritableWithoutResponse,'
         ' isNotifiable: $isNotifiable,'
-        ' isIndicatable: $isIndicatable}';
-  }
-}
-
-/// [Characteristic] extended with [value] property.
-///
-/// This type is created to support chaining of operations on the characteristic
-/// when it was first read from [Peripheral] or [Service].
-class CharacteristicWithValue extends Characteristic {
-  Uint8List value;
-
-  CharacteristicWithValue.fromJson(
-    Map<String, dynamic> jsonObject,
-    Service service,
-  ) : value = base64Decode(jsonObject[CharacteristicMetadata.value]),
-      super.fromJson(jsonObject, service);
-
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        super == other &&
-            other is CharacteristicWithValue &&
-            value.toString() == other.value.toString() &&
-            runtimeType == other.runtimeType;
-  }
-
-  @override
-  int get hashCode => super.hashCode;
-
-  @override
-  String toString() {
-    return super.toString() +
+        ' isIndicatable: $isIndicatable}'
         ' CharacteristicWithValue{value = ${value.toString()}';
   }
 }

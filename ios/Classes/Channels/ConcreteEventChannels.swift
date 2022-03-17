@@ -13,7 +13,7 @@ private let base = "flutter_ble_lib"
 class StateChanges : EventChannel, EventSinker {
   typealias SinkableT = Int
   static let baseName = "\(base)/stateChanges"
-  func sink(_ rawState: Int) {
+  func sink(_ rawState: SinkableT) {
     let stateStr: String
     if #available(iOS 10, *) {
       switch CBManagerState(rawValue: rawState) {
@@ -57,7 +57,7 @@ class StateChanges : EventChannel, EventSinker {
 class StateRestoreEvents : EventChannel, EventSinker {
   typealias SinkableT = [PeripheralResponse]
   static let baseName = "\(base)/stateRestoreEvents"
-  func sink(_ obj: [PeripheralResponse]) {
+  func sink(_ obj: SinkableT) {
     _sink(encodable: obj)
   }
 }
@@ -65,23 +65,36 @@ class StateRestoreEvents : EventChannel, EventSinker {
 class ScanningEvents : EventChannel, EventSinker {
   typealias SinkableT = ScanResultEvent
   static let baseName = "\(base)/scanningEvents"
-  func sink(_ obj: ScanResultEvent) {
+  func sink(_ obj: SinkableT) {
     _sink(encodable: obj)
   }
 }
 
 class ConnectionStateChangeEvents : EventChannel, EventSinker {
-  typealias SinkableT = ConnectionStateResponse
+  typealias SinkableT = CBPeripheralState
   static let baseName = "\(base)/connectionStateChangeEvents"
-  func sink(_ stateResp: ConnectionStateResponse) {
-    _sink(encodable: stateResp)
+  func sink(_ state: SinkableT) {
+    let stateStr: String
+    switch state {
+    case .connected:
+      stateStr = "connected"
+    case .connecting:
+      stateStr = "connecting"
+    case .disconnected:
+      stateStr = "disconnected"
+    case .disconnecting:
+      stateStr = "disconnecting"
+    @unknown default:
+      stateStr = "disconnected"
+    }
+    _sink(string: stateStr)
   }
 }
 
 class MonitorCharacteristic : EventChannel, EventSinker {
-  typealias SinkableT = SingleCharacteristicWithValueResponse
+  typealias SinkableT = CharacteristicResponse
   static let baseName = "\(base)/monitorCharacteristic"
-  func sink(_ obj: SingleCharacteristicWithValueResponse) {
+  func sink(_ obj: SinkableT) {
     _sink(encodable: obj)
   }
 }
