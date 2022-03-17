@@ -8,10 +8,10 @@
 import Foundation
 
 final class DefaultMethodChannel : NSObject, MethodChannel {
-  typealias CallHandlerT = Client
+  typealias CallHandlerT = BluetoothCentralManager
   typealias SignatureEnumT = Signature
 
-  let handler: Client
+  let handler: BluetoothCentralManager
   let eventChannelFactory: EventChannelFactory
   
   private func setupStaticEventChannels() {
@@ -20,7 +20,7 @@ final class DefaultMethodChannel : NSObject, MethodChannel {
       eventChannelFactory.makeEventChannel(StateChanges.self, idScheme: .justBaseName)
     let stateRestoreSinker =
       eventChannelFactory.makeEventChannel(StateRestoreEvents.self, idScheme: .justBaseName)
-    handler.stateChanges = Client.Stream(eventHandler: { payload in
+    handler.stateChanges = BluetoothCentralManager.Stream(eventHandler: { payload in
       switch payload {
       case .data(let state):
         stateChangesSinker.sink(state)
@@ -31,7 +31,7 @@ final class DefaultMethodChannel : NSObject, MethodChannel {
     stateChangesSinker.afterCancelDo { [weak self] in
       self?.handler.stateChanges?.afterCancelDo?()
     }
-    handler.stateRestoreEvents = Client.Stream(eventHandler: { payload in
+    handler.stateRestoreEvents = BluetoothCentralManager.Stream(eventHandler: { payload in
       switch payload {
       case .data(let states):
         stateRestoreSinker.sink(states)
@@ -44,7 +44,7 @@ final class DefaultMethodChannel : NSObject, MethodChannel {
     }
   }
   
-  init(handler: Client, messenger: FlutterBinaryMessenger) {
+  init(handler: BluetoothCentralManager, messenger: FlutterBinaryMessenger) {
     self.handler = handler
     eventChannelFactory = EventChannelFactory(messenger: messenger)
     super.init()
@@ -58,7 +58,7 @@ final class DefaultMethodChannel : NSObject, MethodChannel {
         name: self.name,
         binaryMessenger: messenger
       )
-    let channel = self.init(handler: Client(), messenger: messenger)
+    let channel = self.init(handler: BluetoothCentralManager(), messenger: messenger)
     
     registrar.addMethodCallDelegate(
       channel,

@@ -10,6 +10,7 @@ import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.EventChannel.EventSink
 
 import io.flutter.plugin.common.BinaryMessenger
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -45,6 +46,7 @@ class CharacteristicsMonitorStreamHandler(
         this.eventSink = eventSink
     }
 
+    @OptIn(DelicateCoroutinesApi::class)
     override fun onCancel(o: Any?) {
         eventSink = null
         val cleanUpClosure = this.cleanUpClosure
@@ -58,12 +60,10 @@ class CharacteristicsMonitorStreamHandler(
 
     fun onCharacteristicsUpdate(
         peripheral: BluetoothPeripheral,
-        serviceUuid: String,
         characteristic: BluetoothGattCharacteristic
     ) {
-        val payload = Client.singleCharacteristicWithValueResponse(
+        val payload = Client.characteristicResponseFor(
             peripheral = peripheral,
-            serviceUuidStr = serviceUuid,
             characteristic = characteristic
         )
         try {

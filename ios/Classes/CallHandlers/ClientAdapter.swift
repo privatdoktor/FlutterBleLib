@@ -8,14 +8,14 @@
 import Foundation
 import CoreBluetooth
 
-extension Client {
+extension BluetoothCentralManager {
   
   func noop() {}
   
   func connectToDevice(
     id: String,
     timoutMillis: Int?,
-    completion: @escaping (_ completion: Result<(), ClientError>) -> ()
+    completion: @escaping (_ completion: Result<(), BluetoothCentralManagerError>) -> ()
   ) {
     switch discoveredPeripheral(for: id) {
     case .failure(let error):
@@ -26,7 +26,7 @@ extension Client {
     }
   }
 
-  func isDeviceConnected(id: String) -> Result<Bool, ClientError> {
+  func isDeviceConnected(id: String) -> Result<Bool, BluetoothCentralManagerError> {
     switch discoveredPeripheral(for: id) {
     case .failure(let error):
       return .failure(error)
@@ -37,7 +37,7 @@ extension Client {
   
   func cancelConnection(
     deviceIdentifier: String,
-    completion: @escaping (Result<(), ClientError>) -> ()
+    completion: @escaping (Result<(), BluetoothCentralManagerError>) -> ()
   ) {
     switch discoveredPeripheral(for: deviceIdentifier) {
     case .failure(let error):
@@ -50,7 +50,7 @@ extension Client {
   func discoverServices(
     deviceIdentifier: String,
     serviceUUIDStrs: [String]? = nil,
-    completion: @escaping (Result<[ServiceResponse], ClientError>) -> ()
+    completion: @escaping (Result<[ServiceResponse], BluetoothCentralManagerError>) -> ()
   ) {
     let discoPeri: DiscoveredPeripheral
     switch discoveredPeripheral(for: deviceIdentifier) {
@@ -69,7 +69,7 @@ extension Client {
         let services = dss.values.map { ServiceResponse(with: $0.service) }
         completion(.success(services))
       case .failure(let error):
-        completion(.failure(ClientError.peripheral(error)))
+        completion(.failure(BluetoothCentralManagerError.peripheral(error)))
       }
     }
   }
@@ -78,7 +78,7 @@ extension Client {
     deviceIdentifier: String,
     serviceUuid: String,
     characteristicUUIDStrs: [String]? = nil,
-    completion: @escaping (Result<[CharacteristicResponse], ClientError>) -> ()
+    completion: @escaping (Result<[CharacteristicResponse], BluetoothCentralManagerError>) -> ()
   ) {
     let discoPeri: DiscoveredPeripheral
     switch discoveredPeripheral(for: deviceIdentifier) {
@@ -118,7 +118,7 @@ extension Client {
     deviceIdentifier: String,
     serviceUuid: String,
     characteristicUUIDStr: String,
-    completion: @escaping (Result<[DescriptorResponse], ClientError>) -> ()
+    completion: @escaping (Result<[DescriptorResponse], BluetoothCentralManagerError>) -> ()
   ) {
     let discoPeri: DiscoveredPeripheral
     switch discoveredPeripheral(for: deviceIdentifier) {
@@ -155,7 +155,7 @@ extension Client {
   
   func services(
     for deviceIdentifier: String
-  ) -> Result<[ServiceResponse], ClientError> {
+  ) -> Result<[ServiceResponse], BluetoothCentralManagerError> {
     let discoPeri: DiscoveredPeripheral
     switch discoveredPeripheral(for: deviceIdentifier) {
     case .failure(let error):
@@ -173,7 +173,7 @@ extension Client {
   func characteristics(
     for deviceIdentifier: String,
     serviceUUID: String
-  ) -> Result<[CharacteristicResponse], ClientError> {
+  ) -> Result<[CharacteristicResponse], BluetoothCentralManagerError> {
     let discoPeri: DiscoveredPeripheral
     switch discoveredPeripheral(for: deviceIdentifier) {
     case .failure(let error):
@@ -183,11 +183,11 @@ extension Client {
     }
     let cbuuid = CBUUID(string: serviceUUID)
     guard
-      let ds = discoveredPeripheral.discoveredServices[serviceCbuuid]
+      let ds = discoPeri.discoveredServices[cbuuid]
     else {
       return .failure(
         .peripheral(
-          .noServiceFound(discoveredPeripheral.peripheral, id: serviceCbuuid.uuidString)
+          .noServiceFound(discoPeri.peripheral, id: serviceUUID)
         )
       )
     }
@@ -201,7 +201,7 @@ extension Client {
     for deviceIdentifier: String,
     serviceUUID: String,
     characteristicUUID: String
-  ) -> Result<[DescriptorResponse], ClientError> {
+  ) -> Result<[DescriptorResponse], BluetoothCentralManagerError> {
     let discoPeri: DiscoveredPeripheral
     switch discoveredPeripheral(for: deviceIdentifier) {
     case .failure(let error):
@@ -238,7 +238,7 @@ extension Client {
   
   func readRssi(
     for deviceIdentifier: String,
-    completion: @escaping (Result<Int, ClientError>) -> ()
+    completion: @escaping (Result<Int, BluetoothCentralManagerError>) -> ()
   ) {
     let discoPeri: DiscoveredPeripheral
     switch discoveredPeripheral(for: deviceIdentifier) {
@@ -262,7 +262,7 @@ extension Client {
     return discoPeri.peripheral.mtu
   }
   
-  func connectedDevices(serviceUUIDs: [String]) -> Result<[PeripheralResponse], ClientError> {
+  func connectedDevices(serviceUUIDs: [String]) -> Result<[PeripheralResponse], BluetoothCentralManagerError> {
     guard
       let centralManager = centralManager
     else {
@@ -277,7 +277,7 @@ extension Client {
     )
   }
   
-  func knownDevices(deviceIdentifiers: [String]) -> Result<[PeripheralResponse], ClientError> {
+  func knownDevices(deviceIdentifiers: [String]) -> Result<[PeripheralResponse], BluetoothCentralManagerError> {
     guard
       let centralManager = centralManager
     else {
@@ -296,7 +296,7 @@ extension Client {
     deviceIdentifier: String,
     serviceUUID: String,
     characteristicUUID: String,
-    completion: @escaping (Result<CharacteristicResponse, ClientError>) -> ()
+    completion: @escaping (Result<CharacteristicResponse, BluetoothCentralManagerError>) -> ()
   ) {
     let dp: DiscoveredPeripheral
     switch discoveredPeripheral(for: deviceIdentifier) {
@@ -345,7 +345,7 @@ extension Client {
     characteristicUUID: String,
     value: FlutterStandardTypedData,
     withResponse: Bool,
-    completion: @escaping (Result<CharacteristicResponse, ClientError>) -> ()
+    completion: @escaping (Result<CharacteristicResponse, BluetoothCentralManagerError>) -> ()
   ) {
     let dp: DiscoveredPeripheral
     switch discoveredPeripheral(for: deviceIdentifier) {
@@ -384,7 +384,7 @@ extension Client {
           return CharacteristicResponse(
             char: char
           )
-        }).mapError(ClientError.peripheral)
+        }).mapError(BluetoothCentralManagerError.peripheral)
       )
     }
     
@@ -395,7 +395,7 @@ extension Client {
     serviceUUID: String,
     characteristicUUID: String,
     eventSteam: Stream<CharacteristicResponse>,
-    completion: @escaping (Result<(), ClientError>) -> ()
+    completion: @escaping (Result<(), BluetoothCentralManagerError>) -> ()
   ) {
     let dp: DiscoveredPeripheral
     switch discoveredPeripheral(for: deviceIdentifier) {
@@ -495,7 +495,7 @@ extension Client {
     serviceUUID: String,
     characteristicUUID: String,
     descriptorUUID: String,
-    completion: @escaping (Result<DescriptorResponse, ClientError>) -> ()
+    completion: @escaping (Result<DescriptorResponse, BluetoothCentralManagerError>) -> ()
   ) {
     let dp: DiscoveredPeripheral
     switch discoveredPeripheral(for: deviceIdentifier) {
@@ -541,7 +541,7 @@ extension Client {
           return DescriptorResponse(
             desc: desc
           )
-        }).mapError(ClientError.peripheral)
+        }).mapError(BluetoothCentralManagerError.peripheral)
       )
     }
   }
@@ -552,7 +552,7 @@ extension Client {
     characteristicUUID: String,
     descriptorUUID: String,
     value: FlutterStandardTypedData,
-    completion: @escaping (Result<DescriptorResponse, ClientError>) -> ()
+    completion: @escaping (Result<DescriptorResponse, BluetoothCentralManagerError>) -> ()
   ) {
     let dp: DiscoveredPeripheral
     switch discoveredPeripheral(for: deviceIdentifier) {
@@ -598,7 +598,7 @@ extension Client {
           return DescriptorResponse(
             desc: desc
           )
-        }).mapError(ClientError.peripheral)
+        }).mapError(BluetoothCentralManagerError.peripheral)
       )
     }
   }
@@ -707,20 +707,17 @@ struct PeripheralResponse : Encodable {
 
 struct ServiceResponse : Encodable {
   let uuid: String
-  let deviceID: String
   let isPrimary: Bool
   
   init(
     with service: CBService
   ) {
     uuid = service.uuid.fullUUIDString
-    deviceID = service.peripheral?.identifier.uuidString ?? ""
     isPrimary = service.isPrimary
   }
   
   private enum CodingKeys: String, CodingKey {
     case uuid = "serviceUuid"
-    case deviceID = "deviceID"
     case isPrimary = "isPrimary"
   }
 }

@@ -190,13 +190,12 @@ class Peripheral {
       }
       rethrow;
     }
-    final decodedJson =
+    final servicesJson =
         (jsonDecode(jsonString!) as List<dynamic>).cast<Map<String, dynamic>>();
 
-    return decodedJson
-        .map((serviceJson) =>
-            Service.fromJson(serviceJson, this))
-        .toList();
+    return servicesJson.map((serviceJson) {
+      return Service.fromJson(serviceJson, this);
+    }).toList();
   }
 
   /// Returns a list of [Service]s of this peripheral.
@@ -219,13 +218,12 @@ class Peripheral {
       rethrow;
     }
 
-    final decodedJson =
+    final servicesJson =
         (jsonDecode(jsonString!) as List<dynamic>).cast<Map<String, dynamic>>();
 
-    return decodedJson
-        .map((serviceJson) =>
-            Service.fromJson(serviceJson, this))
-        .toList();
+    return servicesJson.map((serviceJson) {
+      return Service.fromJson(serviceJson, this);
+    }).toList();
   }
 
 

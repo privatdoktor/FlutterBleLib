@@ -2,6 +2,7 @@ part of flutter_ble_lib;
 
 abstract class _ServiceMetadata {
   static const String uuid = 'serviceUuid';
+  static const String isPrimary = 'isPrimary';
 }
 
 /// A collection of [Characteristic]s and associated behaviors.
@@ -10,15 +11,17 @@ class Service {
   /// [Peripheral] containing this service.
   final Peripheral peripheral;
 
-
   /// The UUID of this service.
   final String uuid;
+
+  final bool isPrimary;
 
   Service.fromJson(
     Map<String, dynamic> jsonObject,
     Peripheral peripheral,
   ) : peripheral = peripheral,
-      uuid = jsonObject[_ServiceMetadata.uuid];
+      uuid = jsonObject[_ServiceMetadata.uuid],
+      isPrimary = jsonObject[_ServiceMetadata.isPrimary];
 
   Future<List<Characteristic>> discoverCharacteristics({
     List<String>? characteristicUuids

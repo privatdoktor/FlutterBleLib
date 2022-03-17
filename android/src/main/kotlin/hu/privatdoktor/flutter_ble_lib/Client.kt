@@ -32,13 +32,11 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
     //region Helpers
     companion object {
         fun serviceResponsesFor(
-            deviceIdentifier: String,
             services: List<BluetoothGattService>
         ) : List<Map<String, Serializable>> {
             return services.map {
                 mapOf(
-                    "serviceUuid" to it.uuid.toString(),
-                    "deviceID" to deviceIdentifier,
+                    "serviceUuid" to it.uuid.toString().lowercase(),
                     "isPrimary" to (it.type == BluetoothGattService.SERVICE_TYPE_PRIMARY)
                 )
             }
@@ -47,7 +45,7 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
         fun characteristicResponseFor(
             peripheral: BluetoothPeripheral,
             characteristic: BluetoothGattCharacteristic
-        ) : Map<String, Any> {
+        ) : Map<String, Any?> {
             val isIndicatbale =
                 characteristic.properties.and(BluetoothGattCharacteristic.PROPERTY_INDICATE) != 0
 
@@ -59,92 +57,65 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
                 characteristic.properties.and(BluetoothGattCharacteristic.PROPERTY_WRITE) != 0
             val isWritableWithoutResponse =
                 characteristic.properties.and(BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE) != 0
+            val rawValue = characteristic.value
+            val value = if (rawValue != null && rawValue.isNotEmpty()) {
+                Base64.encodeToString(rawValue, Base64.NO_WRAP)
+            } else {
+                null
+            }
+
             return mapOf(
-                "characteristicUuid" to characteristic.uuid.toString(),
+                "characteristicUuid" to characteristic.uuid.toString().lowercase(),
                 "isIndicatable" to isIndicatbale,
                 "isNotifiable" to isNotifiable,
                 "isNotifying" to peripheral.isNotifying(characteristic),
                 "isReadable" to isReadable,
                 "isWritableWithResponse" to isWritableWithResponse,
                 "isWritableWithoutResponse" to isWritableWithoutResponse,
+                "value" to value
             )
         }
 
-        fun characteristicsResponseFor(
+        fun characteristicResponsesFor(
             peripheral: BluetoothPeripheral,
-            serviceUuidStr: String,
             characteristics: List<BluetoothGattCharacteristic>
-        ) : Map<String, Any> {
+        ) : List<Map<String, Any?>> {
             val characteristicResponses = characteristics.map {
                 characteristicResponseFor(peripheral, it)
             }
-            val characteristicsResponse = mapOf(
-                "serviceUuid" to serviceUuidStr,
-                "characteristics" to characteristicResponses
-            )
-            return characteristicsResponse
+            return characteristicResponses
         }
 
-        fun singleCharacteristicResponse(
-            peripheral: BluetoothPeripheral,
-            serviceUuidStr: String,
+        fun descriptorResponsesFor(
             characteristic: BluetoothGattCharacteristic
-        ) : Map<String, Any> {
-            val characteristicResponse = characteristicResponseFor(peripheral, characteristic)
-            return mapOf(
-                "serviceUuid" to serviceUuidStr,
-                "characteristic" to characteristicResponse
-            )
-        }
-
-        fun singleCharacteristicWithValueResponse(
-                peripheral: BluetoothPeripheral,
-                serviceUuidStr: String,
-                characteristic: BluetoothGattCharacteristic
-        ): Map<String, Any> {
-            val characteristicWithValueResponse =
-                characteristicResponseFor(
-                    peripheral,
-                    characteristic
-                ).toMutableMap()
-            characteristicWithValueResponse["value"] =
-                Base64.encodeToString(characteristic.value, Base64.NO_WRAP)
-            return mapOf(
-                "serviceUuid" to serviceUuidStr,
-                "characteristic" to characteristicWithValueResponse
-            )
-        }
-
-        fun descriptorsForPeripheralResponseFor(
-            peripheral: BluetoothPeripheral,
-            serviceUuidStr: String,
-            characteristic: BluetoothGattCharacteristic
-        ) : Map<String, Any> {
-            val response = characteristicResponseFor(peripheral, characteristic).toMutableMap()
-            response["serviceUuid"] = serviceUuidStr
+        ) : List<Map<String, Any?>> {
             val descriptorResponses = characteristic.descriptors.map {
-                mapOf("descriptorUuid" to it.uuid.toString())
+                descriptorResponseFor(it)
             }
-            response["descriptors"] = descriptorResponses
-            return response
+            return descriptorResponses
         }
 
         fun descriptorResponseFor(
-            peripheral: BluetoothPeripheral,
-            serviceUuidStr: String,
-            characteristic: BluetoothGattCharacteristic,
             descriptor: BluetoothGattDescriptor
-        ) : Map<String, Any> {
-            val response = characteristicResponseFor(peripheral, characteristic).toMutableMap()
-            response["serviceUuid"] = serviceUuidStr
-            response["descriptorUuid"] = descriptor.uuid.toString()
-            response["value"] = Base64.encodeToString(descriptor.value, Base64.NO_WRAP)
+        ) : Map<String, Any?> {
+            val rawValue = descriptor.value
+            val value = if (rawValue != null && rawValue.isNotEmpty()) {
+                Base64.encodeToString(rawValue, Base64.NO_WRAP)
+            } else {
+                null
+            }
+            val response = mapOf(
+                "descriptorUuid" to descriptor.uuid.toString().lowercase(),
+                "value" to value
+            )
             return response
         }
 
-        fun peripheralResponseFor(peripheral: BluetoothPeripheral) : Map<String, Any> {
-            val peripheralResponse = mapOf("id" to peripheral.address).toMutableMap()
-            peripheralResponse["name"] = peripheral.name ?: ""
+        fun peripheralResponseFor(peripheral: BluetoothPeripheral) : Map<String, Any?> {
+            val peripheralResponse = mapOf(
+                "id" to peripheral.address,
+                "name" to peripheral.name
+            )
             return peripheralResponse
         }
     }
@@ -355,7 +326,6 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
         val it = dp.discoverServices(serviceUUIDs = serviceUUIDs)
         val serviceResponses =
             serviceResponsesFor(
-                deviceIdentifier = deviceIdentifier,
                 services = it.values.toList()
             )
 
@@ -381,7 +351,6 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
 
         val serviceResponses =
             serviceResponsesFor(
-                deviceIdentifier = deviceIdentifier,
                 services = dp.peripheral.services
             )
 
@@ -400,13 +369,12 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
             throw BleError.serviceNotFound(serviceUuid.toString())
         }
 
-        val characteristicsResponse = characteristicsResponseFor(
+        val characteristicsResponse = characteristicResponsesFor(
             peripheral = dp.peripheral,
-            serviceUuidStr = serviceUuid.toString(),
             characteristics = service.characteristics
         )
-        val characteristicsResponseJsonStr = JSONObject(characteristicsResponse).toString()
-        return characteristicsResponseJsonStr
+        val characteristicResponsesJsonStr = JSONArray(characteristicsResponse).toString()
+        return characteristicResponsesJsonStr
     }
 
     fun descriptorsForDevice(
@@ -425,12 +393,10 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
             throw BleError.characteristicNotFound(characteristicUuid.toString())
         }
 
-        val response = descriptorsForPeripheralResponseFor(
-            peripheral = dp.peripheral,
-            serviceUuidStr = serviceUuid.toString(),
+        val response = descriptorResponsesFor(
             characteristic = characteristic
         )
-        val jsonStr = JSONObject(response).toString()
+        val jsonStr = JSONArray(response).toString()
         return jsonStr
     }
 
@@ -507,9 +473,8 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
         }
 
         val newChar = dc.read()
-        val payload = singleCharacteristicWithValueResponse(
+        val payload = characteristicResponseFor(
             peripheral = dp.peripheral,
-            serviceUuidStr = serviceUuidStr,
             characteristic = newChar
         )
         val jsonStr = JSONObject(payload).toString()
@@ -537,9 +502,8 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
             withResponse = withResponse
         )
 
-        val payload = singleCharacteristicResponse(
+        val payload = characteristicResponseFor(
             peripheral = dp.peripheral,
-            serviceUuidStr = serviceUuidStr,
             characteristic = newChar
         )
         val jsonStr = JSONObject(payload).toString()
@@ -585,9 +549,6 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
         val it = dd.read()
 
         val payload = descriptorResponseFor(
-            peripheral = dp.peripheral,
-            serviceUuidStr = serviceUuidStr,
-            characteristic = it.characteristic,
             descriptor = it
         )
 
@@ -616,9 +577,6 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
         val it = dd.write(value)
 
         val payload = descriptorResponseFor(
-            peripheral = dp.peripheral,
-            serviceUuidStr = serviceUuidStr,
-            characteristic = it.characteristic,
             descriptor = it
         )
 

@@ -112,7 +112,7 @@ class ScanningStreamHandler(
             "solicitedServiceUUIDs" to solicitedServiceUUIDs,
 
             "serviceData" to serviceData
-        ).toMutableMap()
+        )
 
         try {
             val jsonStr = JSONObject(payload).toString()

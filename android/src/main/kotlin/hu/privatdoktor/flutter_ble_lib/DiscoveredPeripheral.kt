@@ -240,9 +240,8 @@ class DiscoveredPeripheral(
 
         if (peripheral.isNotifying(characteristic)) {
             dc.monitorStreamHandler?.onCharacteristicsUpdate(
-                peripheral,
-                characteristic.service.uuid.toString(),
-                characteristic
+                peripheral = peripheral,
+                characteristic = characteristic
             )
             return
         }

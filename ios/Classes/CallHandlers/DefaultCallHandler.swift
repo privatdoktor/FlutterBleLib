@@ -8,12 +8,12 @@
 import Foundation
 import CoreBluetooth
 
-extension Client : CallHandler {
+extension BluetoothCentralManager : CallHandler {
   typealias SignatureEnumT = DefaultMethodChannel.Signature
   
   private func validate(
     call: Call<SignatureEnumT>
-  ) -> Result<(),ClientError> {
+  ) -> Result<(),BluetoothCentralManagerError> {
     switch call.signature {
     case .isClientCreated,
          .createClient,
@@ -99,7 +99,7 @@ extension Client : CallHandler {
       if scanningEvents == nil {
         let scanningSinker =
           eventChannelFactory.makeEventChannel(ScanningEvents.self, idScheme: .justBaseName)
-        scanningEvents = Client.Stream(eventHandler: { payload in
+        scanningEvents = BluetoothCentralManager.Stream(eventHandler: { payload in
           switch payload {
           case .data(let scanResult):
             scanningSinker.sink(scanResult)
@@ -199,7 +199,7 @@ extension Client : CallHandler {
     case .readCharacteristicForDevice(let deviceIdentifier,
                                       let serviceUUID,
                                       let characteristicUUID):
-      readCharacteristicForDevice(
+      readCharacteristic(
         deviceIdentifier: deviceIdentifier,
         serviceUUID: serviceUUID,
         characteristicUUID: characteristicUUID
@@ -228,7 +228,7 @@ extension Client : CallHandler {
         )
       let sinkerName = sinker.name
       let stream =
-        Client.Stream<CharacteristicResponse>(
+        BluetoothCentralManager.Stream<CharacteristicResponse>(
           eventHandler: { payload in
             switch payload {
             case .data(let charRes):

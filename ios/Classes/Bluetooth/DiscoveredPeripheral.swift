@@ -35,9 +35,6 @@ extension CBPeripheral {
   }
 }
 
-
-
-
 class DiscoveredPeripheral : NSObject {
   private var _peripheral: CBPeripheral
   var peripheral: CBPeripheral {
@@ -46,8 +43,8 @@ class DiscoveredPeripheral : NSObject {
   weak var centralManager: CBCentralManager?
   var discoveredServices = [CBUUID : DiscoveredService]()
   
-  private var _connectCompleted: ((_ res: Result<(), ClientError>) -> ())?
-  private var _disconnectCompleted: ((_ res: Result<(), ClientError>) -> ())?
+  private var _connectCompleted: ((_ res: Result<(), BluetoothCentralManagerError>) -> ())?
+  private var _disconnectCompleted: ((_ res: Result<(), BluetoothCentralManagerError>) -> ())?
   
   private var _connectionEventOccured: ((_ event: CBConnectionEvent) -> ())?
   private var _onDisconnectedListeners = Queue<() -> ()>()
@@ -55,7 +52,7 @@ class DiscoveredPeripheral : NSObject {
   
   private var _servicesDiscoveryCompleted: ((_ res: Result<[CBUUID : DiscoveredService], PeripheralError>) -> ())?
   
-  private var _readRSSICompleted: ((_ res: Result<Int, ClientError>) -> ())?
+  private var _readRSSICompleted: ((_ res: Result<Int, BluetoothCentralManagerError>) -> ())?
   
  
   init(_ peripheral: CBPeripheral,
@@ -76,7 +73,7 @@ extension DiscoveredPeripheral {
   
   func connect(
     options: [String : Any]? = nil,
-    _ completion: @escaping (_ res: Result<(), ClientError>) -> ()
+    _ completion: @escaping (_ res: Result<(), BluetoothCentralManagerError>) -> ()
   ) {
     if let pending = _connectCompleted {
       _connectCompleted = nil
@@ -87,7 +84,7 @@ extension DiscoveredPeripheral {
   }
   
   func disconnect(
-    _ completion: @escaping (_ res: Result<(), ClientError>) -> ()
+    _ completion: @escaping (_ res: Result<(), BluetoothCentralManagerError>) -> ()
   ) {
     if let pending = _disconnectCompleted {
       _disconnectCompleted = nil
@@ -122,7 +119,7 @@ extension DiscoveredPeripheral {
   }
   
   func readRssi(
-    _ completion: @escaping (_ res: Result<Int, ClientError>
+    _ completion: @escaping (_ res: Result<Int, BluetoothCentralManagerError>
     ) -> ()) {
     if let pending = _readRSSICompleted {
       _readRSSICompleted = nil
@@ -135,14 +132,14 @@ extension DiscoveredPeripheral {
 }
 // MARK: - For Publishers
 extension DiscoveredPeripheral {
-  func connected(_ res: Result<(), ClientError>) {
+  func connected(_ res: Result<(), BluetoothCentralManagerError>) {
     if case .success = res {
       _connectionEventOccured?(.peerConnected)
     }
     _connectCompleted?(res)
     _connectCompleted = nil
   }
-  func disconnected(_ res: Result<(), ClientError>) {
+  func disconnected(_ res: Result<(), BluetoothCentralManagerError>) {
     if case .success = res {
       _connectionEventOccured?(.peerDisconnected)
     }
@@ -158,7 +155,7 @@ extension DiscoveredPeripheral {
     _servicesDiscoveryCompleted?(res)
     _servicesDiscoveryCompleted = nil
   }
-  private func rssiUpdated(_ res: Result<Int, ClientError>) {
+  private func rssiUpdated(_ res: Result<Int, BluetoothCentralManagerError>) {
     _readRSSICompleted?(res)
     _readRSSICompleted = nil
   }

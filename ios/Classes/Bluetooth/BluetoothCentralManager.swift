@@ -22,7 +22,7 @@ extension CBUUID {
 }
 
 
-enum ClientError : LocalizedError {
+enum BluetoothCentralManagerError : LocalizedError {
   case notCreated
   case invalidState(CBManagerState?)
   case invalidUUIDString(String)
@@ -32,7 +32,7 @@ enum ClientError : LocalizedError {
   case peripheral(PeripheralError)
 }
 
-class Client : NSObject {
+class BluetoothCentralManager : NSObject {
   
   class Stream<AnyT: Any> {
     enum Payload<AnyT: Any> {
@@ -70,7 +70,7 @@ class Client : NSObject {
   
   var centralManager: CBCentralManager?
   
-  private var discoveredPeripherals = [UUID : DiscoveredPeripheral]()
+  private(set) var discoveredPeripherals = [UUID : DiscoveredPeripheral]()
   
   private var peerConnectionEventHandlers = [UUID : PeerConnectionEventHandler]()
   private var onPowerOnListeners = Queue<(_ cm: CBCentralManager) -> ()>()
@@ -81,7 +81,7 @@ class Client : NSObject {
 }
 
 // MARK: -- Helpers
-extension Client {
+extension BluetoothCentralManager {
   func discoveredPeripheral(
     for uuid: UUID,
     centralManager: CBCentralManager
@@ -107,7 +107,7 @@ extension Client {
   func discoveredPeripheral(
     for deviceIdentifier: String,
     expectedState: CBPeripheralState? = nil
-  ) -> Result<DiscoveredPeripheral, ClientError> {
+  ) -> Result<DiscoveredPeripheral, BluetoothCentralManagerError> {
     guard
       let centralManager = centralManager
     else {
@@ -116,7 +116,7 @@ extension Client {
     guard
       let uuid = UUID(uuidString: deviceIdentifier)
     else {
-      return .failure(ClientError.invalidUUIDString(deviceIdentifier))
+      return .failure(BluetoothCentralManagerError.invalidUUIDString(deviceIdentifier))
     }
     guard
       let dp = discoveredPeripheral(
@@ -126,13 +126,13 @@ extension Client {
     else {
       
       return .failure(
-        ClientError.noPeripheralFoundFor(uuid, expectedState: expectedState)
+        BluetoothCentralManagerError.noPeripheralFoundFor(uuid, expectedState: expectedState)
       )
     }
     if let state = expectedState,
        dp.peripheral.state != state {
       return .failure(
-        ClientError.noPeripheralFoundFor(uuid, expectedState: state)
+        BluetoothCentralManagerError.noPeripheralFoundFor(uuid, expectedState: state)
       )
     }
 
@@ -152,7 +152,7 @@ extension Client {
 }
 
 // MARK: -- CallHandler API
-extension Client {
+extension BluetoothCentralManager {
   
   var isCreated: Bool {
     return centralManager != nil
@@ -219,7 +219,7 @@ extension Client {
   func startDeviceScan(
     withServices services: [String]?,
     allowDuplicates: Bool?
-  ) -> Result<(), ClientError> {
+  ) -> Result<(), BluetoothCentralManagerError> {
     var options: [String : Any]?
     if let allowDuplicates = allowDuplicates {
       options = [CBCentralManagerScanOptionAllowDuplicatesKey : allowDuplicates]
@@ -247,7 +247,7 @@ extension Client {
     return .success(())
   }
   
-  func stopDeviceScan() -> Result<(), ClientError> {
+  func stopDeviceScan() -> Result<(), BluetoothCentralManagerError> {
     guard
       let centralManager = centralManager
     else {
@@ -269,7 +269,7 @@ extension Client {
     deviceIdentifier: String,
     emitCurrentValue: Bool?,
     eventStream: Stream<CBPeripheralState>
-  ) -> Result<(), ClientError> {
+  ) -> Result<(), BluetoothCentralManagerError> {
     guard
       let centralManager = centralManager
     else {
@@ -278,7 +278,7 @@ extension Client {
     guard
       let uuid = UUID(uuidString: deviceIdentifier)
     else {
-      return .failure(ClientError.invalidUUIDString(deviceIdentifier))
+      return .failure(BluetoothCentralManagerError.invalidUUIDString(deviceIdentifier))
     }
     
     if emitCurrentValue == true {
@@ -344,7 +344,7 @@ extension Client {
   }
 }
 
-extension Client : CBCentralManagerDelegate {
+extension BluetoothCentralManager : CBCentralManagerDelegate {
   func centralManagerDidUpdateState(_ central: CBCentralManager) {
     if central.state == .poweredOn {
       while onPowerOnListeners.isEmpty == false {
@@ -404,7 +404,7 @@ extension Client : CBCentralManagerDelegate {
   ) {
     
     discoveredPeripherals[peripheral.identifier]?.connected(
-      .failure(ClientError.peripheralConnection(internal: error))
+      .failure(BluetoothCentralManagerError.peripheralConnection(internal: error))
     )
   }
   
@@ -416,7 +416,7 @@ extension Client : CBCentralManagerDelegate {
     let dp = discoveredPeripherals[peripheral.identifier]
     if let error = error {
       dp?.disconnected(
-        .failure(ClientError.peripheralDisconnection(internal: error))
+        .failure(BluetoothCentralManagerError.peripheralDisconnection(internal: error))
       )
       return
     }

@@ -1,5 +1,5 @@
 group 'hu.privatdoktor.flutter_ble_lib'
-version '3.0.3'
+version '3.1.0'
 
 buildscript {
     ext.kotlin_version = '1.6.10'
