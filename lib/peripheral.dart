@@ -14,8 +14,6 @@ abstract class _PeripheralMetadata {
 /// Only [connect()], [observeConnectionState()], [isConnected()] and
 /// [disconnectOrCancelConnection()] can be used if peripheral is not connected.
 class Peripheral {
-  static const int NO_MTU_NEGOTIATION = 0;
-
   final String? name;
   final String identifier;
 
@@ -42,9 +40,9 @@ class Peripheral {
   /// immediately. Timeout may happen earlier than specified due to OS
   /// specific behavior.
   Future<void> connect({
-    int requestMtu = NO_MTU_NEGOTIATION,
+    int? requestMtu,
     bool refreshGatt = false,
-    Duration? timeout, // can ignore
+    Duration? timeout,
   }) async {
     try {
       return await BleManager._methodChannel.invokeMethod<void>(

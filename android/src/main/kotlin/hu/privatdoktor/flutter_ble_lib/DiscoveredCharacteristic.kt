@@ -5,6 +5,7 @@ import com.welie.blessed.BluetoothCentralManager
 import com.welie.blessed.WriteType
 import hu.privatdoktor.flutter_ble_lib.event.CharacteristicsMonitorStreamHandler
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.withTimeout
 import java.lang.ref.WeakReference
@@ -82,7 +83,7 @@ class DiscoveredCharacteristic(
                 reason = "peripheral.readCharacteristic() failed, maybe device is not connected"
             )
         }
-        return withTimeout(timeMillis = 2 * 2000) {
+        return withTimeout(timeMillis = 60 * 1000) {
             completer.await()
         }
     }
@@ -94,7 +95,7 @@ class DiscoveredCharacteristic(
         val dp = discoveredPeripheral
         if (dp == null) {
             throw BleError(
-                errorCode = BleErrorCode.CharacteristicReadFailed,
+                errorCode = BleErrorCode.CharacteristicWriteFailed,
                 deviceID = discoveredPeripheral?.peripheral?.address ?: "",
                 serviceUUID = characteristic.service.uuid.toString(),
                 characteristicUUID = characteristic.uuid.toString(),
@@ -105,14 +106,19 @@ class DiscoveredCharacteristic(
         if (pending != null && pending.isActive) {
             pending.completeExceptionally(
                 BleError(
-                    errorCode = BleErrorCode.CharacteristicReadFailed,
+                    errorCode = BleErrorCode.CharacteristicWriteFailed,
                     deviceID = discoveredPeripheral?.peripheral?.address ?: "",
                     serviceUUID = characteristic.service.uuid.toString(),
                     characteristicUUID = characteristic.uuid.toString(),
                 )
             )
         }
-        val newChar = if (withResponse) {
+        val isWritableWithResponse =
+            characteristic.properties.and(BluetoothGattCharacteristic.PROPERTY_WRITE) != 0
+        val isWritableWithoutResponse =
+            characteristic.properties.and(BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE) != 0
+
+        val newChar = if (withResponse && isWritableWithResponse) {
             val completer = CompletableDeferred<BluetoothGattCharacteristic>()
             writeCharacteristicCompleter = completer
 
@@ -130,10 +136,8 @@ class DiscoveredCharacteristic(
                     reason = "peripheral.writeCharacteristic() failed, maybe device is not connected"
                 )
             }
-            withTimeout(timeMillis = 2 * 1000) {
-                completer.await()
-            }
-        } else {
+            completer.await()
+        } else if (isWritableWithoutResponse) {
             writeCharacteristicCompleter = null
             val succ = dp.peripheral.writeCharacteristic(
                 characteristic,
@@ -149,6 +153,13 @@ class DiscoveredCharacteristic(
                 )
             }
             characteristic
+        } else {
+            throw BleError(
+                errorCode = BleErrorCode.CharacteristicWriteFailed,
+                serviceUUID = characteristic.service.uuid.toString(),
+                characteristicUUID = characteristic.uuid.toString(),
+                reason = "peripheral.writeCharacteristic() failed:: NOT WRITABLE, requested sithResponse: $withResponse, allowed $isWritableWithResponse $isWritableWithoutResponse"
+            )
         }
         return newChar
     }

@@ -282,7 +282,11 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
 
         //FIXME: support configuration parameters
 
-        dp.connect()
+        dp.connect(
+            requestMtu = requestMtu,
+            refreshGatt = refreshGatt,
+            timeoutMillis = timeoutMillis
+        )
     }
 
     suspend fun ensureBondedWithDevice(deviceIdentifier: String) {

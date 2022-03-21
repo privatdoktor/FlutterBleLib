@@ -9,6 +9,7 @@ import hu.privatdoktor.flutter_ble_lib.event.ConnectionStateStreamHandler
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
 import java.lang.ref.WeakReference
 import java.util.*
@@ -41,9 +42,6 @@ class DiscoveredPeripheral(
     private var onBondedCompleter: CompletableDeferred<Result<Unit>>? = null
     private var onBondingLostCompleter: CompletableDeferred<Unit>? = null
 
-
-
-
     init {
         _centralManager = WeakReference(centralManager)
     }
@@ -53,7 +51,12 @@ class DiscoveredPeripheral(
     }
 
     //region API
-    suspend fun connect() {
+    suspend fun connect(
+        requestMtu: Int?,
+        refreshGatt: Boolean,
+        timeoutMillis: Long?
+    ) {
+        val connectionTimeout = timeoutMillis ?: 60 * 1000
         val pending = connectCompleter
         if (pending != null && pending.isActive) {
             pending.completeExceptionally(
@@ -66,15 +69,19 @@ class DiscoveredPeripheral(
                 BleError(errorCode = BleErrorCode.DeviceConnectionFailed)
             )
         }
-        val connectCompleter =  CompletableDeferred<Unit>()
+        val connectCompleter = CompletableDeferred<Unit>()
         val serviceDiscoveryCompleter = CompletableDeferred<Map<UUID, BluetoothGattService>>()
         this.connectCompleter = connectCompleter
         this.serviceDiscoveryCompleter = serviceDiscoveryCompleter
 
         centralManager?.connectPeripheral(peripheral, this)
-        peripheral.requestConnectionPriority(ConnectionPriority.HIGH)
-        withTimeout(timeMillis = 10 * 1000) {
+        withTimeout(timeMillis = connectionTimeout) {
             awaitAll(connectCompleter, serviceDiscoveryCompleter)
+        }
+
+        peripheral.requestConnectionPriority(ConnectionPriority.HIGH)
+        if (requestMtu != null) {
+            requestMtu(requestMtu, timeoutMillis = connectionTimeout)
         }
     }
 
@@ -125,7 +132,7 @@ class DiscoveredPeripheral(
         return completer.await()
     }
 
-    suspend fun requestMtu(mtu: Int) : Int {
+    suspend fun requestMtu(mtu: Int, timeoutMillis: Long = 60 * 1000) : Int {
         val pending = onRequestMtuCompleter
         if (pending != null && pending.isActive) {
             pending.completeExceptionally(
@@ -146,7 +153,9 @@ class DiscoveredPeripheral(
                 reason = "peripheral.requestMtu() failed, maybe device is not connected"
             )
         }
-        return completer.await()
+        return withTimeout(timeMillis = timeoutMillis) {
+            completer.await()
+        }
     }
 
     fun discoveredCharacteristicFor(
@@ -230,7 +239,7 @@ class DiscoveredPeripheral(
         )
 
         val streamHandler = dc?.monitorStreamHandler
-        print("DiscoveredPeripheral::onNotificationStateUpdate: streamhandler exists: ${streamHandler != null}}")
+        println("DiscoveredPeripheral::onNotificationStateUpdate: streamhandler exists: ${streamHandler != null}}")
     }
 
     override fun onCharacteristicUpdate(
