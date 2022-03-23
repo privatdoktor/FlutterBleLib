@@ -181,6 +181,7 @@ extension BluetoothCentralManager {
   }
   
   func destroy() {
+    discoveredPeripherals.removeAll()
     guard
       let centralManager = self.centralManager
     else {
@@ -191,6 +192,7 @@ extension BluetoothCentralManager {
        centralManager.isScanning {
       centralManager.stopScan()
     }
+    
     
     centralManager.delegate = nil
     self.centralManager = nil

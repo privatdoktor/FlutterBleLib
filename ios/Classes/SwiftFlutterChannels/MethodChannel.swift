@@ -155,10 +155,10 @@ class Call<SignatureEnumT: SignatureEnum> {
 //          guard let ptr = ptr else { return nil }
 //          return
 //        }
-        print("HASZNOS STRING: \(jsonStr ?? "")")
-        if jsonStr == "" {
-          print("")
-        }
+//        print("HASZNOS STRING: \(jsonStr ?? "")")
+//        if jsonStr == "" {
+//          print("")
+//        }
         _result(.success(jsonStr ?? ""))
       } catch {
         _result(.failure(error))
