@@ -126,8 +126,7 @@ class BleManager {
   static const EventChannel _adapterStateChangesEventChannel = 
     EventChannel(ChannelName.adapterStateChanges);
   static Stream<String> get _adapterStateChanges =>
-      _adapterStateChangesEventChannel
-          .receiveBroadcastStream().cast();
+    _adapterStateChangesEventChannel.receiveBroadcastStream().cast();
 
 
 
@@ -329,7 +328,6 @@ class BleManager {
     return _mapToBluetoothState(stateStr);
   }
 
-// ++MH++
   /// Returns a stream of changes to the state of the Bluetooth adapter.
   ///
   /// By default starts the stream with the current state, but this can
@@ -351,21 +349,22 @@ class BleManager {
     return list.cast<Peripheral>();
   }
 
-// ++NTH++
   /// Returns a list of [Peripheral]: on iOS known to system, on Android
   /// known to the library.
   ///
   /// If [peripheralIdentifiers] is empty, this will return an empty list.
   Future<List<Peripheral>> knownPeripherals(List<String> peripheralIdentifiers) async {
-    final peripheralsJson = await BleManager._methodChannel
-        .invokeMethod(MethodName.knownDevices, <String, dynamic>{
-      ArgumentName.deviceIdentifiers: peripheralIdentifiers,
-    });
+    final peripheralsJson =
+      await BleManager._methodChannel.invokeMethod(
+        MethodName.knownDevices, 
+        <String, dynamic>{
+          ArgumentName.deviceIdentifiers: peripheralIdentifiers,
+        }
+      );
     print('known devices json: $peripheralsJson');
     return _parsePeripheralsJson(peripheralsJson!);
   }
 
-// ++NTH++
   /// Returns a list of [Peripheral]: on iOS connected and known to system,
   /// on Android connected and known to the library.
   ///
@@ -382,7 +381,6 @@ class BleManager {
     return _parsePeripheralsJson(peripheralsJson!);
   }
 
-// ++NTH++
   /// Creates a peripheral which may not exist or be available. Since the
   /// [peripheralId] might be a UUID or a MAC address,
   /// depending on the platform, its format is not validated.
