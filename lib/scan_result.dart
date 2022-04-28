@@ -34,12 +34,8 @@ class AdvertisementData {
   /// A list of solicited service UUIDs.
   final List<String>? solicitedServiceUuids;
 
-  static Map<String, Uint8List>? _getServiceDataOrNull(
-      Map<String, dynamic>? serviceData
-  ) {
-    return serviceData?.map(
-      (key, value) => MapEntry(key, base64Decode(value)),
-    );
+  static Map<String, Uint8List>? _getServiceDataOrNull(Map<String, dynamic>? serviceData) {
+    return serviceData?.map((key, value) => MapEntry(key, base64Decode(value)));
   }
 
   static Uint8List? _decodeBase64OrNull(String? base64Value) {
@@ -53,19 +49,25 @@ class AdvertisementData {
   static List<String>? _mapToListOfStringsOrNull(List<dynamic>? values) =>
       values?.cast<String>();
 
+  int? get header {
+    return (manufacturerData == null || manufacturerData!.lengthInBytes <= 2) null : (manufacturerData![1] << 8) + manufacturerData![0];
+  }
+
+  Uint8List? get data {
+    return manufacturerData == null ? null : Uint8List.fromList(manufacturerData!.getRange(2, manufacturerData!.lengthInBytes).toList());
+  }
+
+  Map<int,List<int>> get manufacturerMap {
+    return (header == null || data == null) ? <int, List<int>> {} : <int,List<int>>{ header! : data! };
+  }
+
   AdvertisementData._fromJson(Map<String, dynamic> json)
-      : manufacturerData =
-            _decodeBase64OrNull(json[_ScanResultMetadata.manufacturerData]),
-        serviceData =
-            _getServiceDataOrNull(json[_ScanResultMetadata.serviceData]),
-        serviceUuids =
-            _mapToListOfStringsOrNull(json[_ScanResultMetadata.serviceUuids]),
-        localName = json[_ScanResultMetadata.localName],
-        txPowerLevel = json[_ScanResultMetadata.txPowerLevel],
-        solicitedServiceUuids =
-          _mapToListOfStringsOrNull(
-            json[_ScanResultMetadata.solicitedServiceUuids]
-          );
+    : manufacturerData = _decodeBase64OrNull(json[_ScanResultMetadata.manufacturerData]),
+      serviceData = _getServiceDataOrNull(json[_ScanResultMetadata.serviceData]),
+      serviceUuids = _mapToListOfStringsOrNull(json[_ScanResultMetadata.serviceUuids]),
+      localName = json[_ScanResultMetadata.localName],
+      txPowerLevel = json[_ScanResultMetadata.txPowerLevel],
+      solicitedServiceUuids = _mapToListOfStringsOrNull(json[_ScanResultMetadata.solicitedServiceUuids]);
 }
 
 /// A scan result emitted by the scanning operation, containing [Peripheral] and [AdvertisementData].
