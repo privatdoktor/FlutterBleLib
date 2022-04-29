@@ -50,7 +50,7 @@ class AdvertisementData {
       values?.cast<String>();
 
   int? get header {
-    return (manufacturerData == null || manufacturerData!.lengthInBytes <= 2) null : (manufacturerData![1] << 8) + manufacturerData![0];
+    return (manufacturerData == null || manufacturerData!.lengthInBytes <= 2) ? null : (manufacturerData![1] << 8) + manufacturerData![0];
   }
 
   Uint8List? get data {
