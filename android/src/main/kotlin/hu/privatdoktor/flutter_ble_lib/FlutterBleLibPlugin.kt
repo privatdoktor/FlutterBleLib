@@ -77,10 +77,13 @@ class FlutterBleLibPlugin : FlutterPlugin, MethodCallHandler {
                         result.success(null)
                     }
                     MethodName.START_DEVICE_SCAN -> {
-                        val filteredUUIDs =
+                        val filteredUUIDs = null;
+                        if (call.argument<List<String>>(ArgumentKey.UUIDS) != null)
+                        {
                             call.argument<List<String>>(ArgumentKey.UUIDS)!!.map {
                                 UUIDfrom(bluetoothUUIDStr = it)
                             }
+                        }    
 
                         client.startDeviceScan(
                             scanMode = call.argument<Int>(ArgumentKey.SCAN_MODE)!!,

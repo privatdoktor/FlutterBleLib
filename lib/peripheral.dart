@@ -54,7 +54,8 @@ class Peripheral {
           ArgumentName.timeoutMillis: timeout?.inMilliseconds
         },
       );
-    } on PlatformException catch (pe) {
+    } 
+    on PlatformException catch (pe) {
       final details = pe.details as Object?;
       if (details is String) {
         throw BleError.fromJson(jsonDecode(details));

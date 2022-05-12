@@ -59,11 +59,11 @@ AuthorizationIOS _mapToAuthorizationIOS(String rawValue) {
 ///
 /// See [Android documentation](https://developer.android.com/reference/android/bluetooth/le/ScanSettings) for more information.
 abstract class ScanMode {
-  static const int opportunistic = -1;
   static const int lowPower = 0;
   static const int balanced = 1;
   static const int lowLatency = 2;
-}
+  static const int opportunistic = 4; //TODO PP
+  }
 
 /// Type of scan for peripherals callback - Android only.
 ///
@@ -250,7 +250,7 @@ class BleManager {
   Future<Stream<ScanResult>> startPeripheralScan({
     int scanMode = ScanMode.lowPower,
     int callbackType = CallbackType.allMatches,
-    List<String> uuids = const [],
+    List<String>? uuids = null, //TODO PP
     bool allowDuplicates = false,
   }) async {
     await BleManager._methodChannel.invokeMethod<void>(

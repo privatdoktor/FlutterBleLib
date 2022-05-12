@@ -173,21 +173,31 @@ class Client(private val binding: FlutterPluginBinding) : BluetoothCentralManage
     fun startDeviceScan(
         scanMode: Int,
         callbackType: Int,
-        filteredUUIDs: List<UUID>
+        filteredUUIDs: List<UUID>?
     ) {
         val centralManager = this.centralManager
         if (centralManager == null) {
             throw BleError(errorCode = BleErrorCode.BluetoothManagerDestroyed)
         }
+
+        //TODO PP
         val mode = when (scanMode) {
-            -1 -> ScanMode.OPPORTUNISTIC
             0 -> ScanMode.LOW_POWER
             1 -> ScanMode.BALANCED
             2 -> ScanMode.LOW_LATENCY
+            4 -> ScanMode.OPPORTUNISTIC 
             else -> ScanMode.LOW_POWER
         }
         centralManager.setScanMode(mode)
-        centralManager.scanForPeripheralsWithServices(filteredUUIDs.toTypedArray())
+        
+        //TODO PP
+        if (filteredUUIDs != null)
+        { 
+          centralManager.scanForPeripheralsWithServices(filteredUUIDs.toTypedArray())
+        }  
+        else { 
+          centralManager.scanForPeripherals()
+        }  
     }
 
     fun stopDeviceScan() {
