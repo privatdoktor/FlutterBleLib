@@ -228,8 +228,6 @@ class Characteristic {
     }).toList();
   }
 
-
-
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
