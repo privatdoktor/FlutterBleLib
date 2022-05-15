@@ -199,6 +199,8 @@ class Characteristic {
     return stream;
   } 
 
+//print('sync 1 ::::::::::::::::::::::::::::::::::::::::: monitor rwa value received: $rawValue');
+      
   /// Returns a list of [Descriptor]s of this characteristic.
   Future<List<Descriptor>> descriptors() async {
     String? jsonString;
