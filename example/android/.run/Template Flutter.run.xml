@@ -1,8 +1,0 @@
-<component name="ProjectRunConfigurationManager">
-  <configuration default="true" type="FlutterRunConfigurationType" factoryName="Flutter">
-    <option name="additionalArgs" value="--no-sound-null-safety" />
-    <option name="buildFlavor" value="development" />
-    <option name="filePath" value="lib/main.dart" />
-    <method v="2" />
-  </configuration>
-</component>

@@ -62,7 +62,7 @@ abstract class ScanMode {
   static const int lowPower = 0;
   static const int balanced = 1;
   static const int lowLatency = 2;
-  static const int opportunistic = 4; //TODO PP
+  static const int opportunistic = 4; //PP
 }
 
 /// Type of scan for peripherals callback - Android only.
@@ -224,9 +224,12 @@ class BleManager {
     }
     return scanEvents;
   }
+
+  /* PP
   void _resetScanEvents() {
     _activeScanEvents = null;
   }
+  */
 
 // ++MH++
   /// Starts scanning for peripherals.
@@ -250,7 +253,7 @@ class BleManager {
   Future<Stream<ScanResult>> startPeripheralScan({
     required int scanMode,
     required int callbackType,
-    required List<String>? uuids, //TODO PP
+    required List<String>? uuids, //PP
     required bool allowDuplicates,
   }) async {
     await BleManager._methodChannel.invokeMethod<void>(
